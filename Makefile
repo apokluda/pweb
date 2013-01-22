@@ -42,10 +42,10 @@ EQUALS = =
 CMAKE_EDIT_COMMAND = /usr/bin/ccmake
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/alex/workspace/pweb
+CMAKE_SOURCE_DIR = /home/alex/workspace/trunk
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/alex/workspace/pweb
+CMAKE_BINARY_DIR = /home/alex/workspace/trunk
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -72,9 +72,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/alex/workspace/pweb/CMakeFiles /home/alex/workspace/pweb/CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/alex/workspace/trunk/CMakeFiles /home/alex/workspace/trunk/CMakeFiles/progress.marks
 	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/alex/workspace/pweb/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/alex/workspace/trunk/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -102,6 +102,19 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named mongoose
+
+# Build rule for target.
+mongoose: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 mongoose
+.PHONY : mongoose
+
+# fast build rule for target.
+mongoose/fast:
+	$(MAKE) -f lib/CMakeFiles/mongoose.dir/build.make lib/CMakeFiles/mongoose.dir/build
+.PHONY : mongoose/fast
+
+#=============================================================================
 # Target rules for targets named pweb
 
 # Build rule for target.
@@ -111,7 +124,7 @@ pweb: cmake_check_build_system
 
 # fast build rule for target.
 pweb/fast:
-	$(MAKE) -f src/CMakeFiles/pweb.dir/build.make src/CMakeFiles/pweb.dir/build
+	$(MAKE) -f bin/CMakeFiles/pweb.dir/build.make bin/CMakeFiles/pweb.dir/build
 .PHONY : pweb/fast
 
 # Help Target
@@ -122,6 +135,7 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... mongoose"
 	@echo "... pweb"
 .PHONY : help
 
