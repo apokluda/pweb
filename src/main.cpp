@@ -2,6 +2,10 @@
 #include <string.h>
 #include "mongoose.h"
 
+#ifdef WIN32
+#define snprintf _snprintf
+#endif
+
 char HANDLED[1];
 
 static void *callback(enum mg_event event,
