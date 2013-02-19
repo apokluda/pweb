@@ -1,0 +1,41 @@
+RFC 1034 - Domain Names - Concepts and Facilities (http://tools.ietf.org/html/rfc1034)
+
+3.1
+
+Internally, programs that manipulate domain names should represent them
+as sequences of labels, where each label is a length octet followed by
+an octet string.  Because all domain names end at the root, which has a
+null string for a label, these internal representations can use a length
+byte of zero to terminate a domain name.
+
+By convention, domain names can be stored with arbitrary case, but
+domain name comparisons for all present domain functions are done in a
+case-insensitive manner, assuming an ASCII character set, and a high
+order zero bit.  This means that you are free to create a node with
+label "A" or a node with label "a", but not both as brothers; you could
+refer to either using "a" or "A".  When you receive a domain name or
+label, you should preserve its case.  The rationale for this choice is
+that we may someday need to add full binary domain names for new
+services; existing services would not be changed.
+
+To simplify implementations, the total number of octets that represent a
+domain name (i.e., the sum of all label octets and label lengths) is
+limited to 255.
+
+** Need to update TTLs when data is from cache
+
+RFC 1035        Domain Implementation and Specification    November 1987
+
+2.3.4. Size limits
+
+Various objects and parameters in the DNS have size limits.  They are
+listed below.  Some could be easily changed, others are more
+fundamental.
+
+labels          63 octets or less
+
+names           255 octets or less
+
+TTL             positive values of a signed 32 bit number.
+
+UDP messages    512 octets or less
