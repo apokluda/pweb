@@ -6,6 +6,25 @@
  *
  *  Created on: 2013-02-19
  *      Author: Alexander Pokluda <apokluda@uwaterloo.ca>
+ *
+ * Implementation/Deployment Notes:
+ * - The name to IP bindings retrieved from the Plexus
+ *   overlay are not cached. It is assumed that this program
+ *   will be run behind name servers configured that
+ *   will cache names (a configurable TTL value is returned
+ *   in the DNS response). If it it determined that caching
+ *   is necessary in the future, a local cache could easily
+ *   be added to this program or a distributed cache based
+ *   on something like memcached could be accessed by a
+ *   dnsgw server farm.
+ *
+ * - dnsgw is implemented with a single main thread using
+ *   an efficient asyncronous architecture based on
+ *   Boost asio. It is expected that this program will be
+ *   I/O bound, not CPU bound. If necessary, multiple
+ *   instances of this program can be run on a single machine
+ *   to take advantage of multi-core CPUs.
+ *
  */
 
 #include "stdhdr.h"
@@ -23,6 +42,7 @@ int main(int argc, char const* argv[])
     {
         string config_file;
         string interface;
+        string suffix;
         uint32_t ttl;
         uint16_t port;
 
@@ -35,6 +55,7 @@ int main(int argc, char const* argv[])
             ("config,c", po::value< string >(&config_file)->implicit_value("/etc/dnsgw.cfg"), "config file name")
             ("iface,i", po::value< string >(&interface), "IP address of interface to listen on")
             ("port,p", po::value< uint16_t >(&port)->default_value(53), "port to listen on")
+            ("suffix,s", po::value< string >(&suffix)->default_value(".dht"), "suffix to be removed from names before querying DHT")
         ;
 
         // Declare a group of options that will be allowed both
