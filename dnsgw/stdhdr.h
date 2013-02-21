@@ -30,6 +30,7 @@
 #include <log4cpp/OstreamAppender.hh>
 #include <log4cpp/Layout.hh>
 #include <log4cpp/BasicLayout.hh>
+#include <log4cpp/PatternLayout.hh>
 #include <log4cpp/Priority.hh>
 
 #endif /* STDHDR_H_ */

@@ -21,6 +21,7 @@
  */
 
 #include "stdhdr.h"
+#include "dnsspeaker.hpp"
 
 using std::cout;
 using std::cerr;
@@ -39,29 +40,35 @@ static void run( boost::asio::io_service& io_service, size_t const num_threads )
     boost::asio::signal_set sig_set( io_service, SIGINT, SIGTERM );
     sig_set.async_wait( boost::bind( &boost::asio::io_service::stop, &io_service ) );
 
-    // Create a pool of threads to run all of the io_services.
-    std::vector<boost::shared_ptr<boost::thread> > threads;
-    threads.reserve( num_threads );
-    for (size_t i = 0; i < num_threads; ++i)
+    if ( num_threads > 1 )
     {
-        boost::shared_ptr<boost::thread> thread( new boost::thread(
-                boost::bind( &boost::asio::io_service::run, &io_service ) ) );
-        threads.push_back( thread );
+        // Create a pool of threads to run all of the io_services.
+        std::vector<boost::shared_ptr<boost::thread> > threads;
+        threads.reserve( num_threads );
+        for (size_t i = 0; i < num_threads; ++i)
+        {
+            boost::shared_ptr<boost::thread> thread( new boost::thread(
+                    boost::bind( &boost::asio::io_service::run, &io_service ) ) );
+            threads.push_back( thread );
 
-        log.debugStream() << "Started io_service thread " << i;
+            log.debugStream() << "Started io_service thread " << i << " with id " << thread->get_id();
+        }
+
+        // Wait for all threads in the pool to exit.
+        for (size_t i = 0; i < threads.size(); ++i)
+            threads[i]->join();
     }
-
-    // Wait for all threads in the pool to exit.
-    for (size_t i = 0; i < threads.size(); ++i)
-        threads[i]->join();
+    else
+    {
+        // Run one io_service in current thread
+        log.debug("Starting io_service event loop");
+        io_service.run();
+    }
 }
 
 int main(int argc, char const* argv[])
 {
     int exit_code = EXIT_SUCCESS;
-
-    log4cpp::Appender* log_app = NULL;
-    log4cpp::Layout* log_lay = NULL;
 
     try
     {
@@ -81,10 +88,10 @@ int main(int argc, char const* argv[])
         generic.add_options()
                     ("version,v", "print version string")
                     ("help,h", "produce help message")
-                    ("config,c", po::value< string >(&config_file)->implicit_value("/etc/dnsgw.cfg"), "config file name")
-                    ("log_file,l", po::value< string >(&log_file)->default_value("/var/log/dnsgw"), "log file name")
+                    ("config,c", po::value< string >(&config_file)->implicit_value("dnsgw.cfg"), "config file name")
+                    ("log_file,l", po::value< string >(&log_file)->default_value("dnsgw.log"), "log file name")
                     ("log_level,L", po::value< string >(&log_level)->default_value("WARN"), "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
-                    ("iface,i", po::value< string >(&interface), "IP address of interface to listen on")
+                    ("iface,i", po::value< string >(&interface), "IP v4 or v6 address of interface to listen on")
                     ("port,p", po::value< uint16_t >(&port)->default_value(53), "port to listen on")
                     ("suffix,s", po::value< string >(&suffix)->default_value(".dht"), "suffix to be removed from names before querying DHT")
                     ("threads", po::value< size_t >(&num_threads)->default_value(1), "number of application threads (0 = one thread per hardware core)")
@@ -145,12 +152,22 @@ int main(int argc, char const* argv[])
         }
 
         // Initialize logging
-        log_app = new log4cpp::FileAppender("File Appender", log_file.c_str());
-        log_lay = new log4cpp::BasicLayout();
-        log_app->setLayout(log_lay);
         log4cpp::Category& log = log4cpp::Category::getRoot();
-        log.setAdditivity( debug );
-        log.setAppender(log_app);
+
+        log4cpp::Appender* app = new log4cpp::FileAppender("file", log_file.c_str());
+        log.addAppender(app); // ownership of appender passed to category
+        app->setLayout(new log4cpp::BasicLayout()); // ownership of layout passed to appender
+
+        if (debug)
+        {
+            log.setAdditivity(true);
+            log4cpp::Appender* capp = new log4cpp::OstreamAppender("console", &std::cout);
+            log.addAppender(capp);
+            log4cpp::PatternLayout* clay = new log4cpp::PatternLayout();
+            clay->setConversionPattern("%d [%p] %m%n");
+            capp->setLayout(clay);
+        }
+
         log.setPriority(log4cpp::Priority::getPriorityValue(log_level));
 
         if ( num_threads == 0 )
@@ -159,7 +176,7 @@ int main(int argc, char const* argv[])
         }
 
         boost::asio::io_service io_service;
-        //dnsspeaker s(io_service, interface, port, num_threads);
+        dnsspeaker s(io_service, interface, port, num_threads);
         run( io_service, num_threads );
 
         // Fall through to shutdown logging
@@ -173,11 +190,6 @@ int main(int argc, char const* argv[])
     }
 
     // Shutdown logging
-    log4cpp::Category& log = log4cpp::Category::getRoot();
-    log.removeAppender(log_app);
-    delete log_app;
-    delete log_lay;
-
     log4cpp::Category::shutdown();
 
     return exit_code;
