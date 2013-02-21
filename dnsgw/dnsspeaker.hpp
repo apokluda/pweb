@@ -35,7 +35,7 @@ class dns_query_header
     // http://tools.ietf.org/html/rfc1035
 
 public:
-    enum opcode
+    enum opcode_t
     {
         O_QUERY,
         O_IQUERY,
@@ -43,7 +43,7 @@ public:
         O_RESERVED
     };
 
-    enum rcode
+    enum rcode_t
     {
         R_SUCCESS,
         R_FORMAT_ERROR,
@@ -87,17 +87,17 @@ public:
         write_short(0, id);
     }
 
-    bool query() const
+    bool qr() const
     {
         return get_bit(2, 0x80);
     }
 
-    void query( bool const query )
+    void qr( bool const qr )
     {
-        set_bit(2, 0x80, query);
+        set_bit(2, 0x80, qr);
     }
 
-    opcode opcode() const
+    opcode_t opcode() const
     {
         unsigned val = (*(buf_.data() + 2) & 0x78) >> 3;
         switch ( val )
@@ -113,7 +113,7 @@ public:
         }
     }
 
-    void opcode( opcode const code )
+    void opcode( opcode_t const code )
     {
         *(buf_.data() + 2 ) |= static_cast< uint8_t >( code << 3 );
     }
@@ -158,7 +158,12 @@ public:
         set_bit(3, 0x80, ra);
     }
 
-    rcode rcode() const
+    int z() const
+    {
+        return *(buf_.data() + 3) & 0x70;
+    }
+
+    rcode_t rcode() const
     {
         unsigned val = *(buf_.data() + 3) & 0x0F;
         switch ( val )
@@ -180,7 +185,7 @@ public:
         }
     }
 
-    void rcode( rcode const code )
+    void rcode( rcode_t const code )
     {
         *(buf_.data() + 3 ) |= static_cast< uint8_t >( code );
     }
@@ -258,7 +263,6 @@ class dnsspeaker : private boost::noncopyable
 protected:
     dnsspeaker() {}
 
-
 };
 
 class udp_dnsspeaker : public dnsspeaker
@@ -269,9 +273,13 @@ public:
     void start();
 
 private:
+    void handle_datagram_received( boost::system::error_code const& ec, std::size_t const bytes_transferred );
+
     boost::asio::ip::udp::endpoint sender_endpoint_;
     boost::asio::ip::udp::socket socket_;
     dns_query_header header_;
+    boost::array< uint8_t, 500 > buf_; // max size defined in DNS proto spec
+    boost::array< boost::asio::mutable_buffer, 2 > buf_arr_;
 };
 
 class tcp_dnsspeaker : public dnsspeaker

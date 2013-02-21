@@ -18,6 +18,8 @@ log4cpp::Category& log4 = log4cpp::Category::getRoot();
 udp_dnsspeaker::udp_dnsspeaker(io_service& io_service, string const& iface, uint16_t port)
 : socket_( io_service )
 {
+    buf_arr_[0] = buffer(header_.buffer());
+    buf_arr_[1] = buffer(buf_);
     try
     {
         ip::udp::endpoint endpoint(ip::udp::v6(), port);
@@ -69,27 +71,36 @@ tcp_dnsspeaker::tcp_dnsspeaker(io_service& io_service, string const& iface, uint
 
 void udp_dnsspeaker::start()
 {
-    boost::asio::async_read_from( socket_, sender_endpoint_, header_.buffer(),
-            boost::bind( &udp_dnsspeaker::handle_header_read, this, ph::error, ph::bytes_transferred ) );
+    socket_.async_receive_from( buf_arr_, sender_endpoint_,
+            boost::bind( &udp_dnsspeaker::handle_datagram_received, this, ph::error, ph::bytes_transferred ) );
 }
 
-void udp_dnsspeaker::handle_header_read( bs::error_code const& ec, std::size_t const bytes_transferred )
+void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::size_t const bytes_transferred )
 {
     if ( !ec )
     {
-        if ( bytes_transferred != header_.length() )
+        // Validate header
+        if ( header_.qr() &&
+                header_.opcode() == dns_query_header::O_QUERY &&
+                header_.z() == 0 )
         {
-            log4.noticeStream() << "Received UDP DNS query with malformed header (" << bytes_transferred << " bytes)";
-            return start();
+            // Header format OK
+            log4.infoStream() << "Received UDP DNS query from " << sender_endpoint_;
+
+            // TODO: Parse body, create a "request object" and send the query to the home agent
         }
-
-
+        else
+        {
+            // Malformed header
+            log4.noticeStream() << "Received UDP DNS query with invalid header from " << sender_endpoint_;
+        }
     }
     else
     {
         log4.errorStream() << "An error occurred while reading UDP DNS query header: " << ec.message();
-        start();
     }
+    // Receive another datagram
+    start();
 }
 
 void tcp_dnsspeaker::start()
