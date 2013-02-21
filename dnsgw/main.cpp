@@ -30,7 +30,7 @@ using std::string;
 using std::ifstream;
 namespace po = boost::program_options;
 
-static void run( boost::asio::io_service& io_service, size_t const num_threads )
+static void run( boost::asio::io_service& io_service, std::size_t const num_threads )
 {
     log4cpp::Category& log = log4cpp::Category::getRoot();
 
@@ -45,7 +45,7 @@ static void run( boost::asio::io_service& io_service, size_t const num_threads )
         // Create a pool of threads to run all of the io_services.
         std::vector<boost::shared_ptr<boost::thread> > threads;
         threads.reserve( num_threads );
-        for (size_t i = 0; i < num_threads; ++i)
+        for (std::size_t i = 0; i < num_threads; ++i)
         {
             boost::shared_ptr<boost::thread> thread( new boost::thread(
                     boost::bind( &boost::asio::io_service::run, &io_service ) ) );
@@ -55,7 +55,7 @@ static void run( boost::asio::io_service& io_service, size_t const num_threads )
         }
 
         // Wait for all threads in the pool to exit.
-        for (size_t i = 0; i < threads.size(); ++i)
+        for (std::size_t i = 0; i < threads.size(); ++i)
             threads[i]->join();
     }
     else
@@ -77,7 +77,7 @@ int main(int argc, char const* argv[])
         string log_level;
         string interface;
         string suffix;
-        size_t num_threads;
+        std::size_t num_threads;
         uint32_t ttl;
         uint16_t port;
         bool debug = false;
@@ -94,7 +94,7 @@ int main(int argc, char const* argv[])
                     ("iface,i", po::value< string >(&interface), "IP v4 or v6 address of interface to listen on")
                     ("port,p", po::value< uint16_t >(&port)->default_value(53), "port to listen on")
                     ("suffix,s", po::value< string >(&suffix)->default_value(".dht"), "suffix to be removed from names before querying DHT")
-                    ("threads", po::value< size_t >(&num_threads)->default_value(1), "number of application threads (0 = one thread per hardware core)")
+                    ("threads", po::value< std::size_t >(&num_threads)->default_value(1), "number of application threads (0 = one thread per hardware core)")
                     ;
 
         // Declare a group of options that will be allowed both
@@ -176,7 +176,8 @@ int main(int argc, char const* argv[])
         }
 
         boost::asio::io_service io_service;
-        dnsspeaker s(io_service, interface, port, num_threads);
+        udp_dnsspeaker udp_dnsspeaker(io_service, interface, port);
+        tcp_dnsspeaker tcp_dnsspeaker(io_service, interface, port);
         run( io_service, num_threads );
 
         // Fall through to shutdown logging
