@@ -15,9 +15,21 @@
 #include <cstring>
 #include <cstdlib>
 
-// Boost libraries
+// Boost
 #include <boost/program_options.hpp>
 #include <boost/cstdint.hpp>
+#include <boost/asio.hpp>
+#include <boost/thread.hpp>
+#include <boost/bind.hpp>
+#include <boost/algorithm/string.hpp>
 
+// Logging
+#include <log4cpp/Category.hh>
+#include <log4cpp/Appender.hh>
+#include <log4cpp/FileAppender.hh>
+#include <log4cpp/OstreamAppender.hh>
+#include <log4cpp/Layout.hh>
+#include <log4cpp/BasicLayout.hh>
+#include <log4cpp/Priority.hh>
 
 #endif /* STDHDR_H_ */

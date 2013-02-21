@@ -18,13 +18,6 @@
  *   on something like memcached could be accessed by a
  *   dnsgw server farm.
  *
- * - dnsgw is implemented with a single main thread using
- *   an efficient asyncronous architecture based on
- *   Boost asio. It is expected that this program will be
- *   I/O bound, not CPU bound. If necessary, multiple
- *   instances of this program can be run on a single machine
- *   to take advantage of multi-core CPUs.
- *
  */
 
 #include "stdhdr.h"
@@ -36,41 +29,80 @@ using std::string;
 using std::ifstream;
 namespace po = boost::program_options;
 
+static void run( boost::asio::io_service& io_service, size_t const num_threads )
+{
+    log4cpp::Category& log = log4cpp::Category::getRoot();
+
+    // Register to handle the signals that indicate when the server should exit.
+    // It is safe to register for the same signal multiple times in a program,
+    // provided all registration for the specified signal is made through asio.
+    boost::asio::signal_set sig_set( io_service, SIGINT, SIGTERM );
+    sig_set.async_wait( boost::bind( &boost::asio::io_service::stop, &io_service ) );
+
+    // Create a pool of threads to run all of the io_services.
+    std::vector<boost::shared_ptr<boost::thread> > threads;
+    threads.reserve( num_threads );
+    for (size_t i = 0; i < num_threads; ++i)
+    {
+        boost::shared_ptr<boost::thread> thread( new boost::thread(
+                boost::bind( &boost::asio::io_service::run, &io_service ) ) );
+        threads.push_back( thread );
+
+        log.debugStream() << "Started io_service thread " << i;
+    }
+
+    // Wait for all threads in the pool to exit.
+    for (size_t i = 0; i < threads.size(); ++i)
+        threads[i]->join();
+}
+
 int main(int argc, char const* argv[])
 {
+    int exit_code = EXIT_SUCCESS;
+
+    log4cpp::Appender* log_app = NULL;
+    log4cpp::Layout* log_lay = NULL;
+
     try
     {
         string config_file;
+        string log_file;
+        string log_level;
         string interface;
         string suffix;
+        size_t num_threads;
         uint32_t ttl;
         uint16_t port;
+        bool debug = false;
 
         // Declare a group of options that will be available only
         // on the command line
         po::options_description generic("Generic options");
         generic.add_options()
-            ("version,v", "print version string")
-            ("help,h", "produce help message")
-            ("config,c", po::value< string >(&config_file)->implicit_value("/etc/dnsgw.cfg"), "config file name")
-            ("iface,i", po::value< string >(&interface), "IP address of interface to listen on")
-            ("port,p", po::value< uint16_t >(&port)->default_value(53), "port to listen on")
-            ("suffix,s", po::value< string >(&suffix)->default_value(".dht"), "suffix to be removed from names before querying DHT")
-        ;
+                    ("version,v", "print version string")
+                    ("help,h", "produce help message")
+                    ("config,c", po::value< string >(&config_file)->implicit_value("/etc/dnsgw.cfg"), "config file name")
+                    ("log_file,l", po::value< string >(&log_file)->default_value("/var/log/dnsgw"), "log file name")
+                    ("log_level,L", po::value< string >(&log_level)->default_value("WARN"), "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
+                    ("iface,i", po::value< string >(&interface), "IP address of interface to listen on")
+                    ("port,p", po::value< uint16_t >(&port)->default_value(53), "port to listen on")
+                    ("suffix,s", po::value< string >(&suffix)->default_value(".dht"), "suffix to be removed from names before querying DHT")
+                    ("threads", po::value< size_t >(&num_threads)->default_value(1), "number of application threads (0 = one thread per hardware core)")
+                    ;
 
         // Declare a group of options that will be allowed both
         // on the command line and in the config file
         po::options_description config("Configuration");
         config.add_options()
-            ("ttl", po::value< uint32_t >(&ttl)->default_value( 3600 ), "number of seconds to cache name to IP mappings")
-        ;
+                    ("ttl", po::value< uint32_t >(&ttl)->default_value(3600), "number of seconds to cache name to IP mappings")
+                    ;
 
         // Hidden options, will be allowed both on command line
         // and in config file, but will not be shown to the user
         po::options_description hidden("Hidden options");
         hidden.add_options()
-            ("debug,d", "enable debugging output")
-        ;
+                    ("debug,d", po::value< bool >(&debug)->implicit_value(true), "don't daemonize and enable debugging output")
+                    ;
 
         // Combine options
         po::options_description cmdline_options;
@@ -112,14 +144,41 @@ int main(int argc, char const* argv[])
             return EXIT_SUCCESS;
         }
 
-        // TODO: Create and initialize DNS protocol handler
+        // Initialize logging
+        log_app = new log4cpp::FileAppender("File Appender", log_file.c_str());
+        log_lay = new log4cpp::BasicLayout();
+        log_app->setLayout(log_lay);
+        log4cpp::Category& log = log4cpp::Category::getRoot();
+        log.setAdditivity( debug );
+        log.setAppender(log_app);
+        log.setPriority(log4cpp::Priority::getPriorityValue(log_level));
 
-        return EXIT_SUCCESS;
+        if ( num_threads == 0 )
+        {
+            num_threads = boost::thread::hardware_concurrency();
+        }
+
+        boost::asio::io_service io_service;
+        //dnsspeaker s(io_service, interface, port, num_threads);
+        run( io_service, num_threads );
+
+        // Fall through to shutdown logging
     }
     catch ( std::exception const& e )
     {
         cerr << e.what() << endl;
 
-        return EXIT_FAILURE;
+        // Set exit code and fall through to shutdown logging
+        exit_code = EXIT_FAILURE;
     }
+
+    // Shutdown logging
+    log4cpp::Category& log = log4cpp::Category::getRoot();
+    log.removeAppender(log_app);
+    delete log_app;
+    delete log_lay;
+
+    log4cpp::Category::shutdown();
+
+    return exit_code;
 }
