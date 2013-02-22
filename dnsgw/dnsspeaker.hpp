@@ -8,7 +8,8 @@
 #ifndef DNSSPEAKER_HPP_
 #define DNSSPEAKER_HPP_
 
-#include "stdhdr.h"
+#include "stdhdr.hpp"
+#include "dnsquery.hpp"
 
 class dns_query_header
 {
@@ -276,6 +277,8 @@ public:
         return socket_;
     }
 
+    void send_reply( query_ptr query );
+
 private:
     void handle_msg_len_read(boost::system::error_code const&, std::size_t const);
     void handle_query_read(boost::system::error_code const&, std::size_t const);
@@ -301,6 +304,8 @@ public:
     udp_dnsspeaker(boost::asio::io_service& io_service, std::string const& iface, uint16_t port);
 
     void start();
+
+    void send_reply( query_ptr query );
 
 private:
     void handle_datagram_received( boost::system::error_code const& ec, std::size_t const bytes_transferred );

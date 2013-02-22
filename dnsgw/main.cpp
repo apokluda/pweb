@@ -20,7 +20,7 @@
  *
  */
 
-#include "stdhdr.h"
+#include "stdhdr.hpp"
 #include "dnsspeaker.hpp"
 
 using std::cout;

@@ -11,6 +11,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <stdexcept>
 
 #include <cstring>
 #include <cstdlib>
@@ -22,6 +23,7 @@
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/variant.hpp>
 
 // Logging
 #include <log4cpp/Category.hh>

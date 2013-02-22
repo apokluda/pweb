@@ -5,8 +5,9 @@
  *      Author: apokluda
  */
 
-#include "stdhdr.h"
+#include "stdhdr.hpp"
 #include "dnsspeaker.hpp"
+#include "dnsquery.hpp"
 
 using namespace boost::asio;
 using std::string;
@@ -14,6 +15,78 @@ namespace ph = boost::asio::placeholders;
 namespace bs = boost::system;
 
 log4cpp::Category& log4 = log4cpp::Category::getRoot();
+
+namespace dns_query_parser
+{
+    class parse_error : public std::runtime_error
+    {
+    public:
+        parse_error(string const& msg)
+        : runtime_error(msg)
+        {
+        }
+    };
+
+    uint8_t const* parse_question(dnsquery& query, uint8_t const* buf, uint8_t const* const end)
+    {
+        // TODO: Not implemented yet!
+        return buf;
+    }
+
+    uint8_t const* parse_answer(dnsquery& query, uint8_t const* buf, uint8_t const* const end)
+    {
+        // TODO: Not implemented yet!
+        return buf;
+    }
+
+    uint8_t const* parse_authority(dnsquery& query, uint8_t const* buf, uint8_t const* const end)
+    {
+        // TODO: Not implemented yet!
+        return buf;
+    }
+
+    uint8_t const* parse_additional(dnsquery& query, uint8_t const* buf, uint8_t const* const end)
+    {
+        // TODO: Not implemented yet!
+        return buf;
+    }
+};
+
+void parse_dns_query(dnsquery& query, dns_query_header const& header, uint8_t const* buf, uint8_t const* const end)
+{
+    using namespace dns_query_parser;
+
+    query.id( header.id() );
+
+    int num_questions = header.qdcount();
+    for ( int i = 0; i < num_questions; ++i )
+    {
+        buf = parse_question(query, buf, end);
+    }
+
+    int num_answers = header.ancount();
+    for ( int i = 0; i < num_answers; ++i )
+    {
+        buf = parse_answer(query, buf, end);
+    }
+
+    int num_authorities = header.nscount();
+    for ( int i = 0; i < num_authorities; ++i )
+    {
+        buf = parse_authority(query, buf, end);
+    }
+
+    int num_additionals = header.arcount();
+    for ( int i = 0; i < num_additionals; ++i )
+    {
+        buf = parse_additional(query, buf, end);
+    }
+
+    if ( buf != end )
+    {
+        throw parse_error("Additional data at end of query message");
+    }
+}
 
 udp_dnsspeaker::udp_dnsspeaker(io_service& io_service, string const& iface, uint16_t port)
 : socket_( io_service )
@@ -78,19 +151,37 @@ void udp_dnsspeaker::start()
             boost::bind( &udp_dnsspeaker::handle_datagram_received, this, ph::error, ph::bytes_transferred ) );
 }
 
+void udp_dnsspeaker::send_reply( query_ptr query )
+{
+    // TODO: Whoo hoo!! Sending reply from Plexus overlay!
+
+    // SHOULD I POST A CALL TO AN INTERNAL OPERATION USING A STRAND?!?
+    // IT IS POSSIBLE THAT THERE ARE MANY QUERIES IN FLIGHT AND SEND_REPLY()
+    // COULD BE CALLED CONCURRENTLY!
+
+    // We must send back to here:
+    query->remote_udp_endpoint();
+}
+
 void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::size_t const bytes_transferred )
 {
     if ( !ec )
     {
         // Validate header
-        if ( header_.qr() &&
+        if ( bytes_transferred >= header_.length() &&
+                header_.qr() &&
                 header_.opcode() == dns_query_header::O_QUERY &&
                 header_.z() == 0 )
         {
             // Header format OK
             log4.infoStream() << "Received UDP DNS query from " << sender_endpoint_;
 
-            // TODO: Parse body, create a "request object" and send the query to the home agent
+            boost::shared_ptr< dnsquery > query( new dnsquery );
+            query->sender( this, sender_endpoint_ );
+            parse_dns_query( *query, header_, buf_.data(), buf_.data() + bytes_transferred - header_.length());
+            // TODO: some_handler_object.process_query( query );
+
+            // Fall through to start() below
         }
         else
         {
@@ -164,14 +255,20 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
     if ( !ec )
     {
         // Validate header
-        if ( header_.qr() &&
+        if ( bytes_transferred >= header_.length() &&
+                header_.qr() &&
                 header_.opcode() == dns_query_header::O_QUERY &&
                 header_.z() == 0 )
         {
             // Header format OK
             log4.infoStream() << "Received TCP DNS query from " << socket_.remote_endpoint();
 
-            // TODO: Parse body, create a "request object" and send the query to the home agent
+            boost::shared_ptr< dnsquery > query( new dnsquery );
+            query->sender( shared_from_this() );
+            parse_dns_query( *query, header_, buf_.data(), buf_.data() + bytes_transferred - header_.length());
+            // TODO: some_handler_object.process_query( query );
+
+            start();
         }
         else
         {
@@ -183,4 +280,13 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
     {
         log4.errorStream() << "An error occurred while receiving TCP DNS query from " << socket_.remote_endpoint() << ": " << ec.message();
     }
+}
+
+void dns_connection::send_reply( query_ptr query )
+{
+    // TODO: Whoo hoo!! Sending reply from Plexus overlay!
+
+    // SHOULD I POST A CALL TO AN INTERNAL OPERATION USING A STRAND?!?
+    // IT IS POSSIBLE THAT THERE ARE MANY QUERIES IN FLIGHT AND SEND_REPLY()
+    // COULD BE CALLED CONCURRENTLY!
 }
