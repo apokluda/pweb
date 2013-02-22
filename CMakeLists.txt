@@ -11,7 +11,7 @@ include_directories( mongoose )
 set( Boost_USE_STATIC_LIBS      ON  )
 set( Boost_USE_MULTITHREADED    ON  )
 set( Boost_USE_STATIC_RUNTIME   OFF )
-find_package( Boost 1.49.0 COMPONENTS program_options thread system )
+find_package( Boost 1.48.0 COMPONENTS program_options thread system )
 include_directories( ${Boost_INCLUDE_DIRECTORIES} )
 
 add_subdirectory( dnsgw dnsgw.bin )
