@@ -258,17 +258,47 @@ private:
     boost::array< uint8_t, HEADER_LENGTH > buf_;
 };
 
+class dns_connection
+    : public boost::enable_shared_from_this< dns_connection >,
+      private boost::noncopyable
+{
+public:
+    dns_connection(boost::asio::io_service& io_service)
+    : socket_(io_service)
+    {
+        buf_arr_[0] = header_.buffer();
+    }
+
+    void start();
+
+    boost::asio::ip::tcp::socket& socket()
+    {
+        return socket_;
+    }
+
+private:
+    void handle_msg_len_read(boost::system::error_code const&, std::size_t const);
+    void handle_query_read(boost::system::error_code const&, std::size_t const);
+
+    boost::asio::ip::tcp::socket socket_;
+    boost::array< uint8_t, 1024> buf_;
+    boost::array< boost::asio::mutable_buffer, 2 > buf_arr_;
+    dns_query_header header_;
+    uint16_t msg_len_;
+};
+
+typedef boost::shared_ptr< dns_connection > dns_connection_ptr;
+
 class dnsspeaker : private boost::noncopyable
 {
 protected:
     dnsspeaker() {}
-
 };
 
 class udp_dnsspeaker : public dnsspeaker
 {
 public:
-    explicit udp_dnsspeaker(boost::asio::io_service& io_service, std::string const& iface, uint16_t port);
+    udp_dnsspeaker(boost::asio::io_service& io_service, std::string const& iface, uint16_t port);
 
     void start();
 
@@ -285,12 +315,16 @@ private:
 class tcp_dnsspeaker : public dnsspeaker
 {
 public:
-    explicit tcp_dnsspeaker(boost::asio::io_service& io_service, std::string const& iface, uint16_t port);
+    tcp_dnsspeaker(boost::asio::io_service& io_service, std::string const& iface, uint16_t port);
 
     void start();
 
 private:
-    boost::asio::ip::tcp::socket socket_;
+    void handle_accept(boost::system::error_code const& ec);
+
+    boost::asio::io_service& io_service_;
+    dns_connection_ptr new_connection_;
+    boost::asio::ip::tcp::acceptor acceptor_;
 };
 
 #endif /* DNSSPEAKER_HPP_ */
