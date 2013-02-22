@@ -20,6 +20,7 @@
 #include <boost/program_options.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/asio.hpp>
+#include <boost/asio/signal_set.hpp> // not included by asio.hpp on 1.48
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
 #include <boost/algorithm/string.hpp>
