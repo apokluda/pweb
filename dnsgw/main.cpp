@@ -21,6 +21,7 @@
  */
 
 #include "stdhdr.hpp"
+#include "haspeaker.hpp"
 #include "dnsspeaker.hpp"
 
 using std::cout;
@@ -89,12 +90,6 @@ int main(int argc, char const* argv[])
                     ("version,v", "print version string")
                     ("help,h", "produce help message")
                     ("config,c", po::value< string >(&config_file)->implicit_value("dnsgw.cfg"), "config file name")
-                    ("log_file,l", po::value< string >(&log_file)->default_value("dnsgw.log"), "log file name")
-                    ("log_level,L", po::value< string >(&log_level)->default_value("WARN"), "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
-                    ("iface,i", po::value< string >(&interface), "IP v4 or v6 address of interface to listen on")
-                    ("port,p", po::value< uint16_t >(&port)->default_value(53), "port to listen on")
-                    ("suffix,s", po::value< string >(&suffix)->default_value(".dht"), "suffix to be removed from names before querying DHT")
-                    ("threads", po::value< std::size_t >(&num_threads)->default_value(1), "number of application threads (0 = one thread per hardware core)")
                     ;
 
         // Declare a group of options that will be allowed both
@@ -102,6 +97,12 @@ int main(int argc, char const* argv[])
         po::options_description config("Configuration");
         config.add_options()
                     ("ttl", po::value< uint32_t >(&ttl)->default_value(3600), "number of seconds to cache name to IP mappings")
+                    ("log_file,l", po::value< string >(&log_file)->default_value("dnsgw.log"), "log file name")
+                    ("log_level,L", po::value< string >(&log_level)->default_value("WARN"), "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
+                    ("iface,i", po::value< string >(&interface), "IP v4 or v6 address of interface to listen on")
+                    ("port,p", po::value< uint16_t >(&port)->default_value(53), "port to listen on")
+                    ("suffix,s", po::value< string >(&suffix)->default_value(".dht"), "suffix to be removed from names before querying DHT")
+                    ("threads", po::value< std::size_t >(&num_threads)->default_value(1), "number of application threads (0 = one thread per hardware core)")
                     ;
 
         // Hidden options, will be allowed both on command line
@@ -176,8 +177,26 @@ int main(int argc, char const* argv[])
         }
 
         boost::asio::io_service io_service;
-        udp_dnsspeaker udp_dnsspeaker(io_service, interface, port);
-        tcp_dnsspeaker tcp_dnsspeaker(io_service, interface, port);
+
+        typedef boost::shared_ptr< haspeaker > haspeaker_ptr;
+        typedef std::vector< haspeaker_ptr > haspeakers_t;
+
+        haspeakers_t haspeakers;
+
+        // TODO: create a new haspeaker for each home agent
+        for (int i = 0; i < 0; ++i)
+        {
+            // TODO: add address of home agent to connect to as constructor parameter!
+            haspeaker_ptr hptr(new haspeaker(io_service/*, haaddress*/) );
+            haspeakers.push_back(hptr);
+        }
+
+        // Ownership of haspeakers and vector remains with caller
+        ha_load_balancer< haspeakers_t > halb( haspeakers );
+
+        // TODO: Add ha_load_balancer parameter to constructors!
+        udp_dnsspeaker udp_dnsspeaker(io_service, interface, port/*, ha_load_balancer*/);
+        tcp_dnsspeaker tcp_dnsspeaker(io_service, interface, port/*, ha_load_balancer*/);
         run( io_service, num_threads );
 
         // Fall through to shutdown logging
