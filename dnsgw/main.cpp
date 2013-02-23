@@ -34,22 +34,11 @@ static void run( boost::asio::io_service& io_service, std::size_t const num_thre
 {
     log4cpp::Category& log = log4cpp::Category::getRoot();
 
-#if (BOOST_VERSION / 100) > 1046
-    // Asio in Boost 1.46 does no provide signal handling! Either we
-    // need integrate signal handling with the io_service event loops
-    // (which is probably very tricky to get right) or say that Boost 1.46
-    // is not supported... But the current LTS version of Ubuntu (12.04)
-    // ships with Boost 1.46... We could make users of Ubuntu 12.04 compile
-    // compile their own version of Boost, but how far down the rabbit hole
-    // do we want to go? For now, we just ignore signals for older
-    // versions of Boost and exit clumsily.
-
     // Register to handle the signals that indicate when the server should exit.
     // It is safe to register for the same signal multiple times in a program,
     // provided all registration for the specified signal is made through asio.
     boost::asio::signal_set sig_set( io_service, SIGINT, SIGTERM );
     sig_set.async_wait( boost::bind( &boost::asio::io_service::stop, &io_service ) );
-#endif
 
     if ( num_threads > 1 )
     {
