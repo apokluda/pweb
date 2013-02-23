@@ -11,6 +11,7 @@
 
 using namespace boost::asio;
 using std::string;
+typedef std::stringstream sstream;
 namespace ph = boost::asio::placeholders;
 namespace bs = boost::system;
 
@@ -18,7 +19,7 @@ log4cpp::Category& log4 = log4cpp::Category::getRoot();
 
 namespace dns_query_parser
 {
-    class parse_error : public std::runtime_error
+     class parse_error : public std::runtime_error
     {
     public:
         parse_error(string const& msg)
@@ -27,9 +28,112 @@ namespace dns_query_parser
         }
     };
 
+    void inline unexpected_end_of_message()
+    {
+        throw parse_error("Unexpected end of message");
+    }
+
+    void inline check_end(uint8_t const* const buf, uint8_t const* const end)
+    {
+        if (buf == end) unexpected_end_of_message();
+    }
+
+    void inline check_end(std::ptrdiff_t const len, uint8_t const* const buf, uint8_t const* const end)
+    {
+        if ( (end - buf) > len ) unexpected_end_of_message();
+    }
+
+    uint8_t const* parse_short(uint16_t& val, uint8_t const* buf, uint8_t const* const end)
+    {
+        check_end(2, buf, end);
+        val = ntohs( *reinterpret_cast< uint16_t const* >( buf ) );
+        return buf + 2;
+    }
+
+    uint8_t const* parse_label_len(std::size_t& len, uint8_t const* buf, uint8_t const* const end)
+    {
+        check_end(buf, end);
+
+        len = *(buf++);
+        if ( len > 63 ) // max defined label length (RFC 1035 S2.3.4)
+        {
+            sstream ss;
+            ss << "Invalid label length: " << len;
+            throw parse_error(ss.str());
+        }
+        return buf;
+    }
+
+    uint8_t const* parse_label(sstream& name, std::size_t len, uint8_t const* buf, uint8_t const* const end)
+    {
+        while ( (--len) >= 0 )
+        {
+            check_end(buf, end);
+
+            name << static_cast< char >( *(buf++) );
+        }
+        name << '.';
+        return buf;
+    }
+
+    uint8_t const* parse_name(string& name, uint8_t const* buf, uint8_t const* const end)
+    {
+        sstream sname;
+        std::size_t name_len = 0;
+
+        std::size_t label_len;
+        buf = parse_label_len(label_len, buf, end);
+        while ( label_len )
+        {
+            if ( (name_len += label_len) > 255 ) // max defined name length (RFC 1035 S2.3.4)
+            {
+                throw parse_error("Name exceeds 255 octets");
+            }
+
+            buf = parse_label(sname, label_len, buf, end);
+            buf = parse_label_len(label_len, buf, end);
+        }
+        name = sname.str();
+
+        return buf;
+    }
+
+    uint8_t const* parse_qtype(qtype_t& qtype, uint8_t const* buf, uint8_t const* const end)
+    {
+        uint16_t val;
+        buf = parse_short(val, buf, end);
+        if (  (val >= T_MIN && val <= T_MAX) || (val >= QT_MIN && val <= QT_MAX ) )
+        {
+            qtype = static_cast< qtype_t >( val );
+            return buf;
+        }
+        sstream ss;
+        ss << "Invalid QTYPE value in question: " << val;
+        throw parse_error(ss.str());
+    }
+
+    uint8_t const* parse_qclass(qclass_t& qclass, uint8_t const* buf, uint8_t const* const end)
+    {
+        uint16_t val;
+        buf = parse_short(val, buf, end);
+        if ( (val >= C_MIN && val <= C_MAX) || (val >= QC_MIN && val <= QC_MAX) )
+        {
+            qclass = static_cast< qclass_t >( val );
+            return buf;
+        }
+        sstream ss;
+        ss << "Invalid QCLASS value in question: " << val;
+        throw parse_error(ss.str());
+    }
+
     uint8_t const* parse_question(dnsquery& query, uint8_t const* buf, uint8_t const* const end)
     {
-        // TODO: Not implemented yet!
+        dnsquestion question;
+
+        buf = parse_name(question.name, buf, end);
+        buf = parse_qtype(question.qtype, buf, end);
+
+        query.add_question(question);
         return buf;
     }
 
@@ -58,10 +162,23 @@ void parse_dns_query(dnsquery& query, dns_query_header const& header, uint8_t co
 
     query.id( header.id() );
 
-    int num_questions = header.qdcount();
-    for ( int i = 0; i < num_questions; ++i )
+    // Warning: calling query.num_questions() may cause it to allocate memory for
+    // num_questions question objects. Obviously this means a mallicious client could
+    // potentially cause us to allocate a large amount of memory in a DoS attack; however,
+    // Unwarning: the number of questions is limited by the query message size that
+    // has already been checked
+    // The same applies for query.num_answers/authority/additional().
+
+    std::size_t num_questions = header.qdcount();
+    query.num_questions(num_questions);
+    for ( std::size_t i = 0; i < num_questions; ++i )
     {
         buf = parse_question(query, buf, end);
+    }
+
+    if ( buf != end )
+    {
+        log4.infoStream() << "Interesting, we received a query with non-empty answer, authority and additional sections";
     }
 
     int num_answers = header.ancount();
@@ -81,6 +198,9 @@ void parse_dns_query(dnsquery& query, dns_query_header const& header, uint8_t co
     {
         buf = parse_additional(query, buf, end);
     }
+
+    // TODO: parse answer, authority and additional not implemented!
+    buf = end;
 
     if ( buf != end )
     {
@@ -178,20 +298,33 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
 
             boost::shared_ptr< dnsquery > query( new dnsquery );
             query->sender( this, sender_endpoint_ );
-            parse_dns_query( *query, header_, buf_.data(), buf_.data() + bytes_transferred - header_.length());
-            // TODO: some_handler_object.process_query( query );
+            try
+            {
+                parse_dns_query( *query, header_, buf_.data(), buf_.data() + bytes_transferred - header_.length());
+                // TODO: some_handler_object.process_query( query );
 
-            // Fall through to start() below
+                // Fall through to start() below
+            }
+            catch ( dns_query_parser::parse_error const& e )
+            {
+                log4.noticeStream() << "An error occurred while parsing UDP DNS query from " << sender_endpoint_;
+
+                // Fall through to start() below
+            }
         }
         else
         {
             // Malformed header
             log4.noticeStream() << "Received UDP DNS query with invalid header from " << sender_endpoint_;
+
+            // Fall through to start() below
         }
     }
     else
     {
         log4.errorStream() << "An error occurred while reading UDP DNS query header: " << ec.message();
+
+        // Fall through to start() below
     }
     // Receive another datagram
     start();
@@ -265,10 +398,17 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
 
             boost::shared_ptr< dnsquery > query( new dnsquery );
             query->sender( shared_from_this() );
-            parse_dns_query( *query, header_, buf_.data(), buf_.data() + bytes_transferred - header_.length());
-            // TODO: some_handler_object.process_query( query );
+            try
+            {
+                parse_dns_query( *query, header_, buf_.data(), buf_.data() + bytes_transferred - header_.length());
+                // TODO: some_handler_object.process_query( query );
 
-            start();
+                start();
+            }
+            catch ( dns_query_parser::parse_error const& e )
+            {
+                log4.noticeStream() << "An error occurred while parsing TCP DNS query from " << socket_.remote_endpoint();
+            }
         }
         else
         {
