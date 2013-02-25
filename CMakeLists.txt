@@ -1,6 +1,12 @@
 cmake_minimum_required (VERSION 2.6)
 project (pWeb)
 
+set(LOG4CPP_INCLUDE_DIR "" CACHE FILEPATH "Path to log4cpp includes")
+include_directories(${LOG4CPP_INCLUDE_DIR})
+
+set(LOG4CPP_LINK_DIR "" CACHE FILEPATH "Path to log4cpp libraries")
+link_directories(${LOG4CPP_LINK_DIR})
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 include(PrecompiledHeader)
 
