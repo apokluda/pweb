@@ -8,4 +8,9 @@ if (WIN32)
     set(LOG4CPP_LIB "log4cppLIB")
 endif (WIN32)
 
-target_link_libraries(dnsgw ${LOG4CPP_LIB} ${Boost_LIBRARIES} rt)
+target_link_libraries(dnsgw ${LOG4CPP_LIB} ${Boost_LIBRARIES})
+
+# On Linux we need to link with rt library
+if(UNIX AND NOT APPLE)
+    target_link_libraries(dnsgw rt)
+endif()
