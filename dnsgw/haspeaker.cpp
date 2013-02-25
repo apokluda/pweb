@@ -5,6 +5,7 @@
  *      Author: alex
  */
 
+#include "stdhdr.hpp"
 #include "haspeaker.hpp"
 
 

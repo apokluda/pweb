@@ -5,6 +5,7 @@
  *      Author: alex
  */
 
+#include "stdhdr.hpp"
 #include "dnsquery.hpp"
 #include "dnsspeaker.hpp"
 
