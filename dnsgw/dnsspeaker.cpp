@@ -43,7 +43,7 @@ namespace dns_query_parser
         if ( (end - buf) > len ) unexpected_end_of_message();
     }
 
-    boost::uint8_t const* parse_short(boost::uint8_t& val, boost::uint8_t const* buf, boost::uint8_t const* const end)
+    boost::uint8_t const* parse_short(boost::uint16_t& val, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
         check_end(2, buf, end);
         val = ntohs( *reinterpret_cast< boost::uint16_t const* >( buf ) );
