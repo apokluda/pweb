@@ -21,8 +21,7 @@ class haspeaker
 {
 public:
     haspeaker(boost::asio::io_service& io_service, std::string const& haaddr)
-    : errwait_(0)
-    , haaddress_(haaddr)
+    : haaddress_(haaddr)
     , resolver_(io_service)
     , retrytimer_(io_service)
     , socket_(io_service)
@@ -45,7 +44,7 @@ private:
     void handle_resolve(boost::system::error_code const& ec, boost::asio::ip::tcp::resolver::iterator iter);
     void handle_connect(boost::system::error_code const& ec);
 
-    std::time_t errwait_;
+    boost::posix_time::time_duration errwait_;
     std::string haaddress_;
     boost::asio::ip::tcp::resolver resolver_;
     boost::asio::deadline_timer retrytimer_;

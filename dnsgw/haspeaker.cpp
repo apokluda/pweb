@@ -47,12 +47,14 @@ void haspeaker::handle_resolve(bs::error_code const& ec, ip::tcp::resolver::iter
 
 void haspeaker::handle_connect(bs::error_code const& ec)
 {
+    using boost::posix_time::seconds;
+
     if ( !ec )
     {
         // Connected to home agent
         log4.infoStream() << "Connected to home agent at address " << haaddress_;
 
-        errwait_ = 0; // reset connection error timer
+        errwait_ = seconds(0); // reset connection error timer
 
         // TODO: Send hello message?
     }
@@ -60,11 +62,11 @@ void haspeaker::handle_connect(bs::error_code const& ec)
     {
         log4.errorStream() << "Unable to connect to home agent at address " << haaddress_ << ": " << ec.message();
 
-        if (errwait_ < 10) errwait_ += 2;
+        if (errwait_ < seconds(10)) errwait_ += seconds(2);
 
-        log4.noticeStream() << "Retrying connection to " << haaddress_ << " in " << errwait_ << "seconds";
+        log4.noticeStream() << "Retrying connection to " << haaddress_ << " in " << errwait_;
 
-        retrytimer_.expires_from_now(boost::posix_time::seconds(errwait_));
+        retrytimer_.expires_from_now(errwait_);
         retrytimer_.async_wait(boost::bind( &haspeaker::connect, shared_from_this(), ph::error ));
     }
 }
