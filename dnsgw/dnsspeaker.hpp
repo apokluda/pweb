@@ -234,7 +234,7 @@ public:
 private:
     inline bool get_bit( int byte, boost::uint8_t mask ) const
     {
-        return *(buf_.data() + byte) & mask;
+        return (*(buf_.data() + byte) & mask) != 0;
     }
 
     void set_bit( int byte, boost::uint8_t mask, bool val )
