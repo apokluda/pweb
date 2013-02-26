@@ -12,10 +12,11 @@
 using namespace boost::asio;
 using std::string;
 typedef std::stringstream sstream;
+namespace b = boost;
 namespace ph = boost::asio::placeholders;
 namespace bs = boost::system;
 
-log4cpp::Category& log4 = log4cpp::Category::getRoot();
+extern log4cpp::Category& log4;
 
 namespace dns_query_parser
 {
@@ -208,8 +209,9 @@ void parse_dns_query(dnsquery& query, dns_query_header const& header, boost::uin
     }
 }
 
-udp_dnsspeaker::udp_dnsspeaker(io_service& io_service, string const& iface, boost::uint16_t port)
-: socket_( io_service )
+udp_dnsspeaker::udp_dnsspeaker(io_service& io_service, b::function<void (query_ptr)> processor, string const& iface, boost::uint16_t port)
+: processor_(processor)
+, socket_( io_service )
 {
     buf_arr_[0] = buffer(header_.buffer());
     buf_arr_[1] = buffer(buf_);
@@ -226,35 +228,6 @@ udp_dnsspeaker::udp_dnsspeaker(io_service& io_service, string const& iface, boos
         socket_.bind(endpoint);
 
         log4.infoStream() << "Listening on " << (iface.empty() ? "all interfaces" : iface.c_str()) << " port " << port << " for UDP connections";
-    }
-    catch ( boost::system::system_error const& )
-    {
-        log4.fatalStream() << "Unable to bind to interface";
-        if (port < 1024 )
-            log4.fatalStream() << "Does the program have sufficient privileges to bind to port " << port << '?';
-        throw;
-    }
-}
-
-tcp_dnsspeaker::tcp_dnsspeaker(io_service& io_service, string const& iface, boost::uint16_t port)
-: io_service_(io_service)
-, acceptor_( io_service )
-{
-    try
-    {
-        ip::tcp::endpoint endpoint(ip::tcp::v6(), port);
-        if ( !iface.empty() )
-        {
-            ip::address bind_addr(ip::address::from_string(iface));
-            endpoint = ip::tcp::endpoint(bind_addr, port);
-        }
-
-        acceptor_.open(endpoint.protocol());
-        acceptor_.set_option( ip::tcp::acceptor::reuse_address( true ) );
-        acceptor_.bind(endpoint);
-        acceptor_.listen();
-
-        log4.infoStream() << "Listening on " << (iface.empty() ? "all interfaces" : iface.c_str()) << " port " << port << " for TCP connections";
     }
     catch ( boost::system::system_error const& )
     {
@@ -301,7 +274,7 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
             try
             {
                 parse_dns_query( *query, header_, buf_.data(), buf_.data() + bytes_transferred - header_.length());
-                // TODO: some_handler_object.process_query( query );
+                processor_( query );
 
                 // Fall through to start() below
             }
@@ -330,9 +303,38 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
     start();
 }
 
+tcp_dnsspeaker::tcp_dnsspeaker(io_service& io_service, b::function<void (query_ptr)> processor, string const& iface, boost::uint16_t port)
+: processor_(processor)
+, acceptor_(io_service)
+{
+    try
+    {
+        ip::tcp::endpoint endpoint(ip::tcp::v6(), port);
+        if ( !iface.empty() )
+        {
+            ip::address bind_addr(ip::address::from_string(iface));
+            endpoint = ip::tcp::endpoint(bind_addr, port);
+        }
+
+        acceptor_.open(endpoint.protocol());
+        acceptor_.set_option( ip::tcp::acceptor::reuse_address( true ) );
+        acceptor_.bind(endpoint);
+        acceptor_.listen();
+
+        log4.infoStream() << "Listening on " << (iface.empty() ? "all interfaces" : iface.c_str()) << " port " << port << " for TCP connections";
+    }
+    catch ( boost::system::system_error const& )
+    {
+        log4.fatalStream() << "Unable to bind to interface";
+        if (port < 1024 )
+            log4.fatalStream() << "Does the program have sufficient privileges to bind to port " << port << '?';
+        throw;
+    }
+}
+
 void tcp_dnsspeaker::start()
 {
-    new_connection_.reset( new dns_connection(io_service_) );
+    new_connection_.reset( new dns_connection(acceptor_.get_io_service(), processor_) );
     acceptor_.async_accept( new_connection_->socket(),
             boost::bind( &tcp_dnsspeaker::handle_accept, this, ph::error ) );
 }
@@ -401,7 +403,7 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
             try
             {
                 parse_dns_query( *query, header_, buf_.data(), buf_.data() + bytes_transferred - header_.length());
-                // TODO: some_handler_object.process_query( query );
+                processor_( query );
 
                 start();
             }

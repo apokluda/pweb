@@ -264,8 +264,9 @@ class dns_connection
       private boost::noncopyable
 {
 public:
-    dns_connection(boost::asio::io_service& io_service)
-    : socket_(io_service)
+    dns_connection(boost::asio::io_service& io_service, boost::function<void (query_ptr)>& processor)
+    : processor_(processor)
+    , socket_(io_service)
     {
         buf_arr_[0] = header_.buffer();
     }
@@ -277,12 +278,18 @@ public:
         return socket_;
     }
 
+    boost::asio::ip::tcp::endpoint remote_endpoint() const
+    {
+        return socket_.remote_endpoint();
+    }
+
     void send_reply( query_ptr query );
 
 private:
     void handle_msg_len_read(boost::system::error_code const&, std::size_t const);
     void handle_query_read(boost::system::error_code const&, std::size_t const);
 
+    boost::function<void (query_ptr)> processor_;
     boost::asio::ip::tcp::socket socket_;
     boost::array< boost::uint8_t, 1024> buf_;
     boost::array< boost::asio::mutable_buffer, 2 > buf_arr_;
@@ -292,16 +299,10 @@ private:
 
 typedef boost::shared_ptr< dns_connection > dns_connection_ptr;
 
-class dnsspeaker : private boost::noncopyable
-{
-protected:
-    dnsspeaker() {}
-};
-
-class udp_dnsspeaker : public dnsspeaker
+class udp_dnsspeaker
 {
 public:
-    udp_dnsspeaker(boost::asio::io_service& io_service, std::string const& iface, boost::uint16_t port);
+    udp_dnsspeaker(boost::asio::io_service& io_service, boost::function<void (query_ptr)> processor, std::string const& iface, boost::uint16_t port);
 
     void start();
 
@@ -310,6 +311,7 @@ public:
 private:
     void handle_datagram_received( boost::system::error_code const& ec, std::size_t const bytes_transferred );
 
+    boost::function<void (query_ptr)> processor_;
     boost::asio::ip::udp::endpoint sender_endpoint_;
     boost::asio::ip::udp::socket socket_;
     dns_query_header header_;
@@ -317,17 +319,17 @@ private:
     boost::array< boost::asio::mutable_buffer, 2 > buf_arr_;
 };
 
-class tcp_dnsspeaker : public dnsspeaker
+class tcp_dnsspeaker
 {
 public:
-    tcp_dnsspeaker(boost::asio::io_service& io_service, std::string const& iface, boost::uint16_t port);
+    tcp_dnsspeaker(boost::asio::io_service& io_service, boost::function<void (query_ptr)> processor, std::string const& iface, boost::uint16_t port);
 
     void start();
 
 private:
     void handle_accept(boost::system::error_code const& ec);
 
-    boost::asio::io_service& io_service_;
+    boost::function<void (query_ptr)> processor_;
     dns_connection_ptr new_connection_;
     boost::asio::ip::tcp::acceptor acceptor_;
 };

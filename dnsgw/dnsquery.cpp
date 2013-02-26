@@ -28,6 +28,21 @@ boost::asio::ip::udp::endpoint dnsquery::remote_udp_endpoint() const
     return endpoint;
 }
 
+class address_visitor
+: public boost::static_visitor< boost::asio::ip::address >
+{
+public:
+    boost::asio::ip::address operator()( udp_connection_t const& conn ) const
+    {
+        return conn.second.address();
+    }
+
+    boost::asio::ip::address operator()( dns_connection_ptr const conn ) const
+    {
+        return conn->remote_endpoint().address();
+    }
+};
+
 class reply_visitor
     : public boost::static_visitor<>
 {
@@ -50,6 +65,11 @@ public:
 private:
     query_ptr query_;
 };
+
+boost::asio::ip::address dnsquery::remote_address() const
+{
+    return boost::apply_visitor( address_visitor(), sender_ );
+}
 
 void dnsquery::send_reply()
 {

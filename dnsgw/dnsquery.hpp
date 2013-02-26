@@ -118,6 +118,8 @@ public:
         sender_ = conn;
     }
 
+    boost::asio::ip::address remote_address() const;
+
     std::size_t num_questions() const
     {
         return questions_.size();

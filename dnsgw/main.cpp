@@ -31,10 +31,10 @@ using std::string;
 using std::ifstream;
 namespace po = boost::program_options;
 
+log4cpp::Category& log4 = log4cpp::Category::getRoot();
+
 static void run( boost::asio::io_service& io_service, std::size_t const num_threads )
 {
-    log4cpp::Category& log = log4cpp::Category::getRoot();
-
     // Register to handle the signals that indicate when the server should exit.
     // It is safe to register for the same signal multiple times in a program,
     // provided all registration for the specified signal is made through asio.
@@ -52,7 +52,7 @@ static void run( boost::asio::io_service& io_service, std::size_t const num_thre
                     boost::bind( &boost::asio::io_service::run, &io_service ) ) );
             threads.push_back( thread );
 
-            log.debugStream() << "Started io_service thread " << i << " with id " << thread->get_id();
+            log4.debugStream() << "Started io_service thread " << i << " with id " << thread->get_id();
         }
 
         // Wait for all threads in the pool to exit.
@@ -62,7 +62,7 @@ static void run( boost::asio::io_service& io_service, std::size_t const num_thre
     else
     {
         // Run one io_service in current thread
-        log.debug("Starting io_service event loop");
+        log4.debug("Starting io_service event loop");
         io_service.run();
     }
 }
@@ -73,11 +73,14 @@ int main(int argc, char const* argv[])
 
     try
     {
+        typedef std::vector< string > haaddr_list_t;
+
         string config_file;
         string log_file;
         string log_level;
         string interface;
         string suffix;
+        haaddr_list_t home_agents;
         std::size_t num_threads;
         boost::uint32_t ttl;
         boost::uint16_t port;
@@ -101,6 +104,7 @@ int main(int argc, char const* argv[])
                     ("log_level,L", po::value< string >(&log_level)->default_value("WARN"), "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
                     ("iface,i", po::value< string >(&interface), "IP v4 or v6 address of interface to listen on")
                     ("port,p", po::value< boost::uint16_t >(&port)->default_value(53), "port to listen on")
+                    ("home_agents,h", po::value< haaddr_list_t >(&home_agents)->required(), "list of home agent addresses to connect to")
                     ("suffix,s", po::value< string >(&suffix)->default_value(".dht"), "suffix to be removed from names before querying DHT")
                     ("threads", po::value< std::size_t >(&num_threads)->default_value(1), "number of application threads (0 = one thread per hardware core)")
                     ;
@@ -153,23 +157,21 @@ int main(int argc, char const* argv[])
         }
 
         // Initialize logging
-        log4cpp::Category& log = log4cpp::Category::getRoot();
-
         log4cpp::Appender* app = new log4cpp::FileAppender("file", log_file.c_str());
-        log.addAppender(app); // ownership of appender passed to category
+        log4.addAppender(app); // ownership of appender passed to category
         app->setLayout(new log4cpp::BasicLayout()); // ownership of layout passed to appender
 
         if (debug)
         {
-            log.setAdditivity(true);
+            log4.setAdditivity(true);
             log4cpp::Appender* capp = new log4cpp::OstreamAppender("console", &std::cout);
-            log.addAppender(capp);
+            log4.addAppender(capp);
             log4cpp::PatternLayout* clay = new log4cpp::PatternLayout();
             clay->setConversionPattern("%d [%p] %m%n");
             capp->setLayout(clay);
         }
 
-        log.setPriority(log4cpp::Priority::getPriorityValue(log_level));
+        log4.setPriority(log4cpp::Priority::getPriorityValue(log_level));
 
         if ( num_threads == 0 )
         {
@@ -178,25 +180,26 @@ int main(int argc, char const* argv[])
 
         boost::asio::io_service io_service;
 
+        // These typedefs must match the typedefs at the end of haspeaker.cpp
+        // in order to avoid linker errors
         typedef boost::shared_ptr< haspeaker > haspeaker_ptr;
         typedef std::vector< haspeaker_ptr > haspeakers_t;
 
         haspeakers_t haspeakers;
-
-        // TODO: create a new haspeaker for each home agent
-        for (int i = 0; i < 0; ++i)
+        haspeakers.reserve( home_agents.size() );
+        for (haaddr_list_t::const_iterator i = home_agents.begin(); i != home_agents.end(); ++i)
         {
-            // TODO: add address of home agent to connect to as constructor parameter!
-            haspeaker_ptr hptr(new haspeaker(io_service/*, haaddress*/) );
+            haspeaker_ptr hptr(new haspeaker(io_service, *i) );
             haspeakers.push_back(hptr);
         }
 
-        // Ownership of haspeakers and vector remains with caller
-        ha_load_balancer< haspeakers_t > halb( haspeakers );
+        // Ownership of haspeakers vector remains with caller
+        typedef ha_load_balancer< haspeakers_t::iterator, haspeakers_t::difference_type > balancer_t;
+        balancer_t halb( io_service, haspeakers.begin(), haspeakers.size() );
 
         // TODO: Add ha_load_balancer parameter to constructors!
-        udp_dnsspeaker udp_dnsspeaker(io_service, interface, port/*, ha_load_balancer*/);
-        tcp_dnsspeaker tcp_dnsspeaker(io_service, interface, port/*, ha_load_balancer*/);
+        udp_dnsspeaker udp_dnsspeaker(io_service, boost::bind(&balancer_t::process_query, &halb, _1), interface, port);
+        tcp_dnsspeaker tcp_dnsspeaker(io_service, boost::bind(&balancer_t::process_query, &halb, _1), interface, port);
         run( io_service, num_threads );
 
         // Fall through to shutdown logging

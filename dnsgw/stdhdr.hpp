@@ -28,6 +28,8 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/variant.hpp>
 #include <boost/version.hpp>
+#include <boost/atomic.hpp>
+#include <boost/function.hpp>
 
 // Logging
 #include <log4cpp/Category.hh>
