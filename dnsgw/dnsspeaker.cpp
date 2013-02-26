@@ -305,7 +305,7 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
 
                 // Fall through to start() below
             }
-            catch ( dns_query_parser::parse_error const& e )
+            catch ( dns_query_parser::parse_error const& )
             {
                 log4.noticeStream() << "An error occurred while parsing UDP DNS query from " << sender_endpoint_;
 
@@ -405,7 +405,7 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
 
                 start();
             }
-            catch ( dns_query_parser::parse_error const& e )
+            catch ( dns_query_parser::parse_error const& )
             {
                 log4.noticeStream() << "An error occurred while parsing TCP DNS query from " << socket_.remote_endpoint();
             }

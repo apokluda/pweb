@@ -79,7 +79,7 @@ int main(int argc, char const* argv[])
         string interface;
         string suffix;
         std::size_t num_threads;
-        uint32_t ttl;
+        boost::uint32_t ttl;
         boost::uint16_t port;
         bool debug = false;
 
@@ -96,7 +96,7 @@ int main(int argc, char const* argv[])
         // on the command line and in the config file
         po::options_description config("Configuration");
         config.add_options()
-                    ("ttl", po::value< uint32_t >(&ttl)->default_value(3600), "number of seconds to cache name to IP mappings")
+                    ("ttl", po::value< boost::uint32_t >(&ttl)->default_value(3600), "number of seconds to cache name to IP mappings")
                     ("log_file,l", po::value< string >(&log_file)->default_value("dnsgw.log"), "log file name")
                     ("log_level,L", po::value< string >(&log_level)->default_value("WARN"), "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
                     ("iface,i", po::value< string >(&interface), "IP v4 or v6 address of interface to listen on")
