@@ -78,12 +78,12 @@ public:
         return boost::asio::buffer( buf_ );
     }
 
-    uint16_t id() const
+    boost::uint16_t id() const
     {
         return read_short(0);
     }
 
-    void id( uint16_t const id)
+    void id( boost::uint16_t const id)
     {
         write_short(0, id);
     }
@@ -116,7 +116,7 @@ public:
 
     void opcode( opcode_t const code )
     {
-        *(buf_.data() + 2 ) |= static_cast< uint8_t >( code << 3 );
+        *(buf_.data() + 2 ) |= static_cast< boost::uint8_t >( code << 3 );
     }
 
     bool aa() const
@@ -188,56 +188,56 @@ public:
 
     void rcode( rcode_t const code )
     {
-        *(buf_.data() + 3 ) |= static_cast< uint8_t >( code );
+        *(buf_.data() + 3 ) |= static_cast< boost::uint8_t >( code );
     }
 
-    uint16_t qdcount() const
+    boost::uint16_t qdcount() const
     {
         return read_short(4);
     }
 
-    void qdcount( uint16_t const val )
+    void qdcount( boost::uint16_t const val )
     {
         write_short(4, val);
     }
 
-    uint16_t ancount() const
+    boost::uint16_t ancount() const
     {
         return read_short(6);
     }
 
-    void ancount( uint16_t const val )
+    void ancount( boost::uint16_t const val )
     {
         write_short(6, val);
     }
 
-    uint16_t nscount() const
+    boost::uint16_t nscount() const
     {
         return read_short(8);
     }
 
-    void nscount( uint16_t const val )
+    void nscount( boost::uint16_t const val )
     {
         write_short(8, val);
     }
 
-    uint16_t arcount() const
+    boost::uint16_t arcount() const
     {
         return read_short(10);
     }
 
-    void arcount( uint16_t const val )
+    void arcount( boost::uint16_t const val )
     {
         write_short(10, val);
     }
 
 private:
-    inline bool get_bit( int byte, uint8_t mask ) const
+    inline bool get_bit( int byte, boost::uint8_t mask ) const
     {
         return *(buf_.data() + byte) & mask;
     }
 
-    void set_bit( int byte, uint8_t mask, bool val )
+    void set_bit( int byte, boost::uint8_t mask, bool val )
     {
         if ( val )
             *(buf_.data() + byte) |= mask;
@@ -245,18 +245,18 @@ private:
             *(buf_.data() + byte) &= ~mask;
     }
 
-    inline uint16_t read_short( int offset ) const
+    inline boost::uint16_t read_short( int offset ) const
     {
-        return ntohs( *reinterpret_cast< uint16_t const* >( buf_.data() + offset ) );
+        return ntohs( *reinterpret_cast< boost::uint16_t const* >( buf_.data() + offset ) );
     }
 
-    void write_short( int offset, uint16_t const val )
+    void write_short( int offset, boost::uint16_t const val )
     {
-        *reinterpret_cast< uint16_t* >( buf_.data() + offset ) = htons(val);
+        *reinterpret_cast< boost::uint16_t* >( buf_.data() + offset ) = htons(val);
     }
 
     static size_t const HEADER_LENGTH = 12;
-    boost::array< uint8_t, HEADER_LENGTH > buf_;
+    boost::array< boost::uint8_t, HEADER_LENGTH > buf_;
 };
 
 class dns_connection
@@ -284,10 +284,10 @@ private:
     void handle_query_read(boost::system::error_code const&, std::size_t const);
 
     boost::asio::ip::tcp::socket socket_;
-    boost::array< uint8_t, 1024> buf_;
+    boost::array< boost::uint8_t, 1024> buf_;
     boost::array< boost::asio::mutable_buffer, 2 > buf_arr_;
     dns_query_header header_;
-    uint16_t msg_len_;
+    boost::uint16_t msg_len_;
 };
 
 typedef boost::shared_ptr< dns_connection > dns_connection_ptr;
@@ -301,7 +301,7 @@ protected:
 class udp_dnsspeaker : public dnsspeaker
 {
 public:
-    udp_dnsspeaker(boost::asio::io_service& io_service, std::string const& iface, uint16_t port);
+    udp_dnsspeaker(boost::asio::io_service& io_service, std::string const& iface, boost::uint16_t port);
 
     void start();
 
@@ -313,14 +313,14 @@ private:
     boost::asio::ip::udp::endpoint sender_endpoint_;
     boost::asio::ip::udp::socket socket_;
     dns_query_header header_;
-    boost::array< uint8_t, 500 > buf_; // max size defined in DNS proto spec
+    boost::array< boost::uint8_t, 500 > buf_; // max size defined in DNS proto spec
     boost::array< boost::asio::mutable_buffer, 2 > buf_arr_;
 };
 
 class tcp_dnsspeaker : public dnsspeaker
 {
 public:
-    tcp_dnsspeaker(boost::asio::io_service& io_service, std::string const& iface, uint16_t port);
+    tcp_dnsspeaker(boost::asio::io_service& io_service, std::string const& iface, boost::uint16_t port);
 
     void start();
 

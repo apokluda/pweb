@@ -98,12 +98,12 @@ class dnsquery
 public:
     dnsquery();
 
-    uint16_t id() const
+    boost::uint16_t id() const
     {
         return id_;
     }
 
-    void id( uint16_t const id )
+    void id( boost::uint16_t const id )
     {
         id_ = id;
     }
@@ -189,7 +189,7 @@ private:
     std::vector< dnsauthority > authorities_;
     std::vector< dnsadditional > additionals_;
 
-    uint16_t id_;
+    boost::uint16_t id_;
 };
 
 #endif /* DNSQUERY_HPP_ */

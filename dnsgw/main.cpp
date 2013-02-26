@@ -80,7 +80,7 @@ int main(int argc, char const* argv[])
         string suffix;
         std::size_t num_threads;
         uint32_t ttl;
-        uint16_t port;
+        boost::uint16_t port;
         bool debug = false;
 
         // Declare a group of options that will be available only
@@ -100,7 +100,7 @@ int main(int argc, char const* argv[])
                     ("log_file,l", po::value< string >(&log_file)->default_value("dnsgw.log"), "log file name")
                     ("log_level,L", po::value< string >(&log_level)->default_value("WARN"), "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
                     ("iface,i", po::value< string >(&interface), "IP v4 or v6 address of interface to listen on")
-                    ("port,p", po::value< uint16_t >(&port)->default_value(53), "port to listen on")
+                    ("port,p", po::value< boost::uint16_t >(&port)->default_value(53), "port to listen on")
                     ("suffix,s", po::value< string >(&suffix)->default_value(".dht"), "suffix to be removed from names before querying DHT")
                     ("threads", po::value< std::size_t >(&num_threads)->default_value(1), "number of application threads (0 = one thread per hardware core)")
                     ;

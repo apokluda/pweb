@@ -33,24 +33,24 @@ namespace dns_query_parser
         throw parse_error("Unexpected end of message");
     }
 
-    void inline check_end(uint8_t const* const buf, uint8_t const* const end)
+    void inline check_end(uint8_t const* const buf, boost::uint8_t const* const end)
     {
         if (buf == end) unexpected_end_of_message();
     }
 
-    void inline check_end(std::ptrdiff_t const len, uint8_t const* const buf, uint8_t const* const end)
+    void inline check_end(std::ptrdiff_t const len, boost::uint8_t const* const buf, boost::uint8_t const* const end)
     {
         if ( (end - buf) > len ) unexpected_end_of_message();
     }
 
-    uint8_t const* parse_short(uint16_t& val, uint8_t const* buf, uint8_t const* const end)
+    boost::uint8_t const* parse_short(uint16_t& val, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
         check_end(2, buf, end);
-        val = ntohs( *reinterpret_cast< uint16_t const* >( buf ) );
+        val = ntohs( *reinterpret_cast< boost::uint16_t const* >( buf ) );
         return buf + 2;
     }
 
-    uint8_t const* parse_label_len(std::size_t& len, uint8_t const* buf, uint8_t const* const end)
+    boost::uint8_t const* parse_label_len(std::size_t& len, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
         check_end(buf, end);
 
@@ -64,7 +64,7 @@ namespace dns_query_parser
         return buf;
     }
 
-    uint8_t const* parse_label(sstream& name, std::size_t len, uint8_t const* buf, uint8_t const* const end)
+    boost::uint8_t const* parse_label(sstream& name, std::size_t len, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
         while ( (--len) >= 0 )
         {
@@ -76,7 +76,7 @@ namespace dns_query_parser
         return buf;
     }
 
-    uint8_t const* parse_name(string& name, uint8_t const* buf, uint8_t const* const end)
+    boost::uint8_t const* parse_name(string& name, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
         sstream sname;
         std::size_t name_len = 0;
@@ -98,9 +98,9 @@ namespace dns_query_parser
         return buf;
     }
 
-    uint8_t const* parse_qtype(qtype_t& qtype, uint8_t const* buf, uint8_t const* const end)
+    boost::uint8_t const* parse_qtype(qtype_t& qtype, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
-        uint16_t val;
+        boost::uint16_t val;
         buf = parse_short(val, buf, end);
         if (  (val >= T_MIN && val <= T_MAX) || (val >= QT_MIN && val <= QT_MAX ) )
         {
@@ -112,9 +112,9 @@ namespace dns_query_parser
         throw parse_error(ss.str());
     }
 
-    uint8_t const* parse_qclass(qclass_t& qclass, uint8_t const* buf, uint8_t const* const end)
+    boost::uint8_t const* parse_qclass(qclass_t& qclass, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
-        uint16_t val;
+        boost::uint16_t val;
         buf = parse_short(val, buf, end);
         if ( (val >= C_MIN && val <= C_MAX) || (val >= QC_MIN && val <= QC_MAX) )
         {
@@ -126,7 +126,7 @@ namespace dns_query_parser
         throw parse_error(ss.str());
     }
 
-    uint8_t const* parse_question(dnsquery& query, uint8_t const* buf, uint8_t const* const end)
+    boost::uint8_t const* parse_question(dnsquery& query, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
         dnsquestion question;
 
@@ -137,26 +137,26 @@ namespace dns_query_parser
         return buf;
     }
 
-    uint8_t const* parse_answer(dnsquery& query, uint8_t const* buf, uint8_t const* const end)
+    boost::uint8_t const* parse_answer(dnsquery& query, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
         // TODO: Not implemented yet!
         return buf;
     }
 
-    uint8_t const* parse_authority(dnsquery& query, uint8_t const* buf, uint8_t const* const end)
+    boost::uint8_t const* parse_authority(dnsquery& query, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
         // TODO: Not implemented yet!
         return buf;
     }
 
-    uint8_t const* parse_additional(dnsquery& query, uint8_t const* buf, uint8_t const* const end)
+    boost::uint8_t const* parse_additional(dnsquery& query, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
         // TODO: Not implemented yet!
         return buf;
     }
 };
 
-void parse_dns_query(dnsquery& query, dns_query_header const& header, uint8_t const* buf, uint8_t const* const end)
+void parse_dns_query(dnsquery& query, dns_query_header const& header, boost::uint8_t const* buf, boost::uint8_t const* const end)
 {
     using namespace dns_query_parser;
 
@@ -208,7 +208,7 @@ void parse_dns_query(dnsquery& query, dns_query_header const& header, uint8_t co
     }
 }
 
-udp_dnsspeaker::udp_dnsspeaker(io_service& io_service, string const& iface, uint16_t port)
+udp_dnsspeaker::udp_dnsspeaker(io_service& io_service, string const& iface, boost::uint16_t port)
 : socket_( io_service )
 {
     buf_arr_[0] = buffer(header_.buffer());
@@ -236,7 +236,7 @@ udp_dnsspeaker::udp_dnsspeaker(io_service& io_service, string const& iface, uint
     }
 }
 
-tcp_dnsspeaker::tcp_dnsspeaker(io_service& io_service, string const& iface, uint16_t port)
+tcp_dnsspeaker::tcp_dnsspeaker(io_service& io_service, string const& iface, boost::uint16_t port)
 : io_service_(io_service)
 , acceptor_( io_service )
 {
