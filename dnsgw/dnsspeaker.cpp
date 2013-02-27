@@ -41,7 +41,7 @@ namespace dns_query_parser
 
     void inline check_end(std::ptrdiff_t const len, boost::uint8_t const* const buf, boost::uint8_t const* const end)
     {
-        if ( (end - buf) > len ) unexpected_end_of_message();
+        if ( (end - buf) < len ) unexpected_end_of_message();
     }
 
     boost::uint8_t const* parse_short(boost::uint16_t& val, boost::uint8_t const* buf, boost::uint8_t const* const end)
@@ -67,7 +67,7 @@ namespace dns_query_parser
 
     boost::uint8_t const* parse_label(sstream& name, std::size_t len, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
-        while ( (--len) >= 0 )
+        while ( len-- > 0 )
         {
             check_end(buf, end);
 
@@ -133,6 +133,7 @@ namespace dns_query_parser
 
         buf = parse_name(question.name, buf, end);
         buf = parse_qtype(question.qtype, buf, end);
+        buf = parse_qclass(question.qclass, buf, end);
 
         query.add_question(question);
         return buf;
@@ -237,7 +238,7 @@ udp_dnsspeaker::udp_dnsspeaker(io_service& io_service, b::function<void (query_p
     recv_buf_arr_[0] = buffer(recv_header_.buffer());
     recv_buf_arr_[1] = buffer(recv_buf_);
 
-    send_buf_arr_[1] = buffer(send_header_.buffer());
+    send_buf_arr_[0] = buffer(send_header_.buffer());
     try
     {
         ip::udp::endpoint endpoint(ip::udp::v6(), port);
@@ -277,7 +278,7 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
     {
         // Validate header
         if ( bytes_transferred >= recv_header_.length() &&
-                recv_header_.qr() &&
+                !recv_header_.qr() &&
                 recv_header_.opcode() == O_QUERY &&
                 recv_header_.z() == 0 )
         {
@@ -349,6 +350,11 @@ void udp_dnsspeaker::send_reply_( query_ptr query )
         boost::uint8_t const* const end = compose_dns_query( *query, send_header_, send_buf_.data(), send_buf_.data() + send_buf_.size());
 
         send_buf_arr_[1] = buffer( send_buf_, end - send_buf_.data() );
+
+        // FOR DEBUGGING
+        std::size_t header_len = buffer_size(send_buf_arr_[0]);
+        std::size_t body_len = buffer_size(send_buf_arr_[1]);
+
         socket_.async_send_to( send_buf_arr_, query->remote_udp_endpoint(), strand_.wrap(
                 boost::bind( &udp_dnsspeaker::handle_send_reply, this, ph::error ) ) );
     }

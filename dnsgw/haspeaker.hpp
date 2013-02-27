@@ -25,13 +25,13 @@ public:
     , resolver_(io_service)
     , retrytimer_(io_service)
     , socket_(io_service)
+    , connected_(false)
     {
-        connect();
     }
 
     bool connected() const
     {
-        return socket_.is_open();
+        return connected_;
     }
 
     void process_query( query_ptr query )
@@ -39,8 +39,9 @@ public:
         // TODO: Send query to home agent!
     }
 
-private:
     void connect( boost::system::error_code const& ec = boost::system::error_code() );
+
+private:
     void handle_resolve(boost::system::error_code const& ec, boost::asio::ip::tcp::resolver::iterator iter);
     void handle_connect(boost::system::error_code const& ec);
 
@@ -49,6 +50,7 @@ private:
     boost::asio::ip::tcp::resolver resolver_;
     boost::asio::deadline_timer retrytimer_;
     boost::asio::ip::tcp::socket socket_;
+    bool connected_; // potentially accessed from different threads, but *should* be ok
 };
 
 // In future, the ha_load_balancer could be made into a

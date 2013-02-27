@@ -104,7 +104,7 @@ int main(int argc, char const* argv[])
                     ("log_level,L", po::value< string >(&log_level)->default_value("WARN"), "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
                     ("iface,i", po::value< string >(&interface), "IP v4 or v6 address of interface to listen on")
                     ("port,p", po::value< boost::uint16_t >(&port)->default_value(53), "port to listen on")
-                    ("home_agents,h", po::value< haaddr_list_t >(&home_agents)->required(), "list of home agent addresses to connect to")
+                    ("home_agents,H", po::value< haaddr_list_t >(&home_agents)->required(), "list of home agent addresses to connect to")
                     ("suffix,s", po::value< string >(&suffix)->default_value(".dht"), "suffix to be removed from names before querying DHT")
                     ("threads", po::value< std::size_t >(&num_threads)->default_value(1), "number of application threads (0 = one thread per hardware core)")
                     ;
@@ -128,7 +128,17 @@ int main(int argc, char const* argv[])
 
         po::variables_map vm;
         po::store(po::command_line_parser(argc, argv).options(cmdline_options).run(), vm);
-        po::notify(vm);
+
+        if ( vm.count("version") )
+        {
+            cout << "Development version" << endl;
+            return EXIT_SUCCESS;
+        }
+        if ( vm.count("help") )
+        {
+            cout << visible_options << endl;
+            return EXIT_SUCCESS;
+        }
 
         if ( !config_file.empty() )
         {
@@ -145,16 +155,7 @@ int main(int argc, char const* argv[])
             }
         }
 
-        if ( vm.count("version") )
-        {
-            cout << "Development version" << endl;
-            return EXIT_SUCCESS;
-        }
-        if ( vm.count("help") )
-        {
-            cout << visible_options << endl;
-            return EXIT_SUCCESS;
-        }
+        po::notify(vm);
 
         // Initialize logging
         log4cpp::Appender* app = new log4cpp::FileAppender("file", log_file.c_str());
@@ -190,6 +191,7 @@ int main(int argc, char const* argv[])
         for (haaddr_list_t::const_iterator i = home_agents.begin(); i != home_agents.end(); ++i)
         {
             haspeaker_ptr hptr(new haspeaker(io_service, *i) );
+            hptr->connect();
             haspeakers.push_back(hptr);
         }
 
@@ -197,9 +199,12 @@ int main(int argc, char const* argv[])
         typedef ha_load_balancer< haspeakers_t::iterator, haspeakers_t::difference_type > balancer_t;
         balancer_t halb( io_service, haspeakers.begin(), haspeakers.size() );
 
-        // TODO: Add ha_load_balancer parameter to constructors!
         udp_dnsspeaker udp_dnsspeaker(io_service, boost::bind(&balancer_t::process_query, &halb, _1), interface, port);
         tcp_dnsspeaker tcp_dnsspeaker(io_service, boost::bind(&balancer_t::process_query, &halb, _1), interface, port);
+
+        udp_dnsspeaker.start();
+        tcp_dnsspeaker.start();
+
         run( io_service, num_threads );
 
         // Fall through to shutdown logging

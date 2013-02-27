@@ -12,6 +12,8 @@
 extern log4cpp::Category& log4;
 
 typedef std::stringstream sstream;
+using std::vector;
+using std::string;
 using namespace boost::asio;
 namespace ph = boost::asio::placeholders;
 namespace bs = boost::system;
@@ -20,9 +22,19 @@ void haspeaker::connect(bs::error_code const& ec)
 {
     if ( !ec )
     {
-        ip::tcp::resolver::query query(haaddress_);
-        resolver_.async_resolve(query,
-                boost::bind(&haspeaker::handle_resolve, shared_from_this(), ph::error, ph::iterator));
+        vector<string> address;
+        boost::split( address, haaddress_, boost::is_any_of(":") );
+        if ( address.size() == 2 )
+        {
+            ip::tcp::resolver::query query(address[0], address[1]);
+            resolver_.async_resolve(query,
+                    boost::bind(&haspeaker::handle_resolve, shared_from_this(), ph::error, ph::iterator));
+        }
+        else
+        {
+            log4.errorStream() << "Invalid home agent address format: " << haaddress_;
+            log4.noticeStream() << "Unable to connect to home agent at address " << haaddress_;
+        }
     }
     else
     {
@@ -53,6 +65,7 @@ void haspeaker::handle_connect(bs::error_code const& ec)
     {
         // Connected to home agent
         log4.infoStream() << "Connected to home agent at address " << haaddress_;
+        connected_ = true;
 
         errwait_ = seconds(0); // reset connection error timer
 
