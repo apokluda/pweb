@@ -346,7 +346,7 @@ void udp_dnsspeaker::send_reply_( query_ptr query )
         // size of the header + body). I'm going to leave it as it is for now. I might change it later.
 
         compose_dns_header(send_header_, *query);
-        uint8_t const* const end = compose_dns_query( *query, send_header_, send_buf_.data(), send_buf_.data() + send_buf_.size());
+        boost::uint8_t const* const end = compose_dns_query( *query, send_header_, send_buf_.data(), send_buf_.data() + send_buf_.size());
 
         send_buf_arr_[1] = buffer( send_buf_, end - send_buf_.data() );
         socket_.async_send_to( send_buf_arr_, query->remote_udp_endpoint(), strand_.wrap(
