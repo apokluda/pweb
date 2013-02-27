@@ -162,6 +162,7 @@ void parse_dns_query(dnsquery& query, dns_query_header const& header, boost::uin
     using namespace dns_query_parser;
 
     query.id( header.id() );
+    query.rd( header.rd() );
 
     // Warning: calling query.num_questions() may cause it to allocate memory for
     // num_questions question objects. Obviously this means a mallicious client could
@@ -209,12 +210,34 @@ void parse_dns_query(dnsquery& query, dns_query_header const& header, boost::uin
     }
 }
 
+void compose_dns_header(dns_query_header& header, dnsquery const& query)
+{
+    header.clear();
+    header.id( query.id() );
+    header.qr( true );
+    header.rd( query.rd() );
+    header.rcode( query.rcode() );
+    header.ancount( query.num_answers() );
+    header.arcount( query.num_additionals() );
+}
+
+boost::uint8_t* compose_dns_query(dnsquery const& query, dns_query_header const& header, boost::uint8_t* buf, boost::uint8_t const* const end)
+{
+    // TODO: Write to buffer!
+    return buf;
+}
+
 udp_dnsspeaker::udp_dnsspeaker(io_service& io_service, b::function<void (query_ptr)> processor, string const& iface, boost::uint16_t port)
 : processor_(processor)
 , socket_( io_service )
+, strand_( io_service )
+, reply_buf_( 50 )
+, send_in_progress_( false )
 {
-    buf_arr_[0] = buffer(header_.buffer());
-    buf_arr_[1] = buffer(buf_);
+    recv_buf_arr_[0] = buffer(recv_header_.buffer());
+    recv_buf_arr_[1] = buffer(recv_buf_);
+
+    send_buf_arr_[1] = buffer(send_header_.buffer());
     try
     {
         ip::udp::endpoint endpoint(ip::udp::v6(), port);
@@ -240,20 +263,12 @@ udp_dnsspeaker::udp_dnsspeaker(io_service& io_service, b::function<void (query_p
 
 void udp_dnsspeaker::start()
 {
-    socket_.async_receive_from( buf_arr_, sender_endpoint_,
+    // Note: Handler not wrapped in strand. All read operations occur in an implicit strand. Write operations are synchronized
+    // using the strand_ member. It is possible that a read an write operation may execute concurrently. According
+    // to the ASIO documentation, socket objects are not thread safe, but it does say that you can have an async_read
+    // and async_write operation executing in parallel...
+    socket_.async_receive_from( recv_buf_arr_, sender_endpoint_,
             boost::bind( &udp_dnsspeaker::handle_datagram_received, this, ph::error, ph::bytes_transferred ) );
-}
-
-void udp_dnsspeaker::send_reply( query_ptr query )
-{
-    // TODO: Whoo hoo!! Sending reply from Plexus overlay!
-
-    // SHOULD I POST A CALL TO AN INTERNAL OPERATION USING A STRAND?!?
-    // IT IS POSSIBLE THAT THERE ARE MANY QUERIES IN FLIGHT AND SEND_REPLY()
-    // COULD BE CALLED CONCURRENTLY!
-
-    // We must send back to here:
-    query->remote_udp_endpoint();
 }
 
 void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::size_t const bytes_transferred )
@@ -261,10 +276,10 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
     if ( !ec )
     {
         // Validate header
-        if ( bytes_transferred >= header_.length() &&
-                header_.qr() &&
-                header_.opcode() == dns_query_header::O_QUERY &&
-                header_.z() == 0 )
+        if ( bytes_transferred >= recv_header_.length() &&
+                recv_header_.qr() &&
+                recv_header_.opcode() == O_QUERY &&
+                recv_header_.z() == 0 )
         {
             // Header format OK
             log4.infoStream() << "Received UDP DNS query from " << sender_endpoint_;
@@ -273,7 +288,7 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
             query->sender( this, sender_endpoint_ );
             try
             {
-                parse_dns_query( *query, header_, buf_.data(), buf_.data() + bytes_transferred - header_.length());
+                parse_dns_query( *query, recv_header_, recv_buf_.data(), recv_buf_.data() + bytes_transferred - recv_header_.length());
                 processor_( query );
 
                 // Fall through to start() below
@@ -301,6 +316,65 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
     }
     // Receive another datagram
     start();
+}
+
+void udp_dnsspeaker::send_reply( query_ptr query )
+{
+    strand_.dispatch( boost::bind( &udp_dnsspeaker::send_reply_, this, query ) );
+}
+
+void udp_dnsspeaker::send_reply_( query_ptr query )
+{
+    if ( send_in_progress_ )
+    {
+        if ( reply_buf_.full() )
+        {
+            log4.warnStream() << "UDP send buffer full. Dropping reply to " << query->remote_udp_endpoint();
+            return;
+        }
+        reply_buf_.push_back( query );
+    }
+    else
+    {
+        // Send reply immediately.
+        send_in_progress_ = true;
+
+        // Ok, I agree that having the header separate from the body ("query") seems unnecessarily
+        // cumbersome. In a lot of other protocols, the size of a message body can be determined from
+        // the content in a fixed size header, and in this case it makes sense to separate the header
+        // from the body. (For DNS over TCP, an extra "meta-header" field is send that includes the
+        // size of the header + body). I'm going to leave it as it is for now. I might change it later.
+
+        compose_dns_header(send_header_, *query);
+        uint8_t const* const end = compose_dns_query( *query, send_header_, send_buf_.data(), send_buf_.data() + send_buf_.size());
+
+        send_buf_arr_[1] = buffer( send_buf_, end - send_buf_.data() );
+        socket_.async_send_to( send_buf_arr_, query->remote_udp_endpoint(), strand_.wrap(
+                boost::bind( &udp_dnsspeaker::handle_send_reply, this, ph::error ) ) );
+    }
+}
+
+void udp_dnsspeaker::handle_send_reply( bs::error_code const& ec )
+{
+    if ( !ec )
+    {
+        log4.debug("Successfully sent UDP DNS reply");
+        // Fall through
+    }
+    else
+    {
+        log4.errorStream() << "An error occurred while sending UDP DNS response: " << ec.message();
+        // Fall through
+    }
+
+    send_in_progress_ = false;
+
+    if ( !reply_buf_.empty() )
+    {
+        query_ptr query = reply_buf_.front();
+        reply_buf_.pop_front();
+        send_reply_( query );
+    }
 }
 
 tcp_dnsspeaker::tcp_dnsspeaker(io_service& io_service, b::function<void (query_ptr)> processor, string const& iface, boost::uint16_t port)
@@ -356,7 +430,7 @@ void tcp_dnsspeaker::handle_accept( bs::error_code const& ec )
 
 void dns_connection::start()
 {
-    async_read( socket_, buffer(&msg_len_, 2),
+    async_read( socket_, buffer(&recv_msg_len_, 2),
             boost::bind( &dns_connection::handle_msg_len_read, shared_from_this(),
                     ph::error, ph::bytes_transferred));
 }
@@ -365,17 +439,17 @@ void dns_connection::handle_msg_len_read( bs::error_code const& ec, std::size_t 
 {
     if ( !ec )
     {
-        msg_len_ = ntohs(msg_len_);
-        log4.infoStream() << "Received DNS message length of " << msg_len_ << " from " << socket_.remote_endpoint();
+        recv_msg_len_ = ntohs(recv_msg_len_);
+        log4.infoStream() << "Received DNS message length of " << recv_msg_len_ << " from " << socket_.remote_endpoint();
 
-        if (msg_len_ > header_.length() + buf_.size())
+        if (recv_msg_len_ > recv_header_.length() + recv_buf_.size())
         {
-            log4.errorStream() << "TCP DNS message length " << msg_len_ << " from " << socket_.remote_endpoint() << " is too large! Closing connection.";
+            log4.errorStream() << "TCP DNS message length " << recv_msg_len_ << " from " << socket_.remote_endpoint() << " is too large! Closing connection.";
             return;
         }
 
-        buf_arr_[1] = buffer(buf_, msg_len_ - header_.length());
-        async_read( socket_, buf_arr_, boost::bind(
+        recv_buf_arr_[1] = buffer(recv_buf_, recv_msg_len_ - recv_header_.length());
+        async_read( socket_, recv_buf_arr_, boost::bind(
                 &dns_connection::handle_query_read,
                 shared_from_this(), ph::error, ph::bytes_transferred ) );
     }
@@ -390,10 +464,10 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
     if ( !ec )
     {
         // Validate header
-        if ( bytes_transferred >= header_.length() &&
-                header_.qr() &&
-                header_.opcode() == dns_query_header::O_QUERY &&
-                header_.z() == 0 )
+        if ( bytes_transferred >= recv_header_.length() &&
+                recv_header_.qr() &&
+                recv_header_.opcode() == O_QUERY &&
+                recv_header_.z() == 0 )
         {
             // Header format OK
             log4.infoStream() << "Received TCP DNS query from " << socket_.remote_endpoint();
@@ -402,7 +476,7 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
             query->sender( shared_from_this() );
             try
             {
-                parse_dns_query( *query, header_, buf_.data(), buf_.data() + bytes_transferred - header_.length());
+                parse_dns_query( *query, recv_header_, recv_buf_.data(), recv_buf_.data() + bytes_transferred - recv_header_.length());
                 processor_( query );
 
                 start();
@@ -426,9 +500,58 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
 
 void dns_connection::send_reply( query_ptr query )
 {
-    // TODO: Whoo hoo!! Sending reply from Plexus overlay!
+    strand_.dispatch(
+            boost::bind( &dns_connection::send_reply_, shared_from_this(), query) );
+}
 
-    // SHOULD I POST A CALL TO AN INTERNAL OPERATION USING A STRAND?!?
-    // IT IS POSSIBLE THAT THERE ARE MANY QUERIES IN FLIGHT AND SEND_REPLY()
-    // COULD BE CALLED CONCURRENTLY!
+
+void dns_connection::send_reply_( query_ptr query )
+{
+    if ( send_in_progress_ )
+    {
+        if ( reply_buf_.full() )
+        {
+            log4.warnStream() << "TCP send buffer full. Dropping reply to " << socket_.remote_endpoint();
+            return;
+        }
+        reply_buf_.push_back( query );
+    }
+    else
+    {
+        // Send reply immediately.
+        send_in_progress_ = true;
+
+        compose_dns_header(send_header_, *query);
+        boost::uint8_t const* const end = compose_dns_query( *query, send_header_, send_buf_.data(), send_buf_.data() + send_buf_.size());
+
+        std::ptrdiff_t const body_len = end - send_buf_.data();
+        send_msg_len_ = htons( static_cast< boost::uint16_t >( body_len + send_header_.length() ) );
+
+        send_buf_arr_[2] = buffer( send_buf_, end - send_buf_.data() );
+        async_write(socket_, send_buf_arr_, strand_.wrap(
+                boost::bind( &dns_connection::handle_send_reply, shared_from_this(), ph::error ) ) );
+    }
+}
+
+void dns_connection::handle_send_reply( bs::error_code const& ec )
+{
+    if ( !ec )
+    {
+        log4.debugStream() << "Successfully sent TCP DNS reply to " << socket_.remote_endpoint();
+        // Fall through
+    }
+    else
+    {
+        log4.errorStream() << "An error occurred while sending TCP DNS response to " << socket_.remote_endpoint() << ": " << ec.message();
+        // Fall through
+    }
+
+    send_in_progress_ = false;
+
+    if ( !reply_buf_.empty() )
+    {
+        query_ptr query = reply_buf_.front();
+        reply_buf_.pop_front();
+        send_reply_( query );
+    }
 }

@@ -31,6 +31,7 @@
 #include <boost/atomic.hpp>
 #include <boost/function.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/circular_buffer.hpp>
 
 // Logging
 #include <log4cpp/Category.hh>

@@ -36,24 +36,6 @@ class dns_query_header
     // http://tools.ietf.org/html/rfc1035
 
 public:
-    enum opcode_t
-    {
-        O_QUERY,
-        O_IQUERY,
-        O_STATUS,
-        O_RESERVED
-    };
-
-    enum rcode_t
-    {
-        R_SUCCESS,
-        R_FORMAT_ERROR,
-        R_SERVER_FAILURE,
-        R_NAME_ERROR,
-        R_NOT_IMPLEMENTED,
-        R_REFUSED,
-        R_RESERVED
-    };
 
     dns_query_header()
     {
@@ -259,46 +241,6 @@ private:
     boost::array< boost::uint8_t, HEADER_LENGTH > buf_;
 };
 
-class dns_connection
-    : public boost::enable_shared_from_this< dns_connection >,
-      private boost::noncopyable
-{
-public:
-    dns_connection(boost::asio::io_service& io_service, boost::function<void (query_ptr)>& processor)
-    : processor_(processor)
-    , socket_(io_service)
-    {
-        buf_arr_[0] = header_.buffer();
-    }
-
-    void start();
-
-    boost::asio::ip::tcp::socket& socket()
-    {
-        return socket_;
-    }
-
-    boost::asio::ip::tcp::endpoint remote_endpoint() const
-    {
-        return socket_.remote_endpoint();
-    }
-
-    void send_reply( query_ptr query );
-
-private:
-    void handle_msg_len_read(boost::system::error_code const&, std::size_t const);
-    void handle_query_read(boost::system::error_code const&, std::size_t const);
-
-    boost::function<void (query_ptr)> processor_;
-    boost::asio::ip::tcp::socket socket_;
-    boost::array< boost::uint8_t, 1024> buf_;
-    boost::array< boost::asio::mutable_buffer, 2 > buf_arr_;
-    dns_query_header header_;
-    boost::uint16_t msg_len_;
-};
-
-typedef boost::shared_ptr< dns_connection > dns_connection_ptr;
-
 class udp_dnsspeaker
 {
 public:
@@ -311,13 +253,85 @@ public:
 private:
     void handle_datagram_received( boost::system::error_code const& ec, std::size_t const bytes_transferred );
 
+    void send_reply_( query_ptr query );
+
+    void handle_send_reply( boost::system::error_code const& ec );
+
     boost::function<void (query_ptr)> processor_;
     boost::asio::ip::udp::endpoint sender_endpoint_;
     boost::asio::ip::udp::socket socket_;
-    dns_query_header header_;
-    boost::array< boost::uint8_t, 500 > buf_; // max size defined in DNS proto spec
-    boost::array< boost::asio::mutable_buffer, 2 > buf_arr_;
+    boost::asio::io_service::strand strand_;
+    boost::circular_buffer< query_ptr > reply_buf_;
+    dns_query_header recv_header_;
+    dns_query_header send_header_;
+    boost::array< boost::uint8_t, 500 > recv_buf_; // max size defined in DNS proto spec
+    boost::array< boost::uint8_t, 500 > send_buf_; // max size defined in DNS proto spec
+    boost::array< boost::asio::mutable_buffer, 2 > recv_buf_arr_;
+    boost::array< boost::asio::mutable_buffer, 2 > send_buf_arr_;
+    bool send_in_progress_;
 };
+
+class dns_connection
+    : public boost::enable_shared_from_this< dns_connection >,
+      private boost::noncopyable
+{
+    friend class tcp_dnsspeaker;
+public:
+    dns_connection(boost::asio::io_service& io_service, boost::function<void (query_ptr)>& processor)
+    : processor_( processor )
+    , socket_( io_service )
+    , strand_( io_service )
+    , reply_buf_( 5 )
+    , recv_msg_len_( 0 )
+    , send_msg_len_( 0 )
+    , send_in_progress_( false )
+    {
+        recv_buf_arr_[0] = recv_header_.buffer();
+
+        send_buf_arr_[0] = boost::asio::buffer( &send_msg_len_, 2 );
+        send_buf_arr_[1] = send_header_.buffer();
+    }
+
+    void start();
+
+    boost::asio::ip::tcp::endpoint remote_endpoint() const
+    {
+        // Assume that socket::remote_endpoint() is thread-safe
+        return socket_.remote_endpoint();
+    }
+
+    void send_reply( query_ptr query );
+
+private:
+    boost::asio::ip::tcp::socket& socket()
+    {
+        return socket_;
+    }
+
+    void handle_msg_len_read(boost::system::error_code const&, std::size_t const);
+    void handle_query_read(boost::system::error_code const&, std::size_t const);
+
+    void send_reply_( query_ptr query );
+
+    void handle_send_reply(boost::system::error_code const&);
+
+    boost::function<void (query_ptr)> processor_;
+    boost::asio::ip::tcp::socket socket_;
+    boost::asio::io_service::strand strand_;
+    boost::circular_buffer< query_ptr > reply_buf_;
+    dns_query_header recv_header_;
+    dns_query_header send_header_;
+    boost::array< boost::uint8_t, 1024> recv_buf_;
+    boost::array< boost::uint8_t, 1024> send_buf_;
+    boost::array< boost::asio::mutable_buffer, 2 > recv_buf_arr_;
+    boost::array< boost::asio::mutable_buffer, 3 > send_buf_arr_;
+
+    boost::uint16_t recv_msg_len_;
+    boost::uint16_t send_msg_len_;
+    bool send_in_progress_;
+};
+
+typedef boost::shared_ptr< dns_connection > dns_connection_ptr;
 
 class tcp_dnsspeaker
 {

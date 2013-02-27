@@ -20,6 +20,25 @@ typedef std::pair< udp_dnsspeaker*, boost::asio::ip::udp::endpoint > udp_connect
 class dnsquery;
 typedef boost::shared_ptr< dnsquery > query_ptr;
 
+enum opcode_t
+{
+    O_QUERY,
+    O_IQUERY,
+    O_STATUS,
+    O_RESERVED
+};
+
+enum rcode_t
+{
+    R_SUCCESS,
+    R_FORMAT_ERROR,
+    R_SERVER_FAILURE,
+    R_NAME_ERROR,
+    R_NOT_IMPLEMENTED,
+    R_REFUSED,
+    R_RESERVED
+};
+
 enum qtype_t
  {
      T_MIN       =   1,
@@ -96,7 +115,12 @@ class dnsquery
   private boost::noncopyable
 {
 public:
-    dnsquery();
+    dnsquery()
+    : rcode_( R_SUCCESS )
+    , id_( 0 )
+    , rd_( false )
+    {
+    }
 
     boost::uint16_t id() const
     {
@@ -106,6 +130,26 @@ public:
     void id( boost::uint16_t const id )
     {
         id_ = id;
+    }
+
+    bool rd() const
+    {
+        return rd_;
+    }
+
+    void rd( bool const rd )
+    {
+        rd_ = rd;
+    }
+
+    rcode_t rcode() const
+    {
+        return rcode_;
+    }
+
+    void rcode(rcode_t const rcode)
+    {
+        rcode_ = rcode;
     }
 
     void sender( udp_dnsspeaker* const speaker,  boost::asio::ip::udp::endpoint const& endpoint )
@@ -191,7 +235,9 @@ private:
     std::vector< dnsauthority > authorities_;
     std::vector< dnsadditional > additionals_;
 
+    rcode_t rcode_;
     boost::uint16_t id_;
+    bool rd_;
 };
 
 #endif /* DNSQUERY_HPP_ */

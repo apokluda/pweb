@@ -86,8 +86,8 @@ void ha_load_balancer< hacontainer_iter_t, hacontainer_diff_t >::process_query( 
     }
     log4.warnStream() << "Unable to process query from " << query->remote_address() << ": Not connected to any home agents";
 
-    // TODO: Implement standard error replies
-    query->send_reply(/*SOME_SORT_OF_ERROR*/);
+    query->rcode(R_SERVER_FAILURE);
+    query->send_reply();
 }
 
 typedef boost::shared_ptr< haspeaker > haspeaker_ptr;

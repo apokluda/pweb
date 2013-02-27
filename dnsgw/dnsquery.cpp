@@ -9,11 +9,6 @@
 #include "dnsquery.hpp"
 #include "dnsspeaker.hpp"
 
-dnsquery::dnsquery()
-: id_(0)
-{
-}
-
 boost::asio::ip::udp::endpoint dnsquery::remote_udp_endpoint() const
 {
     typedef boost::asio::ip::udp::endpoint endpoint_t;
