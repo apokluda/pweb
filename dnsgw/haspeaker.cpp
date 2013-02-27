@@ -84,6 +84,12 @@ void haspeaker::handle_connect(bs::error_code const& ec)
     }
 }
 
+void haspeaker::process_query_( query_ptr ptr)
+{
+    // TODO: SEND QUERY! (we're in a strand now. Need to queue query if there is a write in progress!)
+    // Oh, I guess this is where we'll strip off the suffix.
+}
+
 template < class hacontainer_iter_t, class hacontainer_diff_t >
 void ha_load_balancer< hacontainer_iter_t, hacontainer_diff_t >::process_query( query_ptr query )
 {

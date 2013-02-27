@@ -20,8 +20,10 @@ class haspeaker
 , public boost::enable_shared_from_this<haspeaker>
 {
 public:
-    haspeaker(boost::asio::io_service& io_service, std::string const& haaddr)
+    haspeaker(boost::asio::io_service& io_service, std::string const& haaddr, std::string const& suffix)
     : haaddress_(haaddr)
+    , suffix_(suffix)
+    , strand_(io_service)
     , resolver_(io_service)
     , retrytimer_(io_service)
     , socket_(io_service)
@@ -36,7 +38,8 @@ public:
 
     void process_query( query_ptr query )
     {
-        // TODO: Send query to home agent!
+        strand_.dispatch(
+                boost::bind( &haspeaker::process_query_, shared_from_this(), query ) );
     }
 
     void connect( boost::system::error_code const& ec = boost::system::error_code() );
@@ -45,8 +48,12 @@ private:
     void handle_resolve(boost::system::error_code const& ec, boost::asio::ip::tcp::resolver::iterator iter);
     void handle_connect(boost::system::error_code const& ec);
 
+    void process_query_( query_ptr query );
+
     boost::posix_time::time_duration errwait_;
     std::string haaddress_;
+    std::string suffix_;
+    boost::asio::io_service::strand strand_;
     boost::asio::ip::tcp::resolver resolver_;
     boost::asio::deadline_timer retrytimer_;
     boost::asio::ip::tcp::socket socket_;

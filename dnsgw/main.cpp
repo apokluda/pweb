@@ -190,7 +190,7 @@ int main(int argc, char const* argv[])
         haspeakers.reserve( home_agents.size() );
         for (haaddr_list_t::const_iterator i = home_agents.begin(); i != home_agents.end(); ++i)
         {
-            haspeaker_ptr hptr(new haspeaker(io_service, *i) );
+            haspeaker_ptr hptr(new haspeaker(io_service, *i, suffix) );
             hptr->connect();
             haspeakers.push_back(hptr);
         }
