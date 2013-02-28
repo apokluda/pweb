@@ -115,6 +115,11 @@ class dnsquery
   private boost::noncopyable
 {
 public:
+    typedef std::vector< dnsquestion >::const_iterator question_iterator;
+    typedef std::vector< dnsanswer >::const_iterator answer_iterator;
+    typedef std::vector< dnsauthority >::const_iterator authority_iterator;
+    typedef std::vector< dnsadditional >::const_iterator additional_iterator;
+
     dnsquery()
     : rcode_( R_SUCCESS )
     , id_( 0 )
@@ -179,6 +184,16 @@ public:
         questions_.push_back(question);
     }
 
+    question_iterator questions_begin() const
+    {
+        return questions_.begin();
+    }
+
+    question_iterator questions_end() const
+    {
+        return questions_.end();
+    }
+
     std::size_t num_answers() const
     {
         return answers_.size();
@@ -192,6 +207,16 @@ public:
     void add_answer(dnsanswer const& answer)
     {
         answers_.push_back(answer);
+    }
+
+    answer_iterator answers_begin() const
+    {
+        return answers_.begin();
+    }
+
+    answer_iterator answers_end() const
+    {
+        return answers_.end();
     }
 
     std::size_t num_authorities() const
@@ -209,6 +234,16 @@ public:
         authorities_.push_back(authority);
     }
 
+    authority_iterator authorities_begin() const
+    {
+        return authorities_.begin();
+    }
+
+    authority_iterator authorities_end() const
+    {
+        return authorities_.end();
+    }
+
     std::size_t num_additionals() const
     {
         return additionals_.size();
@@ -222,6 +257,16 @@ public:
     void add_additional(dnsadditional const& additional)
     {
         additionals_.push_back(additional);
+    }
+
+    additional_iterator additionals_begin() const
+    {
+        return additionals_.begin();
+    }
+
+    additional_iterator additionals_end() const
+    {
+        return additionals_.end();
     }
 
     boost::asio::ip::udp::endpoint remote_udp_endpoint() const;
@@ -238,6 +283,7 @@ private:
     rcode_t rcode_;
     boost::uint16_t id_;
     bool rd_;
+
 };
 
 #endif /* DNSQUERY_HPP_ */

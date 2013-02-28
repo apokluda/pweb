@@ -8,6 +8,7 @@
 #include "stdhdr.hpp"
 #include "dnsspeaker.hpp"
 #include "dnsquery.hpp"
+#include "protocol_helper.hpp"
 
 using namespace boost::asio;
 using std::string;
@@ -20,36 +21,7 @@ extern log4cpp::Category& log4;
 
 namespace dns_query_parser
 {
-     class parse_error : public std::runtime_error
-    {
-    public:
-        parse_error(string const& msg)
-        : runtime_error(msg)
-        {
-        }
-    };
-
-    void inline unexpected_end_of_message()
-    {
-        throw parse_error("Unexpected end of message");
-    }
-
-    void inline check_end(boost::uint8_t const* const buf, boost::uint8_t const* const end)
-    {
-        if (buf == end) unexpected_end_of_message();
-    }
-
-    void inline check_end(std::ptrdiff_t const len, boost::uint8_t const* const buf, boost::uint8_t const* const end)
-    {
-        if ( (end - buf) < len ) unexpected_end_of_message();
-    }
-
-    boost::uint8_t const* parse_short(boost::uint16_t& val, boost::uint8_t const* buf, boost::uint8_t const* const end)
-    {
-        check_end(2, buf, end);
-        val = ntohs( *reinterpret_cast< boost::uint16_t const* >( buf ) );
-        return buf + 2;
-    }
+    using namespace protocol_helper;
 
     boost::uint8_t const* parse_label_len(std::size_t& len, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {

@@ -28,6 +28,7 @@ public:
     , retrytimer_(io_service)
     , socket_(io_service)
     , connected_(false)
+    , send_in_progress_(false)
     {
     }
 
@@ -47,8 +48,13 @@ public:
 private:
     void handle_resolve(boost::system::error_code const& ec, boost::asio::ip::tcp::resolver::iterator iter);
     void handle_connect(boost::system::error_code const& ec);
+    void handle_version_sent(boost::system::error_code const& ec, std::size_t const bytes_transferred);
+    void handle_version_received(boost::system::error_code const& ec, std::size_t const bytes_transferred);
 
     void process_query_( query_ptr query );
+
+    void disconnect();
+    void reconnect();
 
     boost::posix_time::time_duration errwait_;
     std::string haaddress_;
@@ -57,7 +63,9 @@ private:
     boost::asio::ip::tcp::resolver resolver_;
     boost::asio::deadline_timer retrytimer_;
     boost::asio::ip::tcp::socket socket_;
-    bool connected_; // potentially accessed from different threads, but *should* be ok
+    boost::array<uint8_t, 2 + 2 + 1 + 1 + 16 > recv_buf_; // Max message size in version 1 of protocol = 22 bytes
+    bool connected_; // potentially accessed concurrently, but *should* be ok
+    bool send_in_progress_;
 };
 
 // In future, the ha_load_balancer could be made into a
