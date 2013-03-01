@@ -58,9 +58,11 @@ enum qtype_t
      T_HINFO     =  13,
      T_MINFO     =  14,
      T_MX        =  15,
-     T_TXT       =  17,
+     T_TXT       =  16,
+     // Were missing some...
+     T_AAAA      =  28,
 
-     T_MAX       =  17,
+     T_MAX       =  28,
      QT_MIN      = 252,
 
      QT_AXFR     = 252,
@@ -95,19 +97,14 @@ struct dnsquestion
     qclass_t qclass;
 };
 
-struct dnsanswer
+struct dnsrr
 {
-
-};
-
-struct dnsauthority
-{
-
-};
-
-struct dnsadditional
-{
-
+    std::string owner;
+    qtype_t rtype;
+    qclass_t rclass;
+    uint32_t ttl;
+    uint16_t rdlength;
+    boost::array<uint8_t, 16> rdata;
 };
 
 class dnsquery
@@ -116,9 +113,9 @@ class dnsquery
 {
 public:
     typedef std::vector< dnsquestion >::const_iterator question_iterator;
-    typedef std::vector< dnsanswer >::const_iterator answer_iterator;
-    typedef std::vector< dnsauthority >::const_iterator authority_iterator;
-    typedef std::vector< dnsadditional >::const_iterator additional_iterator;
+    typedef std::vector< dnsrr >::const_iterator answer_iterator;
+    typedef std::vector< dnsrr >::const_iterator authority_iterator;
+    typedef std::vector< dnsrr >::const_iterator additional_iterator;
 
     dnsquery()
     : rcode_( R_SUCCESS )
@@ -204,7 +201,7 @@ public:
         answers_.reserve(num);
     }
 
-    void add_answer(dnsanswer const& answer)
+    void add_answer(dnsrr const& answer)
     {
         answers_.push_back(answer);
     }
@@ -229,7 +226,7 @@ public:
         authorities_.reserve(num);
     }
 
-    void add_authority(dnsauthority const& authority)
+    void add_authority(dnsrr const& authority)
     {
         authorities_.push_back(authority);
     }
@@ -254,7 +251,7 @@ public:
         additionals_.reserve(num);
     }
 
-    void add_additional(dnsadditional const& additional)
+    void add_additional(dnsrr const& additional)
     {
         additionals_.push_back(additional);
     }
@@ -276,9 +273,9 @@ public:
 private:
     boost::variant< udp_connection_t, dns_connection_ptr > sender_;
     std::vector< dnsquestion > questions_;
-    std::vector< dnsanswer > answers_;
-    std::vector< dnsauthority > authorities_;
-    std::vector< dnsadditional > additionals_;
+    std::vector< dnsrr > answers_;
+    std::vector< dnsrr > authorities_;
+    std::vector< dnsrr > additionals_;
 
     rcode_t rcode_;
     boost::uint16_t id_;

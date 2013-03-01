@@ -23,28 +23,29 @@ namespace ha_protocol
 {
     const uint16_t VERSION = 1;
     const uint16_t VERSION_NBO = htons(VERSION); // The version number in network byte order
+
 }
 
-enum msgid_t
-{
-    HA_QUERY = 1,
-    HA_REPLY = 2
-};
-
-enum status_t
-{
-    HA_SUCCESS = 0,
-    HA_GENERAL_FAILURE = 1
-};
-
-uint8_t* compose_ha_query(dnsquery const& query, string const& suffix, uint8_t* buf, uint8_t const* const end)
+uint8_t* compose_ha_query(uint16_t const id, string const& name, uint8_t* buf, uint8_t const* const end)
 {
     using namespace protocol_helper;
 
     buf = write_short(HA_QUERY, buf, end);
-
+    buf = write_short(id, buf, end);
+    buf = write_string(name, buf, end);
 
     return buf;
+}
+
+std::string remove_suffix(std::string const& name, std::string const& suffix)
+{
+    std::string const name_suffix = name.substr(name.length() - suffix.length());
+    if ( name_suffix != suffix)
+    {
+        sstream ss;
+        ss << "Name '" << name  << "' contains an invalid suffix: " << name_suffix;
+    }
+    return name.substr(0, name.length() - suffix.length());
 }
 
 void haspeaker::connect(bs::error_code const& ec)
@@ -135,6 +136,10 @@ void haspeaker::handle_version_received(bs::error_code const& ec, std::size_t co
         {
             // Version OK, all systems go!
             connected_ = true;
+
+            // Start an async read to read replies from home agent
+            async_read(socket_, recv_header_.buffer(),
+                    strand_.wrap( boost::bind( &haspeaker::handle_reply_header_read, shared_from_this(), ph::error, ph::bytes_transferred ) ));
         }
         else
         {
@@ -150,8 +155,121 @@ void haspeaker::handle_version_received(bs::error_code const& ec, std::size_t co
     }
 }
 
+void haspeaker::handle_reply_header_read(bs::error_code const& ec, std::size_t const bytes_transferred)
+{
+    if ( !ec )
+    {
+        if ( recv_header_.msgid() == HA_REPLY )
+        {
+            if ( recv_header_.status() == HA_SUCCESS )
+            {
+                // Must read IP version and IP address
+                async_read(socket_, buffer(&recv_ip_ver_, 1),
+                        strand_.wrap( boost::bind( &haspeaker::handle_ip_ver_read, shared_from_this(), ph::error, ph::bytes_transferred ) ) );
+            }
+            else
+            {
+                // Failed to look up name
+                query_map_t::iterator queryi = queries_.find(recv_header_.serial());
+                if ( queryi != queries_.end() )
+                {
+                    log4.noticeStream() << "Received failure response from home agent at address " << haaddress_<< " for query with serial " << queryi->first;
+
+                    queryi->second->rcode(R_NAME_ERROR);
+                    queryi->second->send_reply();
+                    queries_.erase(queryi);
+                }
+                else
+                {
+                    log4.warnStream() << "Received a query reply from home agent at address " << haaddress_ << " for query with serial " << recv_header_.serial() << " but corresponding query does not exist in map";
+                }
+
+                // Start an async read to read replies from home agent
+                async_read(socket_, recv_header_.buffer(),
+                        strand_.wrap( boost::bind( &haspeaker::handle_reply_header_read, shared_from_this(), ph::error, ph::bytes_transferred ) ));
+            }
+            return;
+        }
+        else
+        {
+            log4.errorStream() << "Received a reply with invalid message ID from home agent at address " << haaddress_;
+            // Fall through to reconnect
+        }
+    }
+    else
+    {
+        log4.errorStream() << "An error occurred while reading query reply header from home agent at address " << haaddress_ << ": " << ec.message();
+        // Fall through to reconnect
+    }
+    reconnect();
+}
+
+void haspeaker::handle_ip_ver_read(bs::error_code const& ec, std::size_t const bytes_transferred)
+{
+    if ( !ec)
+    {
+        std::size_t addr_len;
+        if ( recv_ip_ver_ == 4) addr_len = 4;
+        else if ( recv_ip_ver_ == 6 ) addr_len = 16;
+        else
+        {
+            log4.errorStream() << "Received an invalid IP address version in reply message from home agent at address " << haaddress_;
+            goto reconnect;
+        }
+        async_read(socket_, buffer(recv_buf_, addr_len),
+                strand_.wrap( boost::bind( &haspeaker::handle_ip_read, shared_from_this(), ph::error, ph::bytes_transferred ) ) );
+        return;
+    }
+    else
+    {
+        log4.errorStream() << "An error occurred while reading IP version in reply message from home agent at addres " << haaddress_ << ": " << ec.message();
+        // Fall through
+    }
+reconnect:
+    reconnect();
+}
+
+void haspeaker::handle_ip_read(bs::error_code const& ec, std::size_t const bytes_transferred)
+{
+    if ( !ec )
+    {
+        query_map_t::iterator queryi = queries_.find(recv_header_.serial());
+        if ( queryi != queries_.end() )
+        {
+            log4.noticeStream() << "Received IP address from home agent at address " << haaddress_<< " for query with serial " << queryi->first;
+
+            dnsrr rr;
+            rr.owner = ns_name_;
+            rr.rtype = recv_ip_ver_ == 4 ? T_A : T_AAAA;
+            rr.rclass = C_IN;
+            rr.ttl = ttl_;
+            rr.rdlength = recv_ip_ver_ == 4 ? 4 : 16;
+            memcpy(rr.rdata.data(), recv_buf_.data(), rr.rdlength);
+
+            queryi->second->add_answer(rr);
+            queryi->second->send_reply();
+            queries_.erase(queryi);
+        }
+        else
+        {
+            log4.warnStream() << "Received a query reply from home agent at address " << haaddress_ << " for query with serial " << recv_header_.serial() << " but corresponding query does not exist in map";
+        }
+        // Start an async read to read replies from home agent
+        async_read(socket_, recv_header_.buffer(),
+                strand_.wrap( boost::bind( &haspeaker::handle_reply_header_read, shared_from_this(), ph::error, ph::bytes_transferred ) ));
+    }
+    else
+    {
+        log4.errorStream() << "An error occurred while reading IP address in reply message from home agent at address " << haaddress_;
+        reconnect();
+    }
+}
+
 void haspeaker::disconnect()
 {
+    connected_ = false;
+    send_in_progress_ = false;
+
     bs::error_code shutdown_ec;
     socket_.shutdown(ip::tcp::socket::shutdown_both, shutdown_ec);
     if (!shutdown_ec) log4.errorStream() << "An error occurred while shutting down connection to home agent at address " << haaddress_;
@@ -160,8 +278,13 @@ void haspeaker::disconnect()
     socket_.close(close_ec);
     if (!close_ec) log4.errorStream() << "An error occurred while closing connection to home agent at address " << haaddress_;
 
-    connected_ = false;
-    send_in_progress_ = false;
+    // Cancel all outstanding queries
+    while( !query_queue_.empty() )
+    {
+        query_queue_.front()->rcode(R_SERVER_FAILURE);
+        query_queue_.front()->send_reply();
+        query_queue_.pop_front();
+    }
 }
 
 void haspeaker::reconnect()
@@ -182,6 +305,20 @@ void haspeaker::process_query_( query_ptr query)
 {
     if ( connected_ )
     {
+        if ( send_in_progress_ )
+        {
+            if ( query_queue_.full() )
+            {
+                log4.warnStream() << "Query queue for home agent at address " << haaddress_ << " full. Returning failure to " << query->remote_udp_endpoint();
+                query->rcode(R_SERVER_FAILURE);
+                query->send_reply();
+                return;
+            }
+            query_queue_.push_back( query );
+            return;
+        }
+        send_in_progress_ = true;
+
         // NOTE: At the moment, we only support looking up the first name in a DNS query!
         // This shouldn't be a problem, because in our use case, DNS queries should
         // contain only one name to resolve.
@@ -208,14 +345,31 @@ void haspeaker::process_query_( query_ptr query)
             return;
         }
 
-        string device_name = remove_suffix(question.name, suffix_);
+        string device_name;
+        try
+        {
+            device_name = remove_suffix(question.name, suffix_);
+        }
+        catch ( std::runtime_error const& e )
+        {
+            log4.noticeStream() << "Received a DNS query with an invalid name: " << e.what();
+            query->rcode(R_NAME_ERROR);
+            query->send_reply();
+            return;
+        }
 
-        // Add query to map with based on ID with 31 second timer [we are in a strand, use ordinary map?]
-        // (fail if id already exists in map)
+        std::pair< query_map_t::iterator, bool > res = queries_.insert( std::make_pair( query->id(), query ) );
+        if ( !res.second )
+        {
+            query->rcode(R_REFUSED);
+            query->send_reply();
+            return;
+        }
 
-        // Compose message in buffer
+        uint8_t* const end = compose_ha_query(query->id(), device_name, send_buf_.data(), send_buf_.data() + send_buf_.size());
 
-        // Async send
+        async_write(socket_, buffer(send_buf_, end - send_buf_.data()),
+                strand_.wrap(boost::bind( &haspeaker::handle_query_sent, shared_from_this(), ph::error, ph::bytes_transferred )) );
     }
     else
     {
@@ -223,6 +377,31 @@ void haspeaker::process_query_( query_ptr query)
         query->rcode(R_SERVER_FAILURE);
         query->send_reply();
     }
+}
+
+void haspeaker::handle_query_sent(bs::error_code const& ec, std::size_t bytes_transferred)
+{
+    if ( !ec )
+    {
+        log4.infoStream() << "Successfully sent query to home agent at address " << haaddress_;
+        // Fall through
+    }
+    else
+    {
+        log4.errorStream() << "An error occurred while sending query to home agent at address " << haaddress_ << ": " << ec.message();
+        reconnect();
+        return;
+    }
+
+    send_in_progress_ = false;
+
+    if ( !query_queue_.empty() )
+    {
+        query_ptr query = query_queue_.front();
+        query_queue_.pop_front();
+        process_query_( query );
+    }
+
 }
 
 template < class hacontainer_iter_t, class hacontainer_diff_t >

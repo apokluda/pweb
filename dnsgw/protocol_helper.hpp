@@ -38,7 +38,7 @@ namespace protocol_helper
        if ( (end - buf) < len ) unexpected_end_of_message();
     }
 
-    inline boost::uint8_t* parse_short(boost::uint16_t& val, boost::uint8_t const* buf, boost::uint8_t const* const end)
+    inline boost::uint8_t const* parse_short(boost::uint16_t& val, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
        check_end(2, buf, end);
        val = ntohs( *reinterpret_cast< boost::uint16_t const* >( buf ) );
@@ -50,6 +50,15 @@ namespace protocol_helper
         check_end(2, buf, end);
         *reinterpret_cast< boost::uint16_t* >( buf ) = htons(val);
         return buf + 2;
+    }
+
+    inline boost::uint8_t* write_string(std::string const& str, boost::uint8_t* buf, boost::uint8_t const* const end)
+    {
+        std::size_t len = str.length();
+        buf = write_short(len, buf, end);
+        check_end(len, buf, end); // +2 for sring length prefix
+        memcpy(buf, str.c_str(), len);
+        return buf + len;
     }
 }
 

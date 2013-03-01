@@ -336,7 +336,7 @@ void udp_dnsspeaker::handle_send_reply( bs::error_code const& ec )
 {
     if ( !ec )
     {
-        log4.debug("Successfully sent UDP DNS reply");
+        log4.info("Successfully sent UDP DNS reply");
         // Fall through
     }
     else

@@ -79,10 +79,11 @@ int main(int argc, char const* argv[])
         string log_file;
         string log_level;
         string interface;
+        string ns_name;
         string suffix;
         haaddr_list_t home_agents;
         std::size_t num_threads;
-        boost::uint32_t ttl;
+        boost::uint16_t ttl;
         boost::uint16_t port;
         bool debug = false;
 
@@ -99,12 +100,13 @@ int main(int argc, char const* argv[])
         // on the command line and in the config file
         po::options_description config("Configuration");
         config.add_options()
-                    ("ttl", po::value< boost::uint32_t >(&ttl)->default_value(3600), "number of seconds to cache name to IP mappings")
+                    ("ttl", po::value< boost::uint16_t >(&ttl)->default_value(3600), "number of seconds to cache name to IP mappings")
                     ("log_file,l", po::value< string >(&log_file)->default_value("dnsgw.log"), "log file name")
                     ("log_level,L", po::value< string >(&log_level)->default_value("WARN"), "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
                     ("iface,i", po::value< string >(&interface), "IP v4 or v6 address of interface to listen on")
                     ("port,p", po::value< boost::uint16_t >(&port)->default_value(53), "port to listen on")
                     ("home_agents,H", po::value< haaddr_list_t >(&home_agents)->required(), "list of home agent addresses to connect to")
+                    ("ns_name,N", po::value< string >(&ns_name)->required(), "the hostname of the name server to include in DNS replies" )
                     ("suffix,s", po::value< string >(&suffix)->default_value(".dht"), "suffix to be removed from names before querying DHT")
                     ("threads", po::value< std::size_t >(&num_threads)->default_value(1), "number of application threads (0 = one thread per hardware core)")
                     ;
@@ -190,7 +192,7 @@ int main(int argc, char const* argv[])
         haspeakers.reserve( home_agents.size() );
         for (haaddr_list_t::const_iterator i = home_agents.begin(); i != home_agents.end(); ++i)
         {
-            haspeaker_ptr hptr(new haspeaker(io_service, *i, suffix) );
+            haspeaker_ptr hptr(new haspeaker(io_service, *i, ns_name, ttl, suffix) );
             hptr->connect();
             haspeakers.push_back(hptr);
         }

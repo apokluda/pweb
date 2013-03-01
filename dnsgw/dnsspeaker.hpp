@@ -237,7 +237,7 @@ private:
         *reinterpret_cast< boost::uint16_t* >( buf_.data() + offset ) = htons(val);
     }
 
-    static size_t const HEADER_LENGTH = 12;
+    static std::size_t const HEADER_LENGTH = 12;
     boost::array< boost::uint8_t, HEADER_LENGTH > buf_;
 };
 
