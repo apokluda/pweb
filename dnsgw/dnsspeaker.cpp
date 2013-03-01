@@ -113,19 +113,25 @@ namespace dns_query_parser
 
     boost::uint8_t const* parse_answer(dnsquery& query, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
-        // TODO: Not implemented yet!
+        // Not needed!
         return buf;
     }
 
     boost::uint8_t const* parse_authority(dnsquery& query, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
-        // TODO: Not implemented yet!
+        // Not needed!
         return buf;
     }
 
     boost::uint8_t const* parse_additional(dnsquery& query, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
-        // TODO: Not implemented yet!
+        // Not needed!
+        return buf;
+    }
+
+    boost::uint8_t* write_rr(dnsrr const& rr, boost::uint8_t* buf, boost::uint8_t const* const end)
+    {
+        // TODO: Write out the resource record!
         return buf;
     }
 };
@@ -174,9 +180,6 @@ void parse_dns_query(dnsquery& query, dns_query_header const& header, boost::uin
         buf = parse_additional(query, buf, end);
     }
 
-    // TODO: parse answer, authority and additional not implemented!
-    buf = end;
-
     if ( buf != end )
     {
         throw parse_error("Additional data at end of query message");
@@ -194,9 +197,25 @@ void compose_dns_header(dns_query_header& header, dnsquery const& query)
     header.arcount( query.num_additionals() );
 }
 
-boost::uint8_t* compose_dns_query(dnsquery const& query, dns_query_header const& header, boost::uint8_t* buf, boost::uint8_t const* const end)
+boost::uint8_t* compose_dns_response(dnsquery const& query, dns_query_header const& header, boost::uint8_t* buf, boost::uint8_t const* const end)
 {
-    // TODO: Write to buffer!
+    using namespace dns_query_parser;
+
+    for ( dnsquery::answer_iterator i = query.answers_begin(); i != query.answers_end(); ++i )
+    {
+        buf = write_rr(*i, buf, end);
+    }
+
+    for ( dnsquery::authority_iterator i = query.authorities_begin(); i != query.authorities_end(); ++i )
+    {
+        buf = write_rr(*i, buf, end);
+    }
+
+    for ( dnsquery::additional_iterator i = query.additionals_begin(); i != query.additionals_end(); ++i )
+    {
+        buf = write_rr(*i, buf, end);
+    }
+
     return buf;
 }
 
@@ -319,7 +338,7 @@ void udp_dnsspeaker::send_reply_( query_ptr query )
         // size of the header + body). I'm going to leave it as it is for now. I might change it later.
 
         compose_dns_header(send_header_, *query);
-        boost::uint8_t const* const end = compose_dns_query( *query, send_header_, send_buf_.data(), send_buf_.data() + send_buf_.size());
+        boost::uint8_t const* const end = compose_dns_response( *query, send_header_, send_buf_.data(), send_buf_.data() + send_buf_.size());
 
         send_buf_arr_[1] = buffer( send_buf_, end - send_buf_.data() );
 
@@ -500,7 +519,7 @@ void dns_connection::send_reply_( query_ptr query )
         send_in_progress_ = true;
 
         compose_dns_header(send_header_, *query);
-        boost::uint8_t const* const end = compose_dns_query( *query, send_header_, send_buf_.data(), send_buf_.data() + send_buf_.size());
+        boost::uint8_t const* const end = compose_dns_response( *query, send_header_, send_buf_.data(), send_buf_.data() + send_buf_.size());
 
         std::ptrdiff_t const body_len = end - send_buf_.data();
         send_msg_len_ = htons( static_cast< boost::uint16_t >( body_len + send_header_.length() ) );
