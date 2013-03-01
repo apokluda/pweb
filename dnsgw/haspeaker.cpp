@@ -21,11 +21,11 @@ namespace bs = boost::system;
 
 namespace ha_protocol
 {
-    const uint16_t VERSION = 0x0001;
-    const uint16_t VERSION_NBO = 0x0100; // The version number in network byte order
+    const boost::uint16_t VERSION = 0x0001;
+    const boost::uint16_t VERSION_NBO = 0x0100; // The version number in network byte order
 }
 
-uint8_t* compose_ha_query(uint16_t const id, string const& name, uint8_t* buf, uint8_t const* const end)
+boost::uint8_t* compose_ha_query(boost::uint16_t const id, string const& name, boost::uint8_t* buf, boost::uint8_t const* const end)
 {
     using namespace protocol_helper;
 
@@ -130,7 +130,7 @@ void haspeaker::handle_version_received(bs::error_code const& ec, std::size_t co
     if ( !ec )
     {
         // Verify protocol version matches
-        uint16_t const version_from_server = ntohs( *reinterpret_cast< uint16_t* >( recv_buf_.data() ) );
+        boost::uint16_t const version_from_server = ntohs( *reinterpret_cast< boost::uint16_t* >( recv_buf_.data() ) );
         if ( version_from_server == ha_protocol::VERSION )
         {
             // Version OK, all systems go!
@@ -365,7 +365,7 @@ void haspeaker::process_query_( query_ptr query)
             return;
         }
 
-        uint8_t* const end = compose_ha_query(query->id(), device_name, send_buf_.data(), send_buf_.data() + send_buf_.size());
+        boost::uint8_t* const end = compose_ha_query(query->id(), device_name, send_buf_.data(), send_buf_.data() + send_buf_.size());
 
         async_write(socket_, buffer(send_buf_, end - send_buf_.data()),
                 strand_.wrap(boost::bind( &haspeaker::handle_query_sent, shared_from_this(), ph::error, ph::bytes_transferred )) );

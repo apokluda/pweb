@@ -102,9 +102,9 @@ struct dnsrr
     std::string owner;
     qtype_t rtype;
     qclass_t rclass;
-    uint32_t ttl;
-    uint16_t rdlength;
-    boost::array<uint8_t, 16> rdata;
+    boost::uint32_t ttl;
+    boost::uint16_t rdlength;
+    boost::array<boost::uint8_t, 16> rdata;
 };
 
 class dnsquery

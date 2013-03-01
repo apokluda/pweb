@@ -52,13 +52,13 @@ public:
 
     msgid_t msgid() const
     {
-        uint16_t msgid = read_short(0);
+        boost::uint16_t msgid = read_short(0);
         if ( msgid == HA_QUERY ) return HA_QUERY;
         if ( msgid == HA_REPLY ) return HA_REPLY;
         return HA_UNKNOWN;
     }
 
-    uint16_t serial() const
+    boost::uint16_t serial() const
     {
         return read_short(2);
     }
@@ -88,7 +88,7 @@ public:
     haspeaker(boost::asio::io_service& io_service,
             std::string const& haaddr,
             std::string const& ns_name,
-            uint16_t const ttl,
+            boost::uint16_t const ttl,
             std::string const& suffix)
     : haaddress_(haaddr)
     , ns_name_(ns_name)
@@ -143,11 +143,11 @@ private:
     boost::asio::ip::tcp::resolver resolver_;
     boost::asio::deadline_timer retrytimer_;
     boost::asio::ip::tcp::socket socket_;
-    uint16_t ttl_;
-    boost::array<uint8_t, 2 + 2 + 2 + 255 > send_buf_; // Max message size in version 1 of protocol (max DNS name length = 255)
+    boost::uint16_t ttl_;
+    boost::array<boost::uint8_t, 2 + 2 + 2 + 255 > send_buf_; // Max message size in version 1 of protocol (max DNS name length = 255)
     ha_reply_header recv_header_;
-    uint8_t recv_ip_ver_;
-    boost::array<uint8_t, 16 > recv_buf_; // Max message body size is 16 bytes for IPv6 address
+    boost::uint8_t recv_ip_ver_;
+    boost::array<boost::uint8_t, 16 > recv_buf_; // Max message body size is 16 bytes for IPv6 address
     bool connected_; // potentially accessed concurrently, but *should* be ok
     bool send_in_progress_;
 };
