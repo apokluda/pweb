@@ -21,9 +21,8 @@ namespace bs = boost::system;
 
 namespace ha_protocol
 {
-    const uint16_t VERSION = 1;
-    const uint16_t VERSION_NBO = htons(VERSION); // The version number in network byte order
-
+    const uint16_t VERSION = 0x0001;
+    const uint16_t VERSION_NBO = 0x0100; // The version number in network byte order
 }
 
 uint8_t* compose_ha_query(uint16_t const id, string const& name, uint8_t* buf, uint8_t const* const end)
