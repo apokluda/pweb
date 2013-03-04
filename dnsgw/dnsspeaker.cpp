@@ -71,6 +71,51 @@ namespace dns_query_parser
         return buf;
     }
 
+    inline boost::uint8_t* write_label_len(std::size_t const len, boost::uint8_t* buf, boost::uint8_t const* const end)
+    {
+        check_end(buf, end);
+        if ( len > 63 ) // max defined label length (RFC 1035 S2.3.4)
+        {
+            sstream ss;
+            ss << "Invalid label length: " << len;
+            throw parse_error(ss.str());
+        }
+        *buf = static_cast< boost::uint8_t >( len );
+        return ++buf;
+    }
+
+    boost::uint8_t* write_label(std::string const& label, boost::uint8_t* buf, boost::uint8_t const* const end)
+    {
+        std::size_t const len = label.length();
+        buf = write_label_len( len, buf, end );
+        check_end(len, buf, end);
+        memcpy(buf, label.c_str(), len);
+        return buf + len;
+    }
+
+    boost::uint8_t* write_name(std::string const& name, boost::uint8_t* buf, boost::uint8_t const* const end)
+    { // Writes a string in DNS "name format" (ie. a series of length-prefixed strings)
+        std::size_t const len = name.length();
+        if ( len > 255 ) // max defined name length (RFC 1035 S2.3.4)
+        {
+            sstream ss;
+            ss << "Invalid name length: " << len;
+            throw parse_error(ss.str());
+        }
+
+        using boost::tokenizer;
+
+        tokenizer<> tok(name);
+        for( tokenizer<>::iterator beg = tok.begin(); beg != tok.end(); ++beg )
+        {
+            buf = write_label(*beg, buf, end);
+        }
+
+        check_end(buf, end);
+        *buf = 0;
+        return ++buf;
+    }
+
     boost::uint8_t const* parse_qtype(qtype_t& qtype, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
         boost::uint16_t val;
@@ -131,8 +176,16 @@ namespace dns_query_parser
 
     boost::uint8_t* write_rr(dnsrr const& rr, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
-        // TODO: Write out the resource record!
-        return buf;
+        buf = write_lpstring( rr.owner, buf, end );
+        buf = write_short( rr.rtype, buf, end );
+        buf = write_short( rr.rclass, buf, end );
+        buf = write_slong( rr.ttl, buf, end);
+        buf = write_short( rr.rdlength, buf, end );
+
+        if ( rr.rdlength > sizeof(rr.rdata) ) throw parse_error("Error writing DNS RR: rdlength > sizeof(rdata)");
+        check_end(rr.rdlength, buf, end);
+        memcpy(buf, rr.rdata.data(), rr.rdlength);
+        return buf + rr.rdlength;
     }
 };
 

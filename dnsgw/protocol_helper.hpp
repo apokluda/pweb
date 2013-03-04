@@ -52,11 +52,18 @@ namespace protocol_helper
         return buf + 2;
     }
 
-    inline boost::uint8_t* write_string(std::string const& str, boost::uint8_t* buf, boost::uint8_t const* const end)
-    {
+    inline boost::uint8_t* write_slong(boost::int32_t const val, boost::uint8_t* buf, boost::uint8_t const* const end)
+    { // slong = signed long (ie. int 32)
+        check_end(4, buf, end);
+        *reinterpret_cast< boost::int32_t* >( buf ) = htonl(val);
+        return buf + 4;
+    }
+
+    inline boost::uint8_t* write_lpstring(std::string const& str, boost::uint8_t* buf, boost::uint8_t const* const end)
+    { // lpstring = length-prefixed string
         std::size_t len = str.length();
         buf = write_short(len, buf, end);
-        check_end(len, buf, end); // +2 for sring length prefix
+        check_end(len, buf, end); // +2 for string length prefix
         memcpy(buf, str.c_str(), len);
         return buf + len;
     }

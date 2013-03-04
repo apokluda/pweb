@@ -31,7 +31,7 @@ boost::uint8_t* compose_ha_query(boost::uint16_t const id, string const& name, b
 
     buf = write_short(HA_QUERY, buf, end);
     buf = write_short(id, buf, end);
-    buf = write_string(name, buf, end);
+    buf = write_lpstring(name, buf, end);
 
     return buf;
 }
