@@ -21,7 +21,7 @@
  */
 
 #include "stdhdr.hpp"
-#include "haspeaker.hpp"
+#include "haproxy.hpp"
 #include "dnsspeaker.hpp"
 #include "haloadbalancer.hpp"
 
@@ -80,12 +80,13 @@ int main(int argc, char const* argv[])
         string log_file;
         string log_level;
         string interface;
-        string ns_name;
+        string nshostname;
         string suffix;
         haaddr_list_t home_agents;
         std::size_t num_threads;
         boost::uint16_t ttl;
         boost::uint16_t port;
+        boost::uint16_t nsport;
         bool debug = false;
 
         // Declare a group of options that will be available only
@@ -107,7 +108,8 @@ int main(int argc, char const* argv[])
                     ("iface,i", po::value< string >(&interface), "IP v4 or v6 address of interface to listen on")
                     ("port,p", po::value< boost::uint16_t >(&port)->default_value(53), "port to listen on")
                     ("home_agents,H", po::value< haaddr_list_t >(&home_agents)->required(), "list of home agent addresses to connect to")
-                    ("ns_name,N", po::value< string >(&ns_name)->required(), "the hostname of the name server to include in DNS replies" )
+                    ("nshostname,N", po::value< string >(&nshostname)->required(), "the hostname of the DNS gateway (included in DNS replies and in requests to home agents)" )
+                    ("nsport,P", po::value< boost::uint16_t >(&nsport)->required(), "the port the DNS gateway uses to receive replies from home agents")
                     ("suffix,s", po::value< string >(&suffix)->default_value(".dht"), "suffix to be removed from names before querying DHT")
                     ("threads", po::value< std::size_t >(&num_threads)->default_value(1), "number of application threads (0 = one thread per hardware core)")
                     ;
@@ -186,21 +188,34 @@ int main(int argc, char const* argv[])
 
         // These typedefs must match the typedefs at the end of haspeaker.cpp
         // in order to avoid linker errors
-        typedef boost::shared_ptr< haspeaker > haspeaker_ptr;
-        typedef std::vector< haspeaker_ptr > haspeakers_t;
+        typedef boost::shared_ptr< hasendproxy > hasendproxy_ptr;
+        typedef std::vector< hasendproxy_ptr > haproxies_t;
 
-        haspeakers_t haspeakers;
-        haspeakers.reserve( home_agents.size() );
+        haproxies_t haproxies;
+        haproxies.reserve( home_agents.size() );
         for (haaddr_list_t::const_iterator i = home_agents.begin(); i != home_agents.end(); ++i)
         {
-            haspeaker_ptr hptr(new haspeaker(io_service, *i, ns_name, ttl, suffix) );
-            hptr->connect();
-            haspeakers.push_back(hptr);
+            std::vector<string> address;
+            boost::split( address, *i, boost::is_any_of(":") );
+            if ( address.size() == 2 )
+            {
+                boost::uint16_t const haport = boost::lexical_cast< boost::uint16_t >( address[1] );
+
+                hasendproxy_ptr hptr(new hasendproxy(io_service, address[0], haport, nshostname, nsport, ttl, suffix) );
+                haproxies.push_back(hptr);
+            }
+            else
+            {
+                log4.errorStream() << "Invalid home agent hostname '" << *i << "', format should be 'hostname:port'";
+            }
         }
 
-        // Ownership of haspeakers vector remains with caller
-        typedef ha_load_balancer< haspeakers_t::iterator, haspeakers_t::difference_type > balancer_t;
-        balancer_t halb( io_service, haspeakers.begin(), haspeakers.size() );
+        // Ownership of haproxies vector remains with caller
+        typedef ha_load_balancer< haproxies_t::iterator, haproxies_t::difference_type > balancer_t;
+        balancer_t halb( io_service, haproxies.begin(), haproxies.size() );
+
+        harecvproxy harecvproxy(io_service, nshostname, nsport);
+        harecvproxy.start();
 
         udp_dnsspeaker udp_dnsspeaker(io_service, boost::bind(&balancer_t::process_query, &halb, _1), interface, port);
         tcp_dnsspeaker tcp_dnsspeaker(io_service, boost::bind(&balancer_t::process_query, &halb, _1), interface, port);

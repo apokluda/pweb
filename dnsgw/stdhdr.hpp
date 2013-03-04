@@ -33,6 +33,7 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/circular_buffer.hpp>
 #include <boost/tokenizer.hpp>
+#include <boost/lexical_cast.hpp>
 
 // Logging
 #include <log4cpp/Category.hh>
