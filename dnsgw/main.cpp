@@ -201,7 +201,7 @@ int main(int argc, char const* argv[])
             {
                 boost::uint16_t const haport = boost::lexical_cast< boost::uint16_t >( address[1] );
 
-                hasendproxy_ptr hptr(new hasendproxy(io_service, address[0], haport, nshostname, nsport, ttl, suffix) );
+                hasendproxy_ptr hptr(new hasendproxy(io_service, address[0], haport, nshostname, nsport, suffix) );
                 haproxies.push_back(hptr);
             }
             else

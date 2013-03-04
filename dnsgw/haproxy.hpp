@@ -13,24 +13,36 @@
 class dnsquery;
 typedef boost::shared_ptr< dnsquery > query_ptr;
 
-class hasendproxy
+class hasendproxy :
+        private boost::noncopyable,
+        public boost::enable_shared_from_this<hasendproxy>
 {
 public:
     hasendproxy(boost::asio::io_service& io_service,
             std::string const& hahostname, boost::uint16_t const haport,
             std::string const& nshostname, boost::uint16_t const nsport,
-            boost::uint16_t const ttl, std::string const& suffix);
+            std::string const& suffix);
+
+    bool enabled() const
+    {
+        return enabled_.load(boost::memory_order_acquire);
+    }
 
     void process_query( query_ptr query );
 
 private:
+    void handle_resolve(boost::system::error_code const& ec, boost::asio::ip::tcp::resolver::iterator iter);
+    void handle_query_sent(boost::system::error_code const& ec, std::size_t const bytes_tranferred);
+
     boost::asio::io_service& io_service_;
+    boost::asio::ip::tcp::resolver resolver_;
+    boost::asio::ip::tcp::resolver::iterator iter_;
     std::string const hahostname_;
     std::string const nshostname_;
     std::string const suffix_;
     boost::uint16_t const haport_;
     boost::uint16_t const nsport_;
-    boost::uint16_t const ttl_;
+    boost::atomic< bool > enabled_;
 };
 
 class harecvproxy
