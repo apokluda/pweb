@@ -49,7 +49,7 @@ class harecvconnection;
 class harecvproxy
 {
 public:
-    harecvproxy(boost::asio::io_service& io_service, const boost::uint16_t nsport);
+    harecvproxy(boost::asio::io_service& io_service, std::string const& nshostname, const boost::uint16_t nsport, boost::uint16_t const ttl);
 
     void start();
 
@@ -60,6 +60,8 @@ private:
 
     recv_connection_ptr new_connection_;
     boost::asio::ip::tcp::acceptor acceptor_;
+    std::string const nshostname_;
+    boost::uint16_t const ttl_;
 };
 
 #endif /* HAPROXY_HPP_ */

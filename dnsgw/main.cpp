@@ -214,7 +214,7 @@ int main(int argc, char const* argv[])
         typedef ha_load_balancer< haproxies_t::iterator, haproxies_t::difference_type > balancer_t;
         balancer_t halb( io_service, haproxies.begin(), haproxies.size() );
 
-        harecvproxy harecvproxy(io_service, nsport);
+        harecvproxy harecvproxy(io_service, nshostname, nsport, ttl);
         harecvproxy.start();
 
         udp_dnsspeaker udp_dnsspeaker(io_service, boost::bind(&balancer_t::process_query, &halb, _1), interface, port);

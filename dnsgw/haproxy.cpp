@@ -37,13 +37,23 @@ namespace
 
     enum absmsgid_t
     {
-        ABS_GET = 5
+        ABS_GET = 5,
+        ABS_REPLY = 43
     };
 
     using namespace protocol_helper;
 
     typedef boost::int32_t absint_t;
     typedef boost::uint32_t absuint_t;
+    typedef double absdbl_t; // IEEE 754 Double Precision Floating Point format (always 64 bits)
+
+    template < typename IntType >
+    uint8_t* read_abs_int(IntType& val, uint8_t* buf, uint8_t const* const end)
+    {
+        check_end( sizeof( IntType), buf, end );
+        val = *reinterpret_cast< IntType* >( buf );
+        return buf + sizeof( IntType );
+    }
 
     template < typename IntType >
     uint8_t* write_abs_int(IntType const val, uint8_t* buf, uint8_t const* const end)
@@ -67,16 +77,47 @@ namespace
         return write_abs_chars(str, buf, end);
     }
 
+    uint8_t* write_abs_zero(std::size_t const len, uint8_t* buf, uint8_t const* const end)
+    {
+        check_end(len, buf, end);
+        memset(buf, 0, len);
+        return buf;
+    }
+
+    static std::size_t const unused_abs_header_len =
+              1                // overlay hops
+            + 1                // overlay ttl
+            + sizeof(absint_t) // IP hops
+            + sizeof(absdbl_t) // latency
+            + sizeof(absint_t) // overlay ID
+            + sizeof(absint_t) // prefix length
+            + sizeof(absint_t);// max length
+
+    static std::size_t const abs_reply_len_before_sequence =
+            sizeof(absint_t) // resolution status
+          + sizeof(absint_t) // resolution hops
+          + sizeof(absint_t) // resolution ip hops
+          + sizeof(absdbl_t);// resolution latency
+
+    static std::size_t const abs_reply_len_before_hostname =
+            abs_reply_len_before_sequence
+            + sizeof(absint_t) // sequence number
+            + sizeof(absint_t) // overlay ID
+            + sizeof(absint_t) // prefix length
+            + sizeof(absint_t) // max length
+            + sizeof(absuint_t);// destination hostname length
+
     uint8_t* write_abs_header(absmsgid_t const msgid, uint32_t const sequence, string const& hahostname, boost::uint16_t const haport, string const& nshostname, boost::uint16_t const nsport, uint8_t* buf, uint8_t const* const end)
     {
         check_end(buf, end);
-        *(buf++) = static_cast< boost::uint8_t >( msgid );
 
-        buf = write_abs_int   < absuint_t >(sequence, buf, end);
+        *(buf++) = static_cast< boost::uint8_t >( msgid );
+        buf = write_abs_int   < absuint_t >(sequence,   buf, end);
         buf = write_abs_string< absuint_t >(hahostname, buf, end);
-        buf = write_abs_int   < absint_t > (haport, buf, end);
+        buf = write_abs_int   < absint_t > (haport,     buf, end);
         buf = write_abs_string< absuint_t >(nshostname, buf, end);
-        buf = write_abs_int   < absint_t > (nsport, buf, end);
+        buf = write_abs_int   < absint_t > (nsport,     buf, end);
+        buf = write_abs_zero(unused_abs_header_len, buf, end);
 
         return buf;
     }
@@ -161,21 +202,152 @@ private:
     boost::uint16_t const nsport_;
 };
 
-class harecvconnection
+class harecvconnection : private boost::noncopyable, public boost::enable_shared_from_this< harecvconnection >
 {
 public:
-    harecvconnection( io_service& io_service )
+    harecvconnection( io_service& io_service, string const& nshostname, boost::uint16_t const ttl )
     : socket_( io_service )
+    , nshostname_()
+    , hostlen_(0)
+    , sequence_(0)
+    , ttl_(ttl)
     {
-
     }
 
     void start()
     {
-
+        async_read( socket_, buffer(buf_, 1 + sizeof(absuint_t) + sizeof(absint_t)),
+               boost::bind( &harecvconnection::handle_read_to_desthostlen, shared_from_this(), ph::error, ph::bytes_transferred ) );
     }
 
 private:
+    void handle_read_to_desthostlen( bs::error_code const& ec, std::size_t const bytes_transferred )
+    {
+        if ( !ec )
+        {
+            absuint_t desthostlen;
+            read_abs_int< absuint_t >(desthostlen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
+            async_read( socket_, buffer(buf_, desthostlen + sizeof(absint_t) + sizeof(absuint_t)),
+                    boost::bind( &harecvconnection::handle_read_to_srchostlen, shared_from_this(), ph::error, ph::bytes_transferred ) );
+        }
+        else
+        {
+            log4.errorStream() << "An error occurred while reading ABS message header: " << ec.message();
+        }
+    }
+
+    void handle_read_to_srchostlen( bs::error_code const& ec, std::size_t const bytes_transferred )
+    {
+        if ( !ec )
+        {
+            absuint_t srchostlen;
+            read_abs_int< absuint_t >(srchostlen, buf_.data() + bytes_transferred - sizeof(absuint_t), buf_.data() + bytes_transferred );
+            async_read( socket_, buffer(buf_, srchostlen + sizeof(absint_t) + unused_abs_header_len),
+                    boost::bind( &harecvconnection::handle_absheader_read, shared_from_this(), ph::error, ph::bytes_transferred ) );
+        }
+        else
+        {
+            log4.errorStream() << "An error occurred while reading ABS message header: " << ec.message();
+        }
+    }
+
+    void handle_absheader_read( bs::error_code const& ec, std::size_t const bytes_transferred )
+    {
+        if ( !ec )
+        {
+            async_read( socket_, buffer( buf_, abs_reply_len_before_hostname ),
+                    boost::bind( &harecvconnection::handle_read_to_replyhostlen, shared_from_this(), ph::error, ph::bytes_transferred ) );
+        }
+        else
+        {
+            log4.errorStream() << "An error occurred while reading ABS message header: " << ec.message();
+        }
+    }
+
+    void handle_read_to_replyhostlen( bs::error_code const& ec, std::size_t const bytes_transferred )
+    {
+        if ( !ec )
+        {
+            absint_t sequence;
+            read_abs_int< absint_t >(sequence, buf_.data() + abs_reply_len_before_sequence, buf_.data() + bytes_transferred );
+            sequence_ = static_cast< boost::uint16_t >( sequence );
+
+            absuint_t hostlen;
+            read_abs_int< absuint_t >(hostlen, buf_.data() + bytes_transferred - sizeof(absuint_t), buf_.data() + bytes_transferred );
+            hostlen_ = hostlen;
+
+            async_read(socket_, buffer(buf_, hostlen + sizeof(absint_t) + sizeof(absuint_t)),
+                    boost::bind( &harecvconnection::handle_read_to_devicenamelen, shared_from_this(), ph::error, ph::bytes_transferred ) );
+        }
+        else
+        {
+            log4.errorStream() << "An error occurred while reading GET REPLY message body: " << ec.message();
+        }
+    }
+
+    void handle_read_to_devicenamelen( bs::error_code const& ec, std::size_t const bytes_transferred )
+    {
+        if ( !ec )
+        {
+            absuint_t devicenamelen;
+            read_abs_int< absuint_t >(devicenamelen, buf_.data() + bytes_transferred - sizeof(absuint_t), buf_.data() + bytes_transferred );
+
+            // Need to get query from map based on sequence num!
+
+            query_ptr query;
+            // This is not the least bit elegant, but it should work!
+            buf_[hostlen_] = '\0'; // overwrites device name length in buffer
+            bs::error_code ec;
+            ip::address addr = ip::address::from_string(reinterpret_cast< char* >( buf_.data() ), ec);
+            if ( !ec )
+            {
+                dnsrr rr;
+                rr.owner = nshostname_;
+                rr.rclass = C_IN;
+                rr.ttl = ttl_;
+                if ( addr.is_v4() )
+                {
+                    rr.rdlength = 4;
+                    memcpy(rr.rdata.c_array(), addr.to_v4().to_bytes().data(), 4);
+                    rr.rtype = T_A;
+                }
+                else // addr.is_v6()
+                {
+                    rr.rdlength = 16;
+                    memcpy(rr.rdata.c_array(), addr.to_v6().to_bytes().data(), 16);
+                    rr.rtype = T_AAAA;
+                }
+                query->rcode(R_SUCCESS);  // KABOOM!! Won't run yet.
+                query->add_answer(rr);
+                query->send_reply();
+            }
+            else
+            {
+                log4.errorStream() << "An error occurred while parsing IP address returned from home agent: " << ec.message();
+            }
+
+            async_read(socket_, buffer(buf_, devicenamelen),
+                    boost::bind( &harecvconnection::handle_devicename_read, shared_from_this(), ph::error, ph::bytes_transferred ) );
+        }
+        else
+        {
+            log4.errorStream() << "An error occurred while reading GET REPLY message body: " << ec.message();
+        }
+    }
+
+    void handle_devicename_read(boost::system::error_code const& ec, std::size_t const bytes_transferred)
+    {
+        if ( !ec )
+        {
+            // Done! We can let the connection close.
+            log4.infoStream() << "Successfully received message from home agent";
+        }
+        else
+        {
+            log4.errorStream() << "An error occurred while reading GET REPLY message body: " << ec.message();
+        }
+    }
+
     friend class harecvproxy;
 
     tcp::socket& socket()
@@ -184,6 +356,11 @@ private:
     }
 
     tcp::socket socket_;
+    std::size_t hostlen_;
+    std::string nshostname_;
+    boost::array< boost::uint8_t, 256 > buf_;
+    boost::uint16_t sequence_;
+    boost::uint16_t ttl_;
 };
 
 
@@ -224,8 +401,10 @@ void hasendproxy::process_query( query_ptr query )
     new hasendconnection( resolver_.get_io_service(), iter_, hahostname_, haport_, nshostname_, nsport_, query, suffix_);
 }
 
-harecvproxy::harecvproxy(io_service& io_service, boost::uint16_t const port)
+harecvproxy::harecvproxy(io_service& io_service, string const& nshostname, boost::uint16_t const port, boost::uint16_t ttl)
 : acceptor_(io_service)
+, nshostname_(nshostname)
+, ttl_(ttl)
 {
     try
     {
@@ -247,7 +426,7 @@ harecvproxy::harecvproxy(io_service& io_service, boost::uint16_t const port)
 
 void harecvproxy::start()
 {
-    new_connection_.reset( new harecvconnection( acceptor_.get_io_service() ) );
+    new_connection_.reset( new harecvconnection( acceptor_.get_io_service(), nshostname_, ttl_ ) );
     acceptor_.async_accept( new_connection_->socket(),
             boost::bind( &harecvproxy::handle_accept, this, ph::error ) );
 }
