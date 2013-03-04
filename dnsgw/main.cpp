@@ -23,6 +23,7 @@
 #include "stdhdr.hpp"
 #include "haspeaker.hpp"
 #include "dnsspeaker.hpp"
+#include "haloadbalancer.hpp"
 
 using std::cout;
 using std::cerr;

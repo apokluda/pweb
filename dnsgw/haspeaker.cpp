@@ -403,25 +403,3 @@ void haspeaker::handle_query_sent(bs::error_code const& ec, std::size_t bytes_tr
 
 }
 
-template < class hacontainer_iter_t, class hacontainer_diff_t >
-void ha_load_balancer< hacontainer_iter_t, hacontainer_diff_t >::process_query( query_ptr query )
-{
-    for (hacontainer_diff_t cnt = 0; cnt < size_; ++cnt)
-    {
-        hacontainer_diff_t my_offset = offset_.fetch_add(1, boost::memory_order_relaxed);
-        hacontainer_iter_t hs = begin_ + (my_offset % size_);
-        if ( (*hs)->connected() )
-        {
-            (*hs)->process_query( query );
-            return;
-        }
-    }
-    log4.warnStream() << "Unable to process query from " << query->remote_address() << ": Not connected to any home agents";
-
-    query->rcode(R_SERVER_FAILURE);
-    query->send_reply();
-}
-
-typedef boost::shared_ptr< haspeaker > haspeaker_ptr;
-typedef std::vector< haspeaker_ptr > haspeakers_t;
-template class ha_load_balancer< haspeakers_t::iterator, haspeakers_t::difference_type >;
