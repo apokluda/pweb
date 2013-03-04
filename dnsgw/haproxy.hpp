@@ -34,7 +34,6 @@ private:
     void handle_resolve(boost::system::error_code const& ec, boost::asio::ip::tcp::resolver::iterator iter);
     void handle_query_sent(boost::system::error_code const& ec, std::size_t const bytes_tranferred);
 
-    boost::asio::io_service& io_service_;
     boost::asio::ip::tcp::resolver resolver_;
     boost::asio::ip::tcp::resolver::iterator iter_;
     std::string const hahostname_;
@@ -45,16 +44,22 @@ private:
     boost::atomic< bool > enabled_;
 };
 
+class harecvconnection;
+
 class harecvproxy
 {
 public:
-    harecvproxy(boost::asio::io_service& io_service,
-           std::string const& nshostname, boost::uint16_t const nsport);
+    harecvproxy(boost::asio::io_service& io_service, const boost::uint16_t nsport);
 
     void start();
 
 private:
-    boost::asio::io_service& io_service_;
+    void handle_accept(boost::system::error_code const& ec);
+
+    typedef boost::shared_ptr< harecvconnection > recv_connection_ptr;
+
+    recv_connection_ptr new_connection_;
+    boost::asio::ip::tcp::acceptor acceptor_;
 };
 
 #endif /* HAPROXY_HPP_ */
