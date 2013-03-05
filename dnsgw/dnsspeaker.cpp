@@ -491,11 +491,12 @@ void dns_connection::handle_msg_len_read( bs::error_code const& ec, std::size_t 
     if ( !ec )
     {
         recv_msg_len_ = ntohs(recv_msg_len_);
-        log4.infoStream() << "Received DNS message length of " << recv_msg_len_ << " from " << socket_.remote_endpoint();
+        bs::error_code ec;
+        log4.infoStream() << "Received DNS message length of " << recv_msg_len_ << " from " << socket_.remote_endpoint(ec);
 
         if (recv_msg_len_ > recv_header_.length() + recv_buf_.size())
         {
-            log4.errorStream() << "TCP DNS message length " << recv_msg_len_ << " from " << socket_.remote_endpoint() << " is too large! Closing connection.";
+            log4.errorStream() << "TCP DNS message length " << recv_msg_len_ << " from " << socket_.remote_endpoint(ec) << " is too large! Closing connection.";
             return;
         }
 
@@ -507,7 +508,10 @@ void dns_connection::handle_msg_len_read( bs::error_code const& ec, std::size_t 
     else
     {
         if( ec != error::eof ) // eof means client closed connection
-            log4.errorStream() << "An error occurred while reading TCP DNS message length from " << socket_.remote_endpoint() << ": " << ec.message();
+        {
+            bs::error_code ec;
+            log4.errorStream() << "An error occurred while reading TCP DNS message length from " << socket_.remote_endpoint(ec) << ": " << ec.message();
+        }
     }
 }
 
@@ -522,7 +526,8 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
                 recv_header_.z() == 0 )
         {
             // Header format OK
-            log4.infoStream() << "Received TCP DNS query from " << socket_.remote_endpoint();
+            bs::error_code ec;
+            log4.infoStream() << "Received TCP DNS query from " << socket_.remote_endpoint(ec);
 
             boost::shared_ptr< dnsquery > query( new dnsquery(socket_.get_io_service()) );
             query->sender( shared_from_this() );
@@ -535,18 +540,20 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
             }
             catch ( dns_query_parser::parse_error const& )
             {
-                log4.noticeStream() << "An error occurred while parsing TCP DNS query from " << socket_.remote_endpoint();
+                log4.noticeStream() << "An error occurred while parsing TCP DNS query from " << socket_.remote_endpoint(ec);
             }
         }
         else
         {
             // Malformed header
-            log4.noticeStream() << "Received TCP DNS query with invalid header from " << socket_.remote_endpoint();
+            bs::error_code ec;
+            log4.noticeStream() << "Received TCP DNS query with invalid header from " << socket_.remote_endpoint(ec);
         }
     }
     else
     {
-        log4.errorStream() << "An error occurred while receiving TCP DNS query from " << socket_.remote_endpoint() << ": " << ec.message();
+        bs::error_code ec;
+        log4.errorStream() << "An error occurred while receiving TCP DNS query from " << socket_.remote_endpoint(ec) << ": " << ec.message();
     }
 }
 
@@ -563,25 +570,35 @@ void dns_connection::send_reply_( query_ptr query )
     {
         if ( reply_buf_.full() )
         {
-            log4.warnStream() << "TCP send buffer full. Dropping reply to " << socket_.remote_endpoint();
+            bs::error_code ec;
+            log4.warnStream() << "TCP send buffer full. Dropping reply to " << socket_.remote_endpoint(ec);
             return;
         }
         reply_buf_.push_back( query );
     }
     else
     {
-        // Send reply immediately.
-        send_in_progress_ = true;
+        try
+        {
+            // Send reply immediately.
+            send_in_progress_ = true;
 
-        compose_dns_header(send_header_, *query);
-        boost::uint8_t const* const end = compose_dns_response( *query, send_header_, send_buf_.data(), send_buf_.data() + send_buf_.size());
+            compose_dns_header(send_header_, *query);
+            boost::uint8_t const* const end = compose_dns_response( *query, send_header_, send_buf_.data(), send_buf_.data() + send_buf_.size());
 
-        std::ptrdiff_t const body_len = end - send_buf_.data();
-        send_msg_len_ = htons( static_cast< boost::uint16_t >( body_len + send_header_.length() ) );
+            std::ptrdiff_t const body_len = end - send_buf_.data();
+            send_msg_len_ = htons( static_cast< boost::uint16_t >( body_len + send_header_.length() ) );
 
-        send_buf_arr_[2] = buffer( send_buf_, end - send_buf_.data() );
-        async_write(socket_, send_buf_arr_, strand_.wrap(
-                boost::bind( &dns_connection::handle_send_reply, shared_from_this(), ph::error ) ) );
+            send_buf_arr_[2] = buffer( send_buf_, end - send_buf_.data() );
+            async_write(socket_, send_buf_arr_, strand_.wrap(
+                    boost::bind( &dns_connection::handle_send_reply, shared_from_this(), ph::error ) ) );
+        }
+        catch ( std::exception const& e )
+        {
+            // We may catch an exception here if the DNS client got tired of waiting
+            // and closed the connection
+            log4.warnStream() << "Unable to send TCP DNS reply: " << e.what();
+        }
     }
 }
 
@@ -589,12 +606,14 @@ void dns_connection::handle_send_reply( bs::error_code const& ec )
 {
     if ( !ec )
     {
-        log4.debugStream() << "Successfully sent TCP DNS reply to " << socket_.remote_endpoint();
+        bs::error_code ec;
+        log4.debugStream() << "Successfully sent TCP DNS reply to " << socket_.remote_endpoint(ec);
         // Fall through
     }
     else
     {
-        log4.errorStream() << "An error occurred while sending TCP DNS response to " << socket_.remote_endpoint() << ": " << ec.message();
+        bs::error_code ec;
+        log4.errorStream() << "An error occurred while sending TCP DNS response to " << socket_.remote_endpoint(ec) << ": " << ec.message();
         // Fall through
     }
 

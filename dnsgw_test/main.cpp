@@ -35,6 +35,8 @@ void session(socket_ptr sock)
             io_service& io_service = sock->get_io_service();
             sock.reset();
 
+            //sleep(15);
+
             MessageGET_REPLY replymsg("alex.laptop.uw", 9999, "dnsgw.pwebproject.net", 8888, OverlayID(),
                     OverlayID(), 0, OverlayID(), HostAddress("6.6.6.6", 7777), getmsg.GetDeviceName());
             replymsg.setOriginSeqNo(getmsg.getSequenceNo());

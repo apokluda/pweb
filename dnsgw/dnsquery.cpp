@@ -34,7 +34,8 @@ public:
 
     boost::asio::ip::address operator()( dns_connection_ptr const conn ) const
     {
-        return conn->remote_endpoint().address();
+        boost::system::error_code ec;
+        return conn->remote_endpoint(ec).address();
     }
 };
 

@@ -294,10 +294,10 @@ public:
 
     void start();
 
-    boost::asio::ip::tcp::endpoint remote_endpoint() const
+    boost::asio::ip::tcp::endpoint remote_endpoint(boost::system::error_code& ec) const
     {
         // Assume that socket::remote_endpoint() is thread-safe
-        return socket_.remote_endpoint();
+        return socket_.remote_endpoint(ec);
     }
 
     void send_reply( query_ptr query );
