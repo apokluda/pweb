@@ -59,14 +59,15 @@ namespace protocol_helper
         return buf + 4;
     }
 
-    inline boost::uint8_t* write_lpstring(std::string const& str, boost::uint8_t* buf, boost::uint8_t const* const end)
-    { // lpstring = length-prefixed string
-        std::size_t len = str.length();
-        buf = write_short(len, buf, end);
-        check_end(len, buf, end); // +2 for string length prefix
-        memcpy(buf, str.c_str(), len);
-        return buf + len;
-    }
+// UNUSED
+//    inline boost::uint8_t* write_lpstring(std::string const& str, boost::uint8_t* buf, boost::uint8_t const* const end)
+//    { // lpstring = length-prefixed string
+//        std::size_t len = str.length();
+//        buf = write_short(len, buf, end);
+//        check_end(len, buf, end);
+//        memcpy(buf, str.c_str(), len);
+//        return buf + len;
+//    }
 }
 
 

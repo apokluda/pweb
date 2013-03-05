@@ -28,6 +28,7 @@ public:
         return enabled_.load(boost::memory_order_acquire);
     }
 
+    void start();
     void process_query( query_ptr query );
 
 private:

@@ -33,6 +33,7 @@ using std::ifstream;
 namespace po = boost::program_options;
 
 log4cpp::Category& log4 = log4cpp::Category::getRoot();
+bool debug = false;
 
 static void run( boost::asio::io_service& io_service, std::size_t const num_threads )
 {
@@ -87,7 +88,6 @@ int main(int argc, char const* argv[])
         boost::uint16_t ttl;
         boost::uint16_t port;
         boost::uint16_t nsport;
-        bool debug = false;
 
         // Declare a group of options that will be available only
         // on the command line
@@ -167,7 +167,7 @@ int main(int argc, char const* argv[])
         log4.addAppender(app); // ownership of appender passed to category
         app->setLayout(new log4cpp::BasicLayout()); // ownership of layout passed to appender
 
-        if (debug)
+        if ( debug )
         {
             log4.setAdditivity(true);
             log4cpp::Appender* capp = new log4cpp::OstreamAppender("console", &std::cout);
@@ -202,6 +202,7 @@ int main(int argc, char const* argv[])
                 boost::uint16_t const haport = boost::lexical_cast< boost::uint16_t >( address[1] );
 
                 hasendproxy_ptr hptr(new hasendproxy(io_service, address[0], haport, nshostname, nsport, suffix) );
+                hptr->start();
                 haproxies.push_back(hptr);
             }
             else

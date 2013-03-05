@@ -18,6 +18,7 @@ namespace ph = boost::asio::placeholders;
 namespace bs = boost::system;
 
 extern log4cpp::Category& log4;
+extern bool debug;
 
 namespace
 {
@@ -81,7 +82,7 @@ namespace
     {
         check_end(len, buf, end);
         memset(buf, 0, len);
-        return buf;
+        return buf + len;
     }
 
     static std::size_t const unused_abs_header_len =
@@ -89,7 +90,15 @@ namespace
             + 1                // overlay ttl
             + sizeof(absint_t) // IP hops
             + sizeof(absdbl_t) // latency
-            + sizeof(absint_t) // overlay ID
+            + sizeof(absint_t) // src overlay ID
+            + sizeof(absint_t) // src prefix length
+            + sizeof(absint_t) // src max length
+            + sizeof(absint_t) // dst overlay ID
+            + sizeof(absint_t) // dst prefix length
+            + sizeof(absint_t);// dst max length
+
+    static std::size_t const unused_abs_get_len =
+              sizeof(absint_t) // overlay id
             + sizeof(absint_t) // prefix length
             + sizeof(absint_t);// max length
 
@@ -105,7 +114,7 @@ namespace
             + sizeof(absint_t) // overlay ID
             + sizeof(absint_t) // prefix length
             + sizeof(absint_t) // max length
-            + sizeof(absuint_t);// destination hostname length
+            + sizeof(absint_t);// destination hostname length
 
     boost::uint8_t* write_abs_header(absmsgid_t const msgid, boost::uint32_t const sequence, string const& hahostname, boost::uint16_t const haport, string const& nshostname, boost::uint16_t const nsport, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
@@ -113,10 +122,10 @@ namespace
 
         *(buf++) = static_cast< boost::uint8_t >( msgid );
         buf = write_abs_int   < absuint_t >(sequence,   buf, end);
-        buf = write_abs_string< absuint_t >(hahostname, buf, end);
-        buf = write_abs_int   < absint_t > (haport,     buf, end);
-        buf = write_abs_string< absuint_t >(nshostname, buf, end);
-        buf = write_abs_int   < absint_t > (nsport,     buf, end);
+        buf = write_abs_string< absint_t  >(hahostname, buf, end);
+        buf = write_abs_int   < absint_t  >(haport,     buf, end);
+        buf = write_abs_string< absint_t  >(nshostname, buf, end);
+        buf = write_abs_int   < absint_t  >(nsport,     buf, end);
         buf = write_abs_zero(unused_abs_header_len, buf, end);
 
         return buf;
@@ -132,22 +141,30 @@ namespace
         dnsquestion const& question = *query.questions_begin();
         string const devicename( remove_suffix( question.name, suffix ) );
 
-        return write_abs_string< absuint_t >( devicename, buf, end );
+        buf = write_abs_zero(unused_abs_get_len, buf, end);
+        return write_abs_string< absint_t >( devicename, buf, end );
     }
 
     class querymap
     {
         typedef boost::posix_time::seconds seconds;
+        typedef boost::posix_time::minutes minutes;
 
     public:
         bool insert(query_ptr query)
         {
-            deadline_timer& timer = query->timer();
-            timer.expires_from_now(seconds(30));
-            timer.async_wait(boost::bind( &querymap::expire, this, query->id() ));
-
-            boost::lock_guard<boost::mutex> m(mtx_);
-            return map_.insert(std::make_pair(query->id(), query)).second;
+            bool inserted = false;
+            {
+                boost::lock_guard<boost::mutex> m(mtx_);
+                inserted = map_.insert(std::make_pair(query->id(), query)).second;
+            }
+            if (inserted)
+            {
+                deadline_timer& timer = query->timer();
+                timer.expires_from_now( (debug ? seconds(5*60) : seconds(12)) );
+                timer.async_wait(boost::bind( &querymap::expire, this, query->id() ));
+            }
+            return inserted;
         }
 
         query_ptr remove(boost::uint16_t const sequence)
@@ -189,7 +206,7 @@ querymap queries; // Note: constructors run at global scope
 class hasendconnection: public boost::enable_shared_from_this<hasendconnection>
 {
 public:
-    hasendconnection(io_service& io_service, ip::tcp::resolver::iterator iter,
+    hasendconnection(io_service& io_service,
             string const& hahostname, boost::uint16_t const haport,
             string const& nshostname, boost::uint16_t const nsport,
             query_ptr query, std::string const& suffix)
@@ -201,15 +218,19 @@ public:
     , haport_(haport)
     , nsport_(nsport)
     {
-        if ( queries.insert(query) )
+        if ( !queries.insert(query_) )
         {
-            async_connect(socket_, iter,
-                boost::bind( &hasendconnection::handle_connect, shared_from_this(), ph::error ));
-        }
-        else
-        {
-            log4.errorStream() << "Unable to insert query into map (sequence number exists)";
-        }
+             // NOTE: We don't send an error back here, because if the sequence number already exists in the map,
+             // the client is most likely sending us a duplicate UDP request incase the first on was lost (but
+             // we are really just being slow)
+             throw std::runtime_error("Duplicate sequence number");
+         }
+    }
+
+    void start(ip::tcp::resolver::iterator iter)
+    {
+        async_connect(socket_, iter,
+            boost::bind( &hasendconnection::handle_connect, shared_from_this(), ph::error ));
     }
 
 private:
@@ -217,18 +238,25 @@ private:
     {
         if ( !ec )
         {
-            boost::uint8_t* buf = buf_.data();
-            boost::uint8_t const* const end = buf + buf_.size();
+            try
+            {
+                boost::uint8_t* buf = buf_.data();
+                boost::uint8_t const* const end = buf + buf_.size();
 
-            buf = write_abs_header(ABS_GET, query_->id(), hahostname_, haport_, nshostname_, nsport_, buf, end);
-            buf = write_abs_get(*query_, suffix_, buf, end);
+                buf = write_abs_header(ABS_GET, query_->id(), hahostname_, haport_, nshostname_, nsport_, buf, end);
+                buf = write_abs_get(*query_, suffix_, buf, end);
 
-            async_write(socket_, buffer(buf_, buf - buf_.data()),
-                    boost::bind( &hasendconnection::handle_query_sent, shared_from_this(), ph::error, ph::bytes_transferred ) );
+                async_write(socket_, buffer(buf_, buf - buf_.data()),
+                        boost::bind( &hasendconnection::handle_query_sent, shared_from_this(), ph::error, ph::bytes_transferred ) );
+            }
+            catch ( std::exception const& e )
+            {
+                log4.errorStream() << "An error occurred while composing GET message: " << e.what();
+            }
         }
         else
         {
-            log4.errorStream() << "[hasendconnection] Unable to connect to '" << hahostname_ << "'";
+            log4.errorStream() << "Unable to connect to '" << hahostname_ << "'";
             queries.remove(query_->id());
             query_->rcode(R_SERVER_FAILURE);
             query_->send_reply();
@@ -266,7 +294,7 @@ class harecvconnection : private boost::noncopyable, public boost::enable_shared
 public:
     harecvconnection( io_service& io_service, string const& nshostname, boost::uint16_t const ttl )
     : socket_( io_service )
-    , nshostname_()
+    , nshostname_( nshostname )
     , hostlen_(0)
     , sequence_(0)
     , ttl_(ttl)
@@ -284,10 +312,20 @@ private:
     {
         if ( !ec )
         {
-            absuint_t desthostlen;
-            read_abs_int< absuint_t >(desthostlen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
-            async_read( socket_, buffer(buf_, desthostlen + sizeof(absint_t) + sizeof(absuint_t)),
-                    boost::bind( &harecvconnection::handle_read_to_srchostlen, shared_from_this(), ph::error, ph::bytes_transferred ) );
+            boost::int8_t msgtype;
+            read_abs_int< boost::int8_t >(msgtype, buf_.data(), buf_.data() + bytes_transferred);
+            if ( msgtype ==  ABS_REPLY )
+            {
+                absint_t desthostlen;
+                read_abs_int< absint_t >(desthostlen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
+
+                async_read( socket_, buffer(buf_, desthostlen + sizeof(absint_t) + sizeof(absint_t)),
+                        boost::bind( &harecvconnection::handle_read_to_srchostlen, shared_from_this(), ph::error, ph::bytes_transferred ) );
+            }
+            else
+            {
+                log4.errorStream() << "Received invalid message type from home agent: " << msgtype;
+            }
         }
         else
         {
@@ -299,8 +337,8 @@ private:
     {
         if ( !ec )
         {
-            absuint_t srchostlen;
-            read_abs_int< absuint_t >(srchostlen, buf_.data() + bytes_transferred - sizeof(absuint_t), buf_.data() + bytes_transferred );
+            absint_t srchostlen;
+            read_abs_int< absint_t >(srchostlen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
             async_read( socket_, buffer(buf_, srchostlen + sizeof(absint_t) + unused_abs_header_len),
                     boost::bind( &harecvconnection::handle_absheader_read, shared_from_this(), ph::error, ph::bytes_transferred ) );
         }
@@ -331,11 +369,11 @@ private:
             read_abs_int< absint_t >(sequence, buf_.data() + abs_reply_len_before_sequence, buf_.data() + bytes_transferred );
             sequence_ = static_cast< boost::uint16_t >( sequence );
 
-            absuint_t hostlen;
-            read_abs_int< absuint_t >(hostlen, buf_.data() + bytes_transferred - sizeof(absuint_t), buf_.data() + bytes_transferred );
+            absint_t hostlen;
+            read_abs_int< absint_t >(hostlen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
             hostlen_ = hostlen;
 
-            async_read(socket_, buffer(buf_, hostlen + sizeof(absint_t) + sizeof(absuint_t)),
+            async_read(socket_, buffer(buf_, hostlen + sizeof(absint_t) + sizeof(absint_t)),
                     boost::bind( &harecvconnection::handle_read_to_devicenamelen, shared_from_this(), ph::error, ph::bytes_transferred ) );
         }
         else
@@ -348,8 +386,8 @@ private:
     {
         if ( !ec )
         {
-            absuint_t devicenamelen;
-            read_abs_int< absuint_t >(devicenamelen, buf_.data() + bytes_transferred - sizeof(absuint_t), buf_.data() + bytes_transferred );
+            absint_t devicenamelen;
+            read_abs_int< absint_t >(devicenamelen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
 
             query_ptr query( queries.remove( sequence_ ) );
             if ( query )
@@ -442,9 +480,13 @@ hasendproxy::hasendproxy(io_service& io_service,
 , haport_(haport)
 , nsport_(nsport)
 {
+}
+
+void hasendproxy::start()
+{
     sstream ss;
-    ss << haport;
-    ip::tcp::resolver::query q(hahostname, ss.str());
+    ss << haport_;
+    ip::tcp::resolver::query q(hahostname_, ss.str());
     resolver_.async_resolve(q,
             boost::bind( &hasendproxy::handle_resolve, shared_from_this(), ph::error, ph::iterator ));
 }
@@ -464,8 +506,15 @@ void hasendproxy::handle_resolve(bs::error_code const& ec, ip::tcp::resolver::it
 
 void hasendproxy::process_query( query_ptr query )
 {
-    // The hasendconnection will be automatically deleted when the connection is closed so there is no memory leak
-    new hasendconnection( resolver_.get_io_service(), iter_, hahostname_, haport_, nshostname_, nsport_, query, suffix_);
+    try
+    {
+        boost::shared_ptr< hasendconnection > conn(new hasendconnection( resolver_.get_io_service(), hahostname_, haport_, nshostname_, nsport_, query, suffix_));
+        conn->start(iter_);
+    }
+    catch ( std::exception const& e)
+    {
+        log4.infoStream() << "Error processing query: " << e.what();
+    }
 }
 
 harecvproxy::harecvproxy(io_service& io_service, string const& nshostname, boost::uint16_t const port, boost::uint16_t ttl)

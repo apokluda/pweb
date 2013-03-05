@@ -176,7 +176,7 @@ namespace dns_query_parser
 
     boost::uint8_t* write_rr(dnsrr const& rr, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
-        buf = write_lpstring( rr.owner, buf, end );
+        buf = write_name( rr.owner, buf, end );
         buf = write_short( rr.rtype, buf, end );
         buf = write_short( rr.rclass, buf, end );
         buf = write_slong( rr.ttl, buf, end);
@@ -505,7 +505,8 @@ void dns_connection::handle_msg_len_read( bs::error_code const& ec, std::size_t 
     }
     else
     {
-        log4.errorStream() << "An error occurred while reading TCP DNS message length from " << socket_.remote_endpoint();
+        if( ec != error::eof ) // eof means client closed connection
+            log4.errorStream() << "An error occurred while reading TCP DNS message length from " << socket_.remote_endpoint() << ": " << ec.message();
     }
 }
 
@@ -515,7 +516,7 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
     {
         // Validate header
         if ( bytes_transferred >= recv_header_.length() &&
-                recv_header_.qr() &&
+                !recv_header_.qr() &&
                 recv_header_.opcode() == O_QUERY &&
                 recv_header_.z() == 0 )
         {
