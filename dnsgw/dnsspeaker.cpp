@@ -293,6 +293,7 @@ udp_dnsspeaker::udp_dnsspeaker(io_service& io_service, b::function<void (query_p
         }
 
         socket_.open(endpoint.protocol());
+        socket_.set_option( ip::udp::socket::reuse_address( true ) );
         socket_.bind(endpoint);
 
         log4.infoStream() << "Listening on " << (iface.empty() ? "all interfaces" : iface.c_str()) << " port " << port << " for UDP connections";

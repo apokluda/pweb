@@ -35,6 +35,29 @@ namespace po = boost::program_options;
 log4cpp::Category& log4 = log4cpp::Category::getRoot();
 bool debug = false;
 
+/* Change this to whatever your daemon is called */
+#define DAEMON_NAME "dnsgw"
+
+// Defined in daemonize.cpp
+void daemonize(const char *);
+
+static void checked_io_service_run(boost::asio::io_service& io_service)
+{
+    for (;;)
+    {
+        try
+        {
+            // Is it a good idea to re-run the service after an uncaught exception?
+            io_service.run();
+            break;
+        }
+        catch ( std::exception const& e )
+        {
+            log4.alertStream() << "UNCAUGHT EXCEPTION: " << e.what();
+        }
+    }
+}
+
 static void run( boost::asio::io_service& io_service, std::size_t const num_threads )
 {
     // Register to handle the signals that indicate when the server should exit.
@@ -51,7 +74,7 @@ static void run( boost::asio::io_service& io_service, std::size_t const num_thre
         for (std::size_t i = 0; i < num_threads; ++i)
         {
             boost::shared_ptr<boost::thread> thread( new boost::thread(
-                    boost::bind( &boost::asio::io_service::run, &io_service ) ) );
+                    boost::bind( checked_io_service_run, boost::ref( io_service ) ) ) );
             threads.push_back( thread );
 
             log4.debugStream() << "Started io_service thread " << i << " with id " << thread->get_id();
@@ -65,7 +88,7 @@ static void run( boost::asio::io_service& io_service, std::size_t const num_thre
     {
         // Run one io_service in current thread
         log4.debug("Starting io_service event loop");
-        io_service.run();
+        checked_io_service_run( io_service );
     }
 }
 
@@ -223,6 +246,10 @@ int main(int argc, char const* argv[])
 
         udp_dnsspeaker.start();
         tcp_dnsspeaker.start();
+
+        // Daemonize here so that we can open privileged ports and files
+        if ( !debug )
+            daemonize( "/var/lock/" DAEMON_NAME );
 
         run( io_service, num_threads );
 

@@ -1,5 +1,5 @@
 
-add_executable(dnsgw stdhdr.cpp main.cpp dnsspeaker.cpp dnsquery.cpp haproxy.cpp haloadbalancer.cpp)
+add_executable(dnsgw stdhdr.cpp daemonize.cpp main.cpp dnsspeaker.cpp dnsquery.cpp haproxy.cpp haloadbalancer.cpp)
 
 add_precompiled_header(dnsgw stdhdr.hpp )
 
