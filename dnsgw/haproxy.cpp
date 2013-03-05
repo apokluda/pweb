@@ -48,7 +48,7 @@ namespace
     typedef double absdbl_t; // IEEE 754 Double Precision Floating Point format (always 64 bits)
 
     template < typename IntType >
-    uint8_t* read_abs_int(IntType& val, uint8_t* buf, uint8_t const* const end)
+    boost::uint8_t* read_abs_int(IntType& val, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         check_end( sizeof( IntType), buf, end );
         val = *reinterpret_cast< IntType* >( buf );
@@ -56,14 +56,14 @@ namespace
     }
 
     template < typename IntType >
-    uint8_t* write_abs_int(IntType const val, uint8_t* buf, uint8_t const* const end)
+    boost::uint8_t* write_abs_int(IntType const val, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         check_end( sizeof( IntType ), buf, end );
         *reinterpret_cast< IntType* >( buf ) = static_cast< IntType >( val );
         return buf + sizeof( IntType );
     }
 
-    uint8_t* write_abs_chars(string const& str, uint8_t* buf, uint8_t const* const end)
+    boost::uint8_t* write_abs_chars(string const& str, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         check_end(str.length(), buf, end);
         memcpy(buf, str.c_str(), str.length());
@@ -71,13 +71,13 @@ namespace
     }
 
     template < typename IntType >
-    uint8_t* write_abs_string(string const& str, uint8_t* buf, uint8_t const* const end)
+    boost::uint8_t* write_abs_string(string const& str, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         buf = write_abs_int< IntType >(str.length(), buf, end);
         return write_abs_chars(str, buf, end);
     }
 
-    uint8_t* write_abs_zero(std::size_t const len, uint8_t* buf, uint8_t const* const end)
+    boost::uint8_t* write_abs_zero(std::size_t const len, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         check_end(len, buf, end);
         memset(buf, 0, len);
@@ -107,7 +107,7 @@ namespace
             + sizeof(absint_t) // max length
             + sizeof(absuint_t);// destination hostname length
 
-    uint8_t* write_abs_header(absmsgid_t const msgid, uint32_t const sequence, string const& hahostname, boost::uint16_t const haport, string const& nshostname, boost::uint16_t const nsport, uint8_t* buf, uint8_t const* const end)
+    boost::uint8_t* write_abs_header(absmsgid_t const msgid, uint32_t const sequence, string const& hahostname, boost::uint16_t const haport, string const& nshostname, boost::uint16_t const nsport, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         check_end(buf, end);
 
@@ -134,7 +134,57 @@ namespace
 
         return write_abs_string< absuint_t >( devicename, buf, end );
     }
+
+    class querymap
+    {
+        typedef boost::posix_time::seconds seconds;
+
+    public:
+        bool insert(query_ptr query)
+        {
+            deadline_timer& timer = query->timer();
+            timer.expires_from_now(seconds(30));
+            timer.async_wait(boost::bind( &querymap::expire, this, query->id() ));
+
+            boost::lock_guard<boost::mutex> m(mtx_);
+            return map_.insert(std::make_pair(query->id(), query)).second;
+        }
+
+        query_ptr remove(boost::uint16_t const sequence)
+        {
+            query_ptr query;
+            boost::lock_guard<boost::mutex> m(mtx_);
+            map_t::iterator i( map_.find( sequence ) );
+            if ( i != map_.end() )
+            {
+                query = i->second;
+                map_.erase(i);
+
+                query->timer().cancel();
+            }
+            return query;
+        }
+
+    private:
+        void expire( boost::uint16_t const sequence )
+        {
+            query_ptr query( remove(sequence) );
+            if ( query )
+            {
+                log4.warnStream() << "Query for '" << query->questions_begin()->name << "' timed out";
+
+                query->rcode(R_NAME_ERROR);
+                query->send_reply();
+            }
+        }
+
+        typedef std::map< boost::uint16_t, query_ptr > map_t;
+        map_t map_;
+        boost::mutex mtx_;
+    };
 }
+
+querymap queries; // Note: constructors run at global scope
 
 class hasendconnection: public boost::enable_shared_from_this<hasendconnection>
 {
@@ -151,9 +201,16 @@ public:
     , haport_(haport)
     , nsport_(nsport)
     {
+        if ( queries.insert(query) )
+        {
             async_connect(socket_, iter,
-                    boost::bind( &hasendconnection::handle_connect, shared_from_this(), ph::error ));
-}
+                boost::bind( &hasendconnection::handle_connect, shared_from_this(), ph::error ));
+        }
+        else
+        {
+            log4.errorStream() << "Unable to insert query into map (sequence number exists)";
+        }
+    }
 
 private:
     void handle_connect( bs::error_code const& ec )
@@ -172,6 +229,7 @@ private:
         else
         {
             log4.errorStream() << "[hasendconnection] Unable to connect to '" << hahostname_ << "'";
+            queries.remove(query_->id());
             query_->rcode(R_SERVER_FAILURE);
             query_->send_reply();
         }
@@ -182,11 +240,12 @@ private:
         if ( !ec )
         {
             // This will work, we know that there is at least one question because we sent it
-            log4.infoStream() << "Send query for '" << query_->questions_begin()->name << "' to '" << hahostname_ << '\'';
+            log4.infoStream() << "Sent query for '" << query_->questions_begin()->name << "' to '" << hahostname_ << '\'';
         }
         else
         {
             log4.errorStream() << "An error occurred while sending query to '" << hahostname_ << "': " << ec.message();
+            queries.remove(query_->id());
             query_->rcode(R_SERVER_FAILURE);
             query_->send_reply();
         }
@@ -292,46 +351,54 @@ private:
             absuint_t devicenamelen;
             read_abs_int< absuint_t >(devicenamelen, buf_.data() + bytes_transferred - sizeof(absuint_t), buf_.data() + bytes_transferred );
 
-            // Need to get query from map based on sequence num!
-
-            query_ptr query;
-            // This is not the least bit elegant, but it should work!
-            buf_[hostlen_] = '\0'; // overwrites device name length in buffer
-            bs::error_code ec;
-            ip::address addr = ip::address::from_string(reinterpret_cast< char* >( buf_.data() ), ec);
-            if ( !ec )
+            query_ptr query( queries.remove( sequence_ ) );
+            if ( query )
             {
-                dnsrr rr;
-                rr.owner = nshostname_;
-                rr.rclass = C_IN;
-                rr.ttl = ttl_;
-                if ( addr.is_v4() )
+                // This is not the least bit elegant, but it should work!
+                buf_[hostlen_] = '\0'; // overwrites device name length in buffer
+                bs::error_code ec;
+                ip::address addr = ip::address::from_string(reinterpret_cast< char* >( buf_.data() ), ec);
+                if ( !ec )
                 {
-                    rr.rdlength = 4;
-                    memcpy(rr.rdata.c_array(), addr.to_v4().to_bytes().data(), 4);
-                    rr.rtype = T_A;
+                    dnsrr rr;
+                    rr.owner = nshostname_;
+                    rr.rclass = C_IN;
+                    rr.ttl = ttl_;
+                    if ( addr.is_v4() )
+                    {
+                        rr.rdlength = 4;
+                        memcpy(rr.rdata.c_array(), addr.to_v4().to_bytes().data(), 4);
+                        rr.rtype = T_A;
+                    }
+                    else // addr.is_v6()
+                    {
+                        rr.rdlength = 16;
+                        memcpy(rr.rdata.c_array(), addr.to_v6().to_bytes().data(), 16);
+                        rr.rtype = T_AAAA;
+                    }
+                    query->rcode(R_SUCCESS);
+                    query->add_answer(rr);
+                    query->send_reply();
                 }
-                else // addr.is_v6()
+                else
                 {
-                    rr.rdlength = 16;
-                    memcpy(rr.rdata.c_array(), addr.to_v6().to_bytes().data(), 16);
-                    rr.rtype = T_AAAA;
+                    log4.errorStream() << "An error occurred while parsing IP address returned from home agent: " << ec.message();
+                    query->rcode(R_SERVER_FAILURE);
+                    query->send_reply();
                 }
-                query->rcode(R_SUCCESS);  // KABOOM!! Won't run yet.
-                query->add_answer(rr);
-                query->send_reply();
             }
-            else
-            {
-                log4.errorStream() << "An error occurred while parsing IP address returned from home agent: " << ec.message();
-            }
-
             async_read(socket_, buffer(buf_, devicenamelen),
                     boost::bind( &harecvconnection::handle_devicename_read, shared_from_this(), ph::error, ph::bytes_transferred ) );
         }
         else
         {
             log4.errorStream() << "An error occurred while reading GET REPLY message body: " << ec.message();
+            query_ptr query( queries.remove( sequence_ ) );
+            if ( query )
+            {
+                query->rcode(R_SERVER_FAILURE);
+                query->send_reply();
+            }
         }
     }
 

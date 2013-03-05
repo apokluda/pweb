@@ -117,8 +117,9 @@ public:
     typedef std::vector< dnsrr >::const_iterator authority_iterator;
     typedef std::vector< dnsrr >::const_iterator additional_iterator;
 
-    dnsquery()
-    : rcode_( R_SUCCESS )
+    dnsquery(boost::asio::io_service& io_service)
+    : timer_( io_service )
+    , rcode_( R_SUCCESS )
     , id_( 0 )
     , rd_( false )
     {
@@ -270,8 +271,14 @@ public:
 
     void send_reply();
 
+    boost::asio::deadline_timer& timer()
+    {
+        return timer_;
+    }
+
 private:
     boost::variant< udp_connection_t, dns_connection_ptr > sender_;
+    boost::asio::deadline_timer timer_;
     std::vector< dnsquestion > questions_;
     std::vector< dnsrr > answers_;
     std::vector< dnsrr > authorities_;

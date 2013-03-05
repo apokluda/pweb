@@ -329,7 +329,7 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
             // Header format OK
             log4.infoStream() << "Received UDP DNS query from " << sender_endpoint_;
 
-            boost::shared_ptr< dnsquery > query( new dnsquery );
+            boost::shared_ptr< dnsquery > query( new dnsquery(socket_.get_io_service()) );
             query->sender( this, sender_endpoint_ );
             try
             {
@@ -522,7 +522,7 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
             // Header format OK
             log4.infoStream() << "Received TCP DNS query from " << socket_.remote_endpoint();
 
-            boost::shared_ptr< dnsquery > query( new dnsquery );
+            boost::shared_ptr< dnsquery > query( new dnsquery(socket_.get_io_service()) );
             query->sender( shared_from_this() );
             try
             {
