@@ -107,7 +107,7 @@ namespace
             + sizeof(absint_t) // max length
             + sizeof(absuint_t);// destination hostname length
 
-    boost::uint8_t* write_abs_header(absmsgid_t const msgid, uint32_t const sequence, string const& hahostname, boost::uint16_t const haport, string const& nshostname, boost::uint16_t const nsport, boost::uint8_t* buf, boost::uint8_t const* const end)
+    boost::uint8_t* write_abs_header(absmsgid_t const msgid, boost::uint32_t const sequence, string const& hahostname, boost::uint16_t const haport, string const& nshostname, boost::uint16_t const nsport, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         check_end(buf, end);
 
@@ -217,8 +217,8 @@ private:
     {
         if ( !ec )
         {
-            uint8_t* buf = buf_.data();
-            uint8_t const* const end = buf + buf_.size();
+            boost::uint8_t* buf = buf_.data();
+            boost::uint8_t const* const end = buf + buf_.size();
 
             buf = write_abs_header(ABS_GET, query_->id(), hahostname_, haport_, nshostname_, nsport_, buf, end);
             buf = write_abs_get(*query_, suffix_, buf, end);
