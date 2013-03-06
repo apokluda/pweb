@@ -178,9 +178,10 @@ public:
         return read_short(4);
     }
 
-    void qdcount( boost::uint16_t const val )
+    void qdcount( std::size_t const val )
     {
-        write_short(4, val);
+        // We can be quite confident that there won't be more than 65535 sections
+        write_short(4, static_cast< boost::uint16_t >( val) );
     }
 
     boost::uint16_t ancount() const
@@ -188,9 +189,9 @@ public:
         return read_short(6);
     }
 
-    void ancount( boost::uint16_t const val )
+    void ancount( std::size_t const val )
     {
-        write_short(6, val);
+        write_short(6, static_cast< boost::uint16_t >( val) );
     }
 
     boost::uint16_t nscount() const
@@ -198,9 +199,9 @@ public:
         return read_short(8);
     }
 
-    void nscount( boost::uint16_t const val )
+    void nscount( std::size_t const val )
     {
-        write_short(8, val);
+        write_short(8, static_cast< boost::uint16_t >( val) );
     }
 
     boost::uint16_t arcount() const
@@ -208,9 +209,9 @@ public:
         return read_short(10);
     }
 
-    void arcount( boost::uint16_t const val )
+    void arcount( std::size_t const val )
     {
-        write_short(10, val);
+        write_short(10, static_cast< boost::uint16_t >( val) );
     }
 
 private:
