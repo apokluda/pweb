@@ -228,6 +228,31 @@ public:
     , haport_(haport)
     , nsport_(nsport)
     {
+        try
+        {
+            // We compose the message in the buffer here so that if there is an error, we never attempt to open
+            // the connection to the home agent. We also do this before inserting the query into the querymap
+            // so that we don't need to remove it.
+            boost::uint8_t* buf = buf_.data();
+            boost::uint8_t const* const end = buf + buf_.size();
+
+            buf = write_abs_header(ABS_GET, query_->id(), hahostname_, haport_, nshostname_, nsport_, buf, end);
+            buf = write_abs_get(*query_, suffix_, buf, end);
+
+            send_buf_ = buffer(buf_,  buf - buf_.data());
+        }
+        catch ( std::exception const& )
+        {
+            // In this particular case, we want to send and error back to the client. We do this here because at
+            // a higher level it's harder to know if we want to return an error or not. (For example, we don't
+            // return an error on duplicate sequence number because that may have the effect of canceling a
+            // query in progress).
+
+            query_->rcode(R_NAME_ERROR);
+            query_->send_reply();
+            throw;
+        }
+
         if ( !queries.insert(query_) )
         {
              // NOTE: We don't send an error back here, because if the sequence number already exists in the map,
@@ -248,21 +273,8 @@ private:
     {
         if ( !ec )
         {
-            try
-            {
-                boost::uint8_t* buf = buf_.data();
-                boost::uint8_t const* const end = buf + buf_.size();
-
-                buf = write_abs_header(ABS_GET, query_->id(), hahostname_, haport_, nshostname_, nsport_, buf, end);
-                buf = write_abs_get(*query_, suffix_, buf, end);
-
-                async_write(socket_, buffer(buf_, buf - buf_.data()),
-                        boost::bind( &hasendconnection::handle_query_sent, shared_from_this(), ph::error, ph::bytes_transferred ) );
-            }
-            catch ( std::exception const& e )
-            {
-                log4.errorStream() << "An error occurred while composing GET message: " << e.what();
-            }
+            async_write(socket_, buffer(send_buf_),
+                    boost::bind( &hasendconnection::handle_query_sent, shared_from_this(), ph::error, ph::bytes_transferred ) );
         }
         else
         {
@@ -294,6 +306,7 @@ private:
     string const nshostname_;
     string const suffix_;
     query_ptr query_;
+    boost::asio::const_buffer send_buf_;
     boost::array< boost::uint8_t, 256 > buf_;
     boost::uint16_t const haport_;
     boost::uint16_t const nsport_;

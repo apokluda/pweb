@@ -135,7 +135,7 @@ int main(int argc, char const* argv[])
                     ("home_agents,H", po::value< haaddr_list_t >(&home_agents)->required(), "list of home agent addresses to connect to")
                     ("nshostname,N", po::value< string >(&nshostname)->required(), "the hostname of the DNS gateway (included in DNS replies and in requests to home agents)" )
                     ("nsport,P", po::value< boost::uint16_t >(&nsport)->required(), "the port the DNS gateway uses to receive replies from home agents")
-                    ("suffix,s", po::value< string >(&suffix)->default_value(".dht"), "suffix to be removed from names before querying DHT")
+                    ("suffix,s", po::value< string >(&suffix)->default_value(".dht."), "suffix to be removed from names before querying DHT")
                     ("threads", po::value< std::size_t >(&num_threads)->default_value(1), "number of application threads (0 = one thread per hardware core)")
                     ;
 
