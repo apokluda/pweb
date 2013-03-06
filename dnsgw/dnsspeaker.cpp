@@ -578,27 +578,18 @@ void dns_connection::send_reply_( query_ptr query )
     }
     else
     {
-        try
-        {
-            // Send reply immediately.
-            send_in_progress_ = true;
+        // Send reply immediately.
+        send_in_progress_ = true;
 
-            compose_dns_header(send_header_, *query);
-            boost::uint8_t const* const end = compose_dns_response( *query, send_header_, send_buf_.data(), send_buf_.data() + send_buf_.size());
+        compose_dns_header(send_header_, *query);
+        boost::uint8_t const* const end = compose_dns_response( *query, send_header_, send_buf_.data(), send_buf_.data() + send_buf_.size());
 
-            std::ptrdiff_t const body_len = end - send_buf_.data();
-            send_msg_len_ = htons( static_cast< boost::uint16_t >( body_len + send_header_.length() ) );
+        std::ptrdiff_t const body_len = end - send_buf_.data();
+        send_msg_len_ = htons( static_cast< boost::uint16_t >( body_len + send_header_.length() ) );
 
-            send_buf_arr_[2] = buffer( send_buf_, end - send_buf_.data() );
-            async_write(socket_, send_buf_arr_, strand_.wrap(
-                    boost::bind( &dns_connection::handle_send_reply, shared_from_this(), ph::error ) ) );
-        }
-        catch ( std::exception const& e )
-        {
-            // We may catch an exception here if the DNS client got tired of waiting
-            // and closed the connection
-            log4.warnStream() << "Unable to send TCP DNS reply: " << e.what();
-        }
+        send_buf_arr_[2] = buffer( send_buf_, end - send_buf_.data() );
+        async_write(socket_, send_buf_arr_, strand_.wrap(
+                boost::bind( &dns_connection::handle_send_reply, shared_from_this(), ph::error ) ) );
     }
 }
 

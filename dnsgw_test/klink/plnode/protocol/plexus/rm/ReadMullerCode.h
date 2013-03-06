@@ -11,7 +11,7 @@
 #include "common.h"
 #include "reedmuller.h"
 #include "../../code.h"
-#include "pthread.h"
+//#include "pthread.h"
 
 #include<iostream>
 

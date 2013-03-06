@@ -18,7 +18,17 @@ namespace ph = boost::asio::placeholders;
 namespace bs = boost::system;
 
 extern log4cpp::Category& log4;
-extern bool debug;
+
+namespace haproxy
+{
+    static boost::posix_time::time_duration _timeout;
+
+    void timeout( boost::posix_time::time_duration const& timeout )
+    {
+        _timeout = timeout;
+    }
+
+}
 
 namespace
 {
@@ -161,7 +171,7 @@ namespace
             if (inserted)
             {
                 deadline_timer& timer = query->timer();
-                timer.expires_from_now( (debug ? seconds(5*60) : seconds(12)) );
+                timer.expires_from_now( haproxy::_timeout );
                 timer.async_wait(boost::bind( &querymap::expire, this, query->id() ));
             }
             return inserted;

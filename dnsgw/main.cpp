@@ -108,6 +108,7 @@ int main(int argc, char const* argv[])
         string suffix;
         haaddr_list_t home_agents;
         std::size_t num_threads;
+        unsigned timeout;
         boost::uint16_t ttl;
         boost::uint16_t port;
         boost::uint16_t nsport;
@@ -126,6 +127,7 @@ int main(int argc, char const* argv[])
         po::options_description config("Configuration");
         config.add_options()
                     ("ttl", po::value< boost::uint16_t >(&ttl)->default_value(3600), "number of seconds to cache name to IP mappings")
+                    ("timeout,t", po::value< unsigned >(&timeout)->default_value(12), "max number of seconds to wait for response from home agent")
                     ("log_file,l", po::value< string >(&log_file)->default_value("dnsgw.log"), "log file name")
                     ("log_level,L", po::value< string >(&log_level)->default_value("WARN"), "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
                     ("iface,i", po::value< string >(&interface), "IP v4 or v6 address of interface to listen on")
@@ -154,6 +156,7 @@ int main(int argc, char const* argv[])
         po::options_description visible_options("Allowed options");
         visible_options.add(generic).add(config);
 
+        // Might not need to store the arguments in the vm because we store them in variables directly
         po::variables_map vm;
         po::store(po::command_line_parser(argc, argv).options(cmdline_options).run(), vm);
 
@@ -184,6 +187,9 @@ int main(int argc, char const* argv[])
         }
 
         po::notify(vm);
+
+        // Set timeout
+        haproxy::timeout( boost::posix_time::seconds( timeout ) );
 
         // Initialize logging
         log4cpp::Appender* app = new log4cpp::FileAppender("file", log_file.c_str());
