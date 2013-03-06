@@ -415,37 +415,47 @@ private:
             query_ptr query( queries.remove( sequence_ ) );
             if ( query )
             {
-                // This is not the least bit elegant, but it should work!
-                buf_[hostlen_] = '\0'; // overwrites device name length in buffer
-                bs::error_code ec;
-                ip::address addr = ip::address::from_string(reinterpret_cast< char* >( buf_.data() ), ec);
-                if ( !ec )
+                if (hostlen_ == 0)
                 {
-                    dnsrr rr;
-                    rr.owner = nshostname_;
-                    rr.rclass = C_IN;
-                    rr.ttl = ttl_;
-                    if ( addr.is_v4() )
-                    {
-                        rr.rdlength = 4;
-                        memcpy(rr.rdata.c_array(), addr.to_v4().to_bytes().data(), 4);
-                        rr.rtype = T_A;
-                    }
-                    else // addr.is_v6()
-                    {
-                        rr.rdlength = 16;
-                        memcpy(rr.rdata.c_array(), addr.to_v6().to_bytes().data(), 16);
-                        rr.rtype = T_AAAA;
-                    }
-                    query->rcode(R_SUCCESS);
-                    query->add_answer(rr);
+                    // Device name not found
+                    log4.infoStream() << "No IP address found for '" << query->questions_begin()->name << '\'';
+                    query->rcode(R_NAME_ERROR);
                     query->send_reply();
                 }
                 else
                 {
-                    log4.errorStream() << "An error occurred while parsing IP address returned from home agent: " << ec.message();
-                    query->rcode(R_SERVER_FAILURE);
-                    query->send_reply();
+                    // This is not the least bit elegant, but it should work!
+                    buf_[hostlen_] = '\0'; // overwrites device name length in buffer
+                    bs::error_code ec;
+                    ip::address addr = ip::address::from_string(reinterpret_cast< char* >( buf_.data() ), ec);
+                    if ( !ec )
+                    {
+                        dnsrr rr;
+                        rr.owner = nshostname_;
+                        rr.rclass = C_IN;
+                        rr.ttl = ttl_;
+                        if ( addr.is_v4() )
+                        {
+                            rr.rdlength = 4;
+                            memcpy(rr.rdata.c_array(), addr.to_v4().to_bytes().data(), 4);
+                            rr.rtype = T_A;
+                        }
+                        else // addr.is_v6()
+                        {
+                            rr.rdlength = 16;
+                            memcpy(rr.rdata.c_array(), addr.to_v6().to_bytes().data(), 16);
+                            rr.rtype = T_AAAA;
+                        }
+                        query->rcode(R_SUCCESS);
+                        query->add_answer(rr);
+                        query->send_reply();
+                    }
+                    else
+                    {
+                        log4.errorStream() << "An error occurred while parsing IP address returned from home agent: " << ec.message();
+                        query->rcode(R_SERVER_FAILURE);
+                        query->send_reply();
+                    }
                 }
             }
             async_read(socket_, buffer(buf_, devicenamelen),

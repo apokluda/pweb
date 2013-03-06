@@ -18,7 +18,7 @@ const int max_length = 4096;
 
 typedef boost::shared_ptr<tcp::socket> socket_ptr;
 
-void session(socket_ptr sock)
+void session(socket_ptr sock, bool fail)
 {
     try
     {
@@ -37,9 +37,22 @@ void session(socket_ptr sock)
 
             //sleep(15);
 
-            MessageGET_REPLY replymsg("alex.laptop.uw", 9999, "dnsgw.pwebproject.net", 8888, OverlayID(),
-                    OverlayID(), 0, OverlayID(), HostAddress("6.6.6.6", 7777), getmsg.GetDeviceName());
-            replymsg.setOriginSeqNo(getmsg.getSequenceNo());
+            char* replybuf = 0;
+            int buflen = 0;
+            if ( !fail )
+            {
+                MessageGET_REPLY replymsg("alex.laptop.uw", 9999, "dnsgw.pwebproject.net", 8888, OverlayID(),
+                        OverlayID(), 0, OverlayID(), HostAddress("6.6.6.6", 7777), getmsg.GetDeviceName());
+                replymsg.setOriginSeqNo(getmsg.getSequenceNo());
+                replybuf = replymsg.serialize(&buflen);
+            }
+            else
+            {
+                MessageGET_REPLY replymsg("alex.laptop.uw", 9999, "dnsgw.pwebproject.net", 8888, OverlayID(),
+                        OverlayID(), 1, OverlayID(), HostAddress(), getmsg.GetDeviceName());
+                replymsg.setOriginSeqNo(getmsg.getSequenceNo());
+                replybuf = replymsg.serialize(&buflen);
+            }
 
             tcp::resolver resolver(io_service);
             sstream ss;
@@ -49,8 +62,6 @@ void session(socket_ptr sock)
 
             tcp::socket s(io_service);
             boost::asio::connect(s, iterator);
-            int buflen = 0;
-            char* replybuf = replymsg.serialize(&buflen);
 
             boost::asio::write(s, boost::asio::buffer(replybuf, buflen));
             delete [] replybuf;
@@ -67,22 +78,22 @@ void session(socket_ptr sock)
     }
 }
 
-void server( io_service& io_service, short port )
+void server( io_service& io_service, short port, bool fail )
 {
     tcp::acceptor a(io_service, tcp::endpoint(tcp::v4(), port));
     for (;;)
     {
         socket_ptr sock(new tcp::socket(io_service));
         a.accept(*sock);
-        boost::thread t(boost::bind(session, sock));
+        boost::thread t(boost::bind(session, sock, fail));
     }
 }
 
 int main(int argc, char const* argv[])
 {
-    if ( argc != 2 )
+    if ( argc < 2 )
     {
-        std::cerr << "Usage: dnsgw_test <port>\n";
+        std::cerr << "Usage: dnsgw_test <port> [-f]\n           -f    reply with failure\n";
         return 1;
     }
 
@@ -91,7 +102,7 @@ int main(int argc, char const* argv[])
         io_service io_service;
 
         using namespace std; // for atoi
-        server( io_service, atoi(argv[1]) );
+        server( io_service, atoi(argv[1]), argc > 2 );
     }
     catch ( std::exception const& e )
     {
