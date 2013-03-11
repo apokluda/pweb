@@ -2,7 +2,7 @@
 #define UTIL_H_
 
 #include <iostream>
-#include <stdlib.h>
+#include <cstdlib>
 #include "../plnode/ds/lookup_table.h"
 #include "../plnode/ds/lookup_table_iterator.h"
 #include "../plnode/ds/overlay_id.h"
@@ -66,6 +66,32 @@ char* printRoutingTable2String(LookupTable<OverlayID, HostAddress> &rtable)
 	return result;
 }
 
+
+string& routingTable2String(LookupTable<OverlayID, HostAddress> &rtable, string &result)
+{
+	int count = 0;
+	LookupTableIterator<OverlayID, HostAddress> rtable_iter(&rtable);
+	rtable_iter.reset_iterator();
+	string temp;
+	while (rtable_iter.hasMoreKey())
+	{
+		OverlayID oid = rtable_iter.getNextKey();
+		HostAddress ha;
+		rtable.lookup(oid, &ha);
+		temp = "";
+		//result.append(oid.toString(temp));
+		//result.append(",");
+		//temp = "";
+		result.append(ha.GetHostName());
+		result.append("|");
+		count++;
+	}
+	char buffer[20];
+	sprintf(buffer, "%d", count);
+	result = string(buffer).append("|").append(result);
+	return result;
+}
+
 char* printIndexTable2String(LookupTable<string, HostAddress> &itable)
 {
 	int index = 0, size = 0;
@@ -76,7 +102,7 @@ char* printIndexTable2String(LookupTable<string, HostAddress> &itable)
 		string name = itable_iter.getNextKey();
 		HostAddress ha;
 		itable.lookup(name, &ha);
-		size += name.size() + 5 + ha.getStringSize() + 5;
+		size += name.size() + 1 + ha.getStringSize() + 5;
 	}
 	size += 1;
 	char* result = new char[size];
@@ -87,10 +113,11 @@ char* printIndexTable2String(LookupTable<string, HostAddress> &itable)
 		string name = itable_iter.getNextKey();
 		HostAddress ha;
 		itable.lookup(name, &ha);
-		sprintf((result + index), "%s --> %s<br/>", name.c_str(), ha.toString());
-		index += name.size() + 5 + ha.getStringSize() + 5;
+		sprintf((result + index), "%s,%s<br/>", name.c_str(), ha.toString());
+		index += name.size() + 1 + ha.getStringSize() + 5;
 	}
 	result[size] = '\0';
+	if(size == 1) return "";
 	return result;
 }
 
@@ -203,6 +230,25 @@ pair <int, double> getCost(string ip_address)
 
 		break;
 	}
+	return ret;
+}
+
+string nameDbToString(vector < pair <string, time_t> > names)
+{
+	string ret = "";
+	for(int i = 0; i < names.size(); i++)
+	{
+		if( i > 0 )
+			ret += ",";
+		char str_ts[20];
+		sprintf(str_ts, "%ld", names[i].second);
+
+		ret += (names[i].first + "|");
+		ret += str_ts;
+	}
+	char buffer[20];
+	sprintf(buffer, "%d", names.size());
+	ret = string(buffer).append("|").append(ret);
 	return ret;
 }
 

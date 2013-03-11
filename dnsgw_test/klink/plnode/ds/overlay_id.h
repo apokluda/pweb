@@ -131,6 +131,13 @@ public:
                 return result;
         }
 
+        string& toString(string& result) {
+                for (int i = MAX_LENGTH - 1; i >= 0; i--) {
+                        result.append(1, '0' + getBitAtPosition(overlay_id, i));
+                }
+                return result;
+        }
+
         unsigned numDigits(unsigned number) {
                 int digits = 0;
                 while (number != 0) {

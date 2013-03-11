@@ -34,6 +34,8 @@
 #include "plnode/protocol/plexus/golay/GolayCode.h"
 #include "plnode/message/p2p/message_cache_me.h"
 
+#include "common/query_string_parser.h"
+
 #include <cstdlib>
 #include <cstdio>
 #include <pthread.h>
@@ -61,6 +63,7 @@ struct mg_context *ctx;
 
 void system_init();
 void cleanup();
+void publish_alias();
 
 void *listener_thread(void*);
 void *forwarding_thread(void*);
@@ -103,6 +106,15 @@ int main(int argc, char* argv[]) {
     pthread_create(&web_interface, NULL, web_interface_thread, NULL);
     pthread_create(&storage_stat, NULL, storage_stat_thread, NULL);
     pthread_create(&pending_msg_processor, NULL, pending_message_process_thread, NULL);
+
+    while(true)
+    {
+	if(this_peer->IsInitRcvd()) 
+	{
+		publish_alias();
+		break;
+	}
+    }
 
     pthread_join(listener, NULL);
 
@@ -164,6 +176,12 @@ void system_init() {
     FD_SET(s_socket->getSocketFd(), &connection_pool);
 
     fd_max = s_socket->getSocketFd();
+}
+
+void publish_alias()
+{
+	HostAddress ha(this_peer->getHostName(), this_peer->getListenPortNumber());
+	this_peer->getProtocol()->put(this_peer->getPeerName(), ha);
 }
 
 void cleanup() {
@@ -366,6 +384,14 @@ void *listener_thread(void* args) {
                                 rcvd_message = new MessageCacheMe();
                                 rcvd_message->deserialize(buffer, buffer_length);
                                 break;
+                            case MSG_RETRIEVE:
+                            	rcvd_message = new RetrieveMessage();
+                            	rcvd_message->deserialize(buffer, buffer_length);
+                            	break;
+                            case MSG_RETRIEVE_REPLY:
+                            	rcvd_message = new MessageRetrieveReply();
+                            	rcvd_message->deserialize(buffer, buffer_length);
+                            	break;
                             default:
                                 puts("reached default case");
                                 //exit(1);
@@ -697,16 +723,144 @@ static void *interface_callback(enum mg_event event,
             char content[16384];
             PlexusProtocol* plexus = (PlexusProtocol*) this_peer->getProtocol();
             //<meta http-equiv=\"refresh\" content=\"10\">
-            int content_length = snprintf(content, sizeof (content),
-                    "<html><head></head><body>Query String: %s<br /> Client IP:Port: %s:%d</body></html>", request_info->query_string, 
-			ipToString(request_info->remote_ip).c_str(), request_info->remote_port);
+
+		string http_code = "200 OK";
+		string http_payload = "";
+
+		if(request_info->query_string != NULL){
+			QueryStringParser qsp;
+			qsp.parse(string(request_info->query_string));
+		
+			string method_name;
+			if(qsp.get_value("method", method_name))
+			{
+				if(method_name == "register" || method_name == "REGISTER") {
+					string ip_address = ipToString(request_info->remote_ip);
+					string name, port;
+					if(qsp.get_value("name", name) && qsp.get_value("port", port)){				
+						int port_number = atoi(port.c_str());
+						if(port_number >= 1024 && port_number <= 65535){
+							if(ip_address.size()){
+								if(name.size()){
+									HostAddress ha;
+									if(!this_peer->searchNameDb(name, &ha)){
+										this_peer->addToNameDB(name, HostAddress(ip_address, port_number));
+										http_code = "200 OK";
+									}
+									else{
+										http_code = "494 Device Name Not Available"; 
+									}
+								}
+								else{
+									http_code = "493 Device Name of Zero Length Not Allowed";
+								}
+							}
+							else{
+								http_code = "492 Remote IP Error";						
+							}
+						}
+						else{
+							http_code = "491 Port Number Not in Range";					
+						}
+					}			
+					else{
+						http_code = "451 Parameter Not Understood";
+					}
+				}
+				else if(method_name == "update" || method_name == "UPDATE") {
+					string ip_address = ipToString(request_info->remote_ip);
+					string name, port;
+					if(qsp.get_value("name", name) && qsp.get_value("port", port)){				
+						int port_number = atoi(port.c_str());
+						if(port_number >= 1024 && port_number <= 65535){
+							if(ip_address.size()){
+								if(name.size()){
+									HostAddress ha;
+									if(this_peer->updateNameDB(name, HostAddress(ip_address, port_number))){
+										http_code = "200 OK";
+									}
+									else{
+										http_code = "496 Device Name Not Found"; 
+									}
+								}
+								else{
+									http_code = "493 Device Name of Zero Length Not Allowed";
+								}
+							}
+							else{
+								http_code = "492 Remote IP Error";						
+							}
+						}
+						else{
+							http_code = "491 Port Number Not in Range";					
+						}
+					}			
+					else{
+						http_code = "451 Parameter Not Understood";
+					}
+				}
+				else if(method_name == "isavailable" || method_name == "ISAVAILABLE") {
+					string name;
+					if(qsp.get_value("name", name)){				
+						if(name.size()){
+							HostAddress ha;
+							if(!this_peer->searchNameDb(name, &ha)){
+								//just check whether the device name is in namedb
+								http_payload.append("Device Name Available."); 
+								http_code = "200 OK";
+							}
+							else{
+								http_code = "494 Device Name Not Available"; 
+							}
+						}
+						else{
+							http_code = "493 Device Name of Zero Length Not Allowed";
+						}
+					}			
+					else{
+						http_code = "451 Parameter Not Understood";
+					}
+				}
+				else if (method_name == "getall" || method_name == "GETALL") {
+					string timestamp_str;
+					if(qsp.get_value("timestamp", timestamp_str)){	
+						string routing_table_str, name_db_str;					
+						time_t timestamp = atol(timestamp_str.c_str());
+						if(timestamp > 0){
+							routingTable2String(*this_peer->getProtocol()->getRoutingTable(), routing_table_str);
+							http_payload.append(string(routing_table_str));
+							http_payload.append(nameDbToString(this_peer->searchNameDb(timestamp)));
+							http_code = "200 OK";
+						}
+						else{
+							http_code = "495 Timestamp Less Than or Equal to Zero";
+						}
+					}
+					else{
+						http_code = "451 Parameter Not Understood";
+					}
+				}
+				else {
+					http_code = "405 Method Not Allowed";
+				}
+			}
+			else{
+				//the key "method" is missing
+				http_code = "400 Bad Request";
+			}
+		}
             //printf("html content: %d::%s\n", content_length, content);
+
+            int content_length = snprintf(content, sizeof (content),
+                    "<html><body>%s</body></html>", http_payload.c_str());
+
+
             mg_printf(conn,
-                    "HTTP/1.1 200 OK\r\n"
+                    "HTTP/1.1 %s\r\n"
                     "Content-Type: text/html\r\n"
                     "Content-Length: %d\r\n" // Always set Content-Length
                     "\r\n"
-                    "%s", content_length, content);
+                    "%s", http_code.c_str(), content_length, content);
         }
     }
     return NULL;

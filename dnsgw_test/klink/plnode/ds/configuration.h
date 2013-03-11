@@ -29,6 +29,8 @@ class Configuration
 	string seq_file_path;
 	string input_file_path;
 
+	int client_listen_port;
+
 	int K;
 	double alpha;
 	int name_count;
@@ -150,6 +152,10 @@ public:
 			{
 				input_file_path = value;
 			}
+			else if(strcmp(key, "client_listen_port") == 0)
+			{
+				client_listen_port = atoi(value);
+			}
 		}
 		fclose(config_file_ptr);
 	}
@@ -232,6 +238,11 @@ public:
 	string getInputFilePath() const
 	{
 		return input_file_path;
+	}
+
+	int getClientListenPort() const
+	{
+		return client_listen_port;
 	}
 
 	int getInt(string key)

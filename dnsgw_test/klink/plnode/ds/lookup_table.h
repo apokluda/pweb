@@ -52,6 +52,7 @@ public:
         bool add(KeyType key, ValueType value);
         bool lookup(KeyType key, ValueType* value);
         bool update(KeyType key, ValueType value);
+        bool update_strict(KeyType key, ValueType value);
         bool remove(KeyType key);
 
         typename map<KeyType, ValueType>::iterator begin() {
@@ -130,6 +131,23 @@ bool LookupTable<KeyType, ValueType>::update(KeyType key, ValueType value) {
         if (table.find(key) == table.end()) {
                 table.insert(make_pair(key, value));
         } else {
+                table[key] = value;
+                exists = true;
+        }
+        pthread_rwlock_unlock(&table_lock);
+        return exists;
+}
+
+template<typename KeyType, typename ValueType>
+bool LookupTable<KeyType, ValueType>::update_strict(KeyType key, ValueType value) {
+        bool exists = false;
+        pthread_rwlock_wrlock(&table_lock);
+        if (table.find(key) == table.end())
+        {
+        	exists = false;
+        }
+        else
+        {
                 table[key] = value;
                 exists = true;
         }

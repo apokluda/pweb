@@ -64,6 +64,14 @@ public:
                 return result;
         }
 
+        string& toString(string& result) {
+                char* result_str = new char[getStringSize() + 1];
+                sprintf(result_str, "%s:%d", hostName.c_str(), hostPort);
+                result_str[getStringSize()] = '\0';
+		result = string(result_str);
+                return result;
+        }
+
         unsigned numDigits(unsigned number) {
                 int digits = 0;
                 if (number == 0) return 1;

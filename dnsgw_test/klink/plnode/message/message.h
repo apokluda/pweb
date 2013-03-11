@@ -39,7 +39,11 @@ using namespace std;
 #define MSG_PLEXUS_GET					42
 #define MSG_PLEXUS_GET_REPLY			43
 #define MSG_PLEXUS_PUT_REPLY			44
+
 #define MSG_CACHE_ME					51
+#define MSG_PUBLISH						52
+#define MSG_RETRIEVE					53
+#define MSG_RETRIEVE_REPLY				54
 
 class ABSMessage {
     static int sequence_no_generator;
@@ -473,6 +477,11 @@ public:
 
     int getSequenceNo() {
         return sequence_no;
+    }
+
+    void setSequenceNo(int seq_no)
+    {
+    	sequence_no = seq_no;
     }
 
     void setMessageType(unsigned char messageType) {

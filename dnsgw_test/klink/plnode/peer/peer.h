@@ -29,7 +29,7 @@ class Peer {
 
         int peer_id;
 	string peer_name;
-
+	
         int code_word;
         OverlayID overlay_id;
         int status;
@@ -82,6 +82,7 @@ class Peer {
         Configuration* configuration;
 
         LookupTable <HostAddress, pair <sockaddr_in, pair <int, double> > > address_db;
+        LookupTable <string, pair <HostAddress, time_t> > name_db; //.first -> HostAddress, .second->timestamp
 public:
 
 
@@ -192,7 +193,7 @@ public:
 			return;
 		}
 
-		char host_name[200];
+		char host_name[200], p_name[200];
 		int port = -1;
 		int n_hosts;
 		bool found = false;
@@ -210,6 +211,7 @@ public:
 			//fscanf(hosts_ptr, "%s %d", host_name, &port);
 			strcpy(host_name, strtok(line, " \n"));
 			port = atoi(strtok(NULL, " \n"));
+			strtok(NULL, " \n");
 
 			printf("%s:%d\n", host_name, port);
 
@@ -217,6 +219,7 @@ public:
 					== 0 || strcmp(host_name, "localhost") == 0)
 			{
 				listen_port_number = port;
+				peer_name = string(strtok(NULL, " \n"));
 				server_socket = new ServerSocket(listen_port_number);
 				if (server_socket->init_connection() < 0)
 				{
@@ -416,6 +419,11 @@ public:
 	int getListenPortNumber()
 	{
 		return listen_port_number;
+	}
+
+	string getPeerName()
+	{
+		return peer_name;
 	}
 
 	void setListenPortNumber(int port)
@@ -757,6 +765,45 @@ public:
 		void setCacheType(const string& cacheType)
 		{
 			cache_type = cacheType;
+		}
+
+		void addToNameDB(string name, HostAddress ha)
+		{
+			time_t timestamp = time(NULL);
+			name_db.add(name, pair <HostAddress, time_t>(ha, timestamp));
+		}
+
+		bool updateNameDB(string name, HostAddress ha)
+		{
+			time_t timestamp = time(NULL);
+			return name_db.update(name, pair <HostAddress, time_t>(ha, timestamp));
+		}
+
+		bool searchNameDb(string name, HostAddress* ret)
+		{
+			pair <HostAddress, time_t> val;
+			if(name_db.lookup(name, &val))
+			{
+				*ret = val.first;
+				return true;
+			}
+			return false;
+		}
+
+		vector < pair <string, time_t> > searchNameDb(time_t timestamp)
+		{
+			vector < pair <string, time_t> > ret;
+			LookupTableIterator<string, pair <HostAddress, time_t> > lit(&name_db);
+
+			while(lit.hasMoreKey())
+			{
+				string key = lit.getNextKey();
+				pair <HostAddress, time_t> value;
+				name_db.lookup(key, &value);
+				if(value.second > timestamp)
+					ret.push_back(pair <string, time_t>(key, value.second));
+			}
+			return ret;
 		}
 };
 

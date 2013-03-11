@@ -11,16 +11,17 @@
 #include "../../plnode/protocol/code.h"
 
 class BuildTree {
-private:
+public:
         string fileName;
         int treeSize;
         OverlayID *idArray;
         HostAddress* hAddArray;
+	string* aliasArray;
         LookupTable<OverlayID, HostAddress> *rtArray;
         LookupTable<OverlayID, HostAddress> *hosts;
         int max_height;
         ABSCode *iCode;
-public:
+
         BuildTree(string fileName, ABSCode *iCode);
         int GetHeight(int index);
         int GetIndexOfLongestMatchedPrefix(OverlayID id);
@@ -92,6 +93,7 @@ void BuildTree::execute() {
                 //hostListFile >> this->treeSize;
                 this->idArray = new OverlayID[treeSize];
                 this->hAddArray = new HostAddress[treeSize];
+		this->aliasArray = new string[treeSize];
                 this->rtArray = new LookupTable<OverlayID, HostAddress> [treeSize];
                 this->hosts = new LookupTable<OverlayID, HostAddress> [treeSize];
                 this->max_height = ceil(log2(treeSize));
@@ -103,7 +105,9 @@ void BuildTree::execute() {
 
                 //read file and generate overlayid, hostname and port data
                 string hostName;
+		string ip_address;
                 int hostPort;
+		string alias;
                 //the following variable are required for method2 of overlay id generation
                 int pattern = 0;
                 int nodesAtMaxHeight = 2 * treeSize - pow(2.0, max_height);
@@ -125,6 +129,14 @@ void BuildTree::execute() {
 
                 	    token = strtok(NULL, " \n");
                 	    hostPort = atoi(token);
+
+			token = strtok(NULL, " \n");
+			ip_address = string(token);
+
+			token = strtok(NULL, " \n");
+			alias = string(token);
+			
+			aliasArray[i] = alias;
 
                         //hostListFile >> hostName;
                         //hostListFile >> hostPort;

@@ -30,6 +30,7 @@
 #include "../../message/message.h"
 #include "../../logging/log.h"
 #include "../../logging/log_entry.h"
+#include <cmath>
 
 using namespace std;
 
@@ -44,7 +45,9 @@ class ABSProtocol;
 class PlexusProtocol : public ABSProtocol {
 protected:
         Log *log[MAX_LOGS];
-        LookupTable <MessageStateIndex, double> unresolved_get, unresolved_put;
+        LookupTable <MessageStateIndex, double> unresolved_put;
+        LookupTable <MessageStateIndex, pair <HostAddress, string> > unresolved_get;
+
         LookupTable <OverlayID, HostAddress>* proactive_cache;
 
         queue<ABSMessage*> incoming_message_queue;
@@ -200,6 +203,8 @@ public:
                         case MSG_PEER_INITIATE_PUT:
                         case MSG_PEER_FORCE_LOG:
                         case MSG_CACHE_ME:
+                        case MSG_RETRIEVE:
+                        case MSG_RETRIEVE_REPLY:
                         		puts("returning false");
                                 return false;
                                 break;
@@ -369,7 +374,7 @@ public:
         }
 
         void get(string name) {
-                int hash_name_to_get = atoi(name.c_str());
+                int hash_name_to_get = (int)urlHash(name) & 0x003FFFFF;
                 OverlayID targetID(hash_name_to_get, getContainerPeer()->GetiCode());
 
                 //printf("h_name = %d, oid = %d\n", hash_name_to_get, targetID.GetOverlay_id());
@@ -381,12 +386,6 @@ public:
                 /*printf("Constructed Get Message");
                 msg->message_print_dump();*/
 
-                MessageStateIndex msg_index(hash_name_to_get, msg->getSequenceNo());
-                timeval timestamp;
-                gettimeofday(&timestamp, NULL);
-                double timestamp_t = (double)(timestamp.tv_sec) * 1000.0 + (double)(timestamp.tv_usec) / 1000.0;
-                unresolved_get.add(msg_index, timestamp_t);
-
                 if (msgProcessor->processMessage(msg))
                 {
                         addToOutgoingQueue(msg);
@@ -394,8 +393,43 @@ public:
                 getContainerPeer()->incrementGet_generated();
         }
 
+        void get_for_client(PeerInitiateGET* message)
+        {
+        	int last_dot;
+        	string str = message->getDeviceName();
+        	printf("str = %s\n", str.c_str());
+
+        	for(last_dot = (int)str.size() - 1; last_dot >= 0; last_dot--)
+        		if(str[last_dot] == '.')
+        			break;
+
+        	string ha_name = str.substr(last_dot + 1);
+        	string d_name = str.substr(0, last_dot);
+
+        	printf("Home agent name = %s, Device name = %s\n", ha_name.c_str(), d_name.c_str());
+        	int hash_name_to_get = (int)urlHash(ha_name) & 0x003FFFFF;
+        	//string name = message->getDeviceName();
+			OverlayID targetID(hash_name_to_get, getContainerPeer()->GetiCode());
+
+			MessageGET *msg = new MessageGET(container_peer->getHostName(),
+			                        container_peer->getListenPortNumber(), "", -1,
+			                        container_peer->getOverlayID(), OverlayID(), targetID, ha_name);
+
+			msg->setSequenceNo(message->getSequenceNo());
+			MessageStateIndex ind(hash_name_to_get, message->getSequenceNo());
+
+			printf("msg_state_index = %d_%d\n", ind.getMessageSeqNo(), ind.getNameHash());
+			unresolved_get.add(ind, make_pair(HostAddress(message->getSourceHost(), message->getSourcePort()), d_name));
+
+			if (msgProcessor->processMessage(msg))
+			{
+					addToOutgoingQueue(msg);
+			}
+			getContainerPeer()->incrementGet_generated();
+        }
+
         void get_from_client(string name, HostAddress destination) {
-                int hash_name_to_get = atoi(name.c_str());
+                int hash_name_to_get = (int)urlHash(name) & 0x003FFFFF;
                 OverlayID destID(hash_name_to_get, getContainerPeer()->GetiCode());
 
                 cout << "id = " << hash_name_to_get << " oid = ";
@@ -413,15 +447,18 @@ public:
         }
 
         void put(string name, HostAddress hostAddress) {
-                int hash_name_to_publish = atoi(name.c_str());
+                int hash_name_to_publish = (int)urlHash(name) & 0x003FFFFF;
                 OverlayID targetID(hash_name_to_publish, getContainerPeer()->GetiCode());
+		
+                targetID.printBits();
 
                 MessagePUT *msg = new MessagePUT(container_peer->getHostName(),
                         container_peer->getListenPortNumber(), "", -1,
                         container_peer->getOverlayID(), OverlayID(), targetID, name, hostAddress);
-
+		printf("put msg created.\n");
                 MessageStateIndex msg_index(hash_name_to_publish, msg->getSequenceNo());
-                timeval timestamp;
+                
+		timeval timestamp;
                 gettimeofday(&timestamp, NULL);
                 double timestamp_t = (double)(timestamp.tv_sec) * 1000.0 + (double)(timestamp.tv_usec) / 1000.0;
                 unresolved_put.add(msg_index, timestamp_t);
@@ -429,12 +466,13 @@ public:
                 if (msgProcessor->processMessage(msg)) {
                         addToOutgoingQueue(msg);
                 }
+		printf("put msg add q.\n");
                 getContainerPeer()->incrementPut_generated();
         }
 
         void put_from_client(string name, HostAddress hostAddress,
                 HostAddress destination) {
-                int hash_name_to_publish = atoi(name.c_str());
+                int hash_name_to_publish = (int)urlHash(name) & 0x003FFFFF;
                 OverlayID destID(hash_name_to_publish, getContainerPeer()->GetiCode());
 
                 cout << "id = " << hash_name_to_publish << " oid = ";
@@ -614,12 +652,12 @@ public:
                 pthread_cond_destroy(&cond_log_queue_empty);
         }
 
-		LookupTable<MessageStateIndex, double>& getUnresolvedGet()
+		LookupTable<MessageStateIndex, pair <HostAddress, string> >& getUnresolvedGet()
 		{
 			return unresolved_get;
 		}
 
-		void setUnresolvedGet(const LookupTable<MessageStateIndex, double>& unresolvedGet)
+		void setUnresolvedGet(const LookupTable<MessageStateIndex, pair <HostAddress, string> >& unresolvedGet)
 		{
 			unresolved_get = unresolvedGet;
 		}

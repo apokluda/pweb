@@ -24,7 +24,7 @@ public:
 	}
 
 	MessagePUT(string source_host, int source_port, string dest_host,
-			int dest_port, OverlayID src_oid, OverlayID dst_id, OverlayID target_oid,
+			int dest_port, OverlayID src_oid, OverlayID dst_id, OverlayID target_oid, 
 			string &deviceName, HostAddress &hostAddress) :
 			ABSMessage(MSG_PLEXUS_PUT, source_host, source_port, dest_host,
 					dest_port, src_oid, dst_id), deviceName(deviceName), hostAddress(
@@ -63,7 +63,8 @@ public:
 		offset += sizeof (int);
 		memcpy(buffer + offset, (char*) &m_len, sizeof (int));
 		offset += sizeof (int);
-
+		
+		
 		int deviceNameLength = deviceName.size();
 		memcpy(buffer + offset, (char*) (&deviceNameLength), sizeof(int));
 		offset += sizeof(int);
@@ -109,6 +110,7 @@ public:
 		target_oid.SetOverlay_id(o_id);
 		target_oid.SetPrefix_length(p_len);
 		target_oid.MAX_LENGTH = m_len;
+		
 
 		memcpy(&deviceNameLength, buffer + offset, sizeof(int));
 		offset += sizeof(int);

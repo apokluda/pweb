@@ -7,9 +7,10 @@ k=20
 alpha=0.9
 timeout=5.5
 name_count=1000
-#512969
 retry=10
 check_point_row=100
 cache_storage=path
 cache_type=reactive
 input=s.db.0
+client_listen_port=50000
+
