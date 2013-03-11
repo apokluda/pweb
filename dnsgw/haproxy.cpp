@@ -90,17 +90,17 @@ namespace
             + 1                // overlay ttl
             + sizeof(absint_t) // IP hops
             + sizeof(absdbl_t) // latency
-            + sizeof(absint_t) // src overlay ID
-            + sizeof(absint_t) // src prefix length
-            + sizeof(absint_t) // src max length
-            + sizeof(absint_t) // dst overlay ID
-            + sizeof(absint_t) // dst prefix length
-            + sizeof(absint_t);// dst max length
+            + sizeof(absint_t) // destination overlay ID
+            + sizeof(absint_t) // destination prefix length
+            + sizeof(absint_t) // destination max length
+            + sizeof(absint_t) // source overlay ID
+            + sizeof(absint_t) // source prefix length
+            + sizeof(absint_t);// source max length
 
     static std::size_t const unused_abs_get_len =
-              sizeof(absint_t) // overlay id
-            + sizeof(absint_t) // prefix length
-            + sizeof(absint_t);// max length
+              sizeof(absint_t) // target overlay id
+            + sizeof(absint_t) // target prefix length
+            + sizeof(absint_t);// target max length
 
     static std::size_t const abs_reply_len_before_sequence =
             sizeof(absint_t) // resolution status
@@ -111,9 +111,9 @@ namespace
     static std::size_t const abs_reply_len_before_hostname =
             abs_reply_len_before_sequence
             + sizeof(absint_t) // sequence number
-            + sizeof(absint_t) // overlay ID
-            + sizeof(absint_t) // prefix length
-            + sizeof(absint_t) // max length
+            + sizeof(absint_t) // target overlay ID
+            + sizeof(absint_t) // target prefix length
+            + sizeof(absint_t) // target max length
             + sizeof(absint_t);// destination hostname length
 
     boost::uint8_t* write_abs_header(absmsgid_t const msgid, boost::uint32_t const sequence, string const& hahostname, boost::uint16_t const haport, string const& nshostname, boost::uint16_t const nsport, boost::uint8_t* buf, boost::uint8_t const* const end)
@@ -303,7 +303,7 @@ public:
 
     void start()
     {
-        async_read( socket_, buffer(buf_, 1 + sizeof(absuint_t) + sizeof(absint_t)),
+        async_read( socket_, buffer(buf_, 1 + sizeof(absint_t) + sizeof(absint_t)),
                boost::bind( &harecvconnection::handle_read_to_desthostlen, shared_from_this(), ph::error, ph::bytes_transferred ) );
     }
 
@@ -312,8 +312,8 @@ private:
     {
         if ( !ec )
         {
-            boost::int8_t msgtype;
-            read_abs_int< boost::int8_t >(msgtype, buf_.data(), buf_.data() + bytes_transferred);
+            boost::uint8_t msgtype;
+            read_abs_int< boost::uint8_t >(msgtype, buf_.data(), buf_.data() + bytes_transferred);
             if ( msgtype ==  ABS_REPLY )
             {
                 absint_t desthostlen;
@@ -393,34 +393,43 @@ private:
             if ( query )
             {
                 // This is not the least bit elegant, but it should work!
-                buf_[hostlen_] = '\0'; // overwrites device name length in buffer
-                bs::error_code ec;
-                ip::address addr = ip::address::from_string(reinterpret_cast< char* >( buf_.data() ), ec);
-                if ( !ec )
+                if ( buf_.size() > hostlen_ )
                 {
-                    dnsrr rr;
-                    rr.owner = nshostname_;
-                    rr.rclass = C_IN;
-                    rr.ttl = ttl_;
-                    if ( addr.is_v4() )
+                    buf_[hostlen_] = '\0'; // overwrites device name length in buffer
+                    bs::error_code ec;
+                    ip::address addr = ip::address::from_string(reinterpret_cast< char* >( buf_.data() ), ec);
+                    if ( !ec )
                     {
-                        rr.rdlength = 4;
-                        memcpy(rr.rdata.c_array(), addr.to_v4().to_bytes().data(), 4);
-                        rr.rtype = T_A;
+                        dnsrr rr;
+                        rr.owner = nshostname_;
+                        rr.rclass = C_IN;
+                        rr.ttl = ttl_;
+                        if ( addr.is_v4() )
+                        {
+                            rr.rdlength = 4;
+                            memcpy(rr.rdata.c_array(), addr.to_v4().to_bytes().data(), 4);
+                            rr.rtype = T_A;
+                        }
+                        else // addr.is_v6()
+                        {
+                            rr.rdlength = 16;
+                            memcpy(rr.rdata.c_array(), addr.to_v6().to_bytes().data(), 16);
+                            rr.rtype = T_AAAA;
+                        }
+                        query->rcode(R_SUCCESS);
+                        query->add_answer(rr);
+                        query->send_reply();
                     }
-                    else // addr.is_v6()
+                    else
                     {
-                        rr.rdlength = 16;
-                        memcpy(rr.rdata.c_array(), addr.to_v6().to_bytes().data(), 16);
-                        rr.rtype = T_AAAA;
+                        log4.errorStream() << "An error occurred while parsing IP address returned from home agent: " << ec.message();
+                        query->rcode(R_SERVER_FAILURE);
+                        query->send_reply();
                     }
-                    query->rcode(R_SUCCESS);
-                    query->add_answer(rr);
-                    query->send_reply();
                 }
                 else
                 {
-                    log4.errorStream() << "An error occurred while parsing IP address returned from home agent: " << ec.message();
+                    log4.errorStream() << "IP address length " << hostlen_ << " received from home agent is too long!";
                     query->rcode(R_SERVER_FAILURE);
                     query->send_reply();
                 }
