@@ -13,6 +13,11 @@
 class dnsquery;
 typedef boost::shared_ptr< dnsquery > query_ptr;
 
+namespace haproxy
+{
+    void timeout( boost::posix_time::time_duration const& );
+}
+
 class hasendproxy :
         private boost::noncopyable,
         public boost::enable_shared_from_this<hasendproxy>

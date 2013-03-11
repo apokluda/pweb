@@ -18,7 +18,17 @@ namespace ph = boost::asio::placeholders;
 namespace bs = boost::system;
 
 extern log4cpp::Category& log4;
-extern bool debug;
+
+namespace haproxy
+{
+    static boost::posix_time::time_duration _timeout;
+
+    void timeout( boost::posix_time::time_duration const& timeout )
+    {
+        _timeout = timeout;
+    }
+
+}
 
 namespace
 {
@@ -161,7 +171,7 @@ namespace
             if (inserted)
             {
                 deadline_timer& timer = query->timer();
-                timer.expires_from_now( (debug ? seconds(5*60) : seconds(12)) );
+                timer.expires_from_now( haproxy::_timeout );
                 timer.async_wait(boost::bind( &querymap::expire, this, query->id() ));
             }
             return inserted;
@@ -218,6 +228,31 @@ public:
     , haport_(haport)
     , nsport_(nsport)
     {
+        try
+        {
+            // We compose the message in the buffer here so that if there is an error, we never attempt to open
+            // the connection to the home agent. We also do this before inserting the query into the querymap
+            // so that we don't need to remove it.
+            boost::uint8_t* buf = buf_.data();
+            boost::uint8_t const* const end = buf + buf_.size();
+
+            buf = write_abs_header(ABS_GET, query_->id(), hahostname_, haport_, nshostname_, nsport_, buf, end);
+            buf = write_abs_get(*query_, suffix_, buf, end);
+
+            send_buf_ = buffer(buf_,  buf - buf_.data());
+        }
+        catch ( std::exception const& )
+        {
+            // In this particular case, we want to send and error back to the client. We do this here because at
+            // a higher level it's harder to know if we want to return an error or not. (For example, we don't
+            // return an error on duplicate sequence number because that may have the effect of canceling a
+            // query in progress).
+
+            query_->rcode(R_NAME_ERROR);
+            query_->send_reply();
+            throw;
+        }
+
         if ( !queries.insert(query_) )
         {
              // NOTE: We don't send an error back here, because if the sequence number already exists in the map,
@@ -238,21 +273,8 @@ private:
     {
         if ( !ec )
         {
-            try
-            {
-                boost::uint8_t* buf = buf_.data();
-                boost::uint8_t const* const end = buf + buf_.size();
-
-                buf = write_abs_header(ABS_GET, query_->id(), hahostname_, haport_, nshostname_, nsport_, buf, end);
-                buf = write_abs_get(*query_, suffix_, buf, end);
-
-                async_write(socket_, buffer(buf_, buf - buf_.data()),
-                        boost::bind( &hasendconnection::handle_query_sent, shared_from_this(), ph::error, ph::bytes_transferred ) );
-            }
-            catch ( std::exception const& e )
-            {
-                log4.errorStream() << "An error occurred while composing GET message: " << e.what();
-            }
+            async_write(socket_, buffer(send_buf_),
+                    boost::bind( &hasendconnection::handle_query_sent, shared_from_this(), ph::error, ph::bytes_transferred ) );
         }
         else
         {
@@ -284,6 +306,7 @@ private:
     string const nshostname_;
     string const suffix_;
     query_ptr query_;
+    boost::asio::const_buffer send_buf_;
     boost::array< boost::uint8_t, 256 > buf_;
     boost::uint16_t const haport_;
     boost::uint16_t const nsport_;
@@ -392,8 +415,14 @@ private:
             query_ptr query( queries.remove( sequence_ ) );
             if ( query )
             {
-                // This is not the least bit elegant, but it should work!
-                if ( buf_.size() > hostlen_ )
+                if (hostlen_ == 0)
+                {
+                    // Device name not found
+                    log4.infoStream() << "No IP address found for '" << query->questions_begin()->name << '\'';
+                    query->rcode(R_NAME_ERROR);
+                    query->send_reply();
+                }
+                else if ( buf_.size() > hostlen_ )
                 {
                     buf_[hostlen_] = '\0'; // overwrites device name length in buffer
                     bs::error_code ec;

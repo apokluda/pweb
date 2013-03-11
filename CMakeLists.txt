@@ -25,5 +25,10 @@ find_package( Boost 1.53.0 COMPONENTS program_options thread date_time chrono re
 include_directories( ${Boost_INCLUDE_DIRS} )
 
 add_subdirectory( dnsgw dnsgw.bin )
-add_subdirectory( dnsgw_test dnsgw_test.bin )
+
+# klink headers unnecessarily pull in plafom-specific stuff
+if (UNIX)
+    add_subdirectory( dnsgw_test dnsgw_test.bin )
+endif()
+
 add_subdirectory( pwclient pwclient.bin )
