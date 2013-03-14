@@ -107,10 +107,10 @@ namespace
             + sizeof(absint_t) // source prefix length
             + sizeof(absint_t);// source max length
 
-    static std::size_t const unused_abs_get_len =
-              sizeof(absint_t) // target overlay id
-            + sizeof(absint_t) // target prefix length
-            + sizeof(absint_t);// target max length
+//    static std::size_t const unused_abs_get_len =
+//              sizeof(absint_t) // target overlay id
+//            + sizeof(absint_t) // target prefix length
+//            + sizeof(absint_t);// target max length
 
     static std::size_t const abs_reply_len_before_sequence =
             sizeof(absint_t) // resolution status
@@ -151,7 +151,7 @@ namespace
         dnsquestion const& question = *query.questions_begin();
         string const devicename( remove_suffix( question.name, suffix ) );
 
-        buf = write_abs_zero(unused_abs_get_len, buf, end);
+        //buf = write_abs_zero(unused_abs_get_len, buf, end);
         return write_abs_string< absint_t >( devicename, buf, end );
     }
 
