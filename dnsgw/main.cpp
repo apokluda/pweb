@@ -162,7 +162,7 @@ int main(int argc, char const* argv[])
 
         if ( vm.count("version") )
         {
-            cout << "Development version" << endl;
+            cout << "pWeb DNS Gateway Development version" << endl;
             return EXIT_SUCCESS;
         }
         if ( vm.count("help") )

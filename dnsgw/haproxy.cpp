@@ -107,19 +107,11 @@ namespace
             + sizeof(absint_t) // source prefix length
             + sizeof(absint_t);// source max length
 
-//    static std::size_t const unused_abs_get_len =
-//              sizeof(absint_t) // target overlay id
-//            + sizeof(absint_t) // target prefix length
-//            + sizeof(absint_t);// target max length
-
-    static std::size_t const abs_reply_len_before_sequence =
-            sizeof(absint_t) // resolution status
-          + sizeof(absint_t) // resolution hops
-          + sizeof(absint_t) // resolution ip hops
-          + sizeof(absdbl_t);// resolution latency
-
     static std::size_t const abs_reply_len_before_hostname =
-            abs_reply_len_before_sequence
+              sizeof(absint_t) // resolution status
+            + sizeof(absint_t) // resolution hops
+            + sizeof(absint_t) // resolution ip hops
+            + sizeof(absdbl_t) // resolution latency
             + sizeof(absint_t) // sequence number
             + sizeof(absint_t) // target overlay ID
             + sizeof(absint_t) // target prefix length
@@ -151,7 +143,6 @@ namespace
         dnsquestion const& question = *query.questions_begin();
         string const devicename( remove_suffix( question.name, suffix ) );
 
-        //buf = write_abs_zero(unused_abs_get_len, buf, end);
         return write_abs_string< absint_t >( devicename, buf, end );
     }
 
@@ -290,7 +281,7 @@ private:
         if ( !ec )
         {
             // This will work, we know that there is at least one question because we sent it
-            log4.infoStream() << "Sent query for '" << query_->questions_begin()->name << "' to '" << hahostname_ << '\'';
+            log4.infoStream() << "Sent query for '" << query_->questions_begin()->name << "' to '" << hahostname_ << "' with sequence number " << query_->id();
         }
         else
         {
@@ -339,6 +330,23 @@ private:
             read_abs_int< boost::uint8_t >(msgtype, buf_.data(), buf_.data() + bytes_transferred);
             if ( msgtype ==  ABS_REPLY )
             {
+                absint_t sequence;
+                read_abs_int< absint_t >(sequence, buf_.data() + 1, buf_.data() + bytes_transferred );
+                if ( sequence <= std::numeric_limits< boost::uint16_t >::max() )
+                {
+                    sequence_ = static_cast< boost::uint16_t >( sequence );
+                    log4.infoStream() << "Receiving a reply message from home agent with sequence number " << sequence;
+                }
+                else
+                {
+                    log4.errorStream() << "Receiving a reply message from home agent with invalid sequence number " << sequence;
+                    // This means that we will try to reply to a query with sequence number 0
+                    // There is a very small probability that we may send the wrong IP address to an outstanding query with sequence number 0
+                    // But we'll just put our faith in the home agent for now and trust that this won't happen
+                    // (This and other problems could be fixed by using our own unique hash rather than the DNS transaction IDs for sequence numbers
+                    // in messages to home agents)
+                }
+
                 absint_t desthostlen;
                 read_abs_int< absint_t >(desthostlen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
 
@@ -388,10 +396,6 @@ private:
     {
         if ( !ec )
         {
-            absint_t sequence;
-            read_abs_int< absint_t >(sequence, buf_.data() + abs_reply_len_before_sequence, buf_.data() + bytes_transferred );
-            sequence_ = static_cast< boost::uint16_t >( sequence );
-
             absint_t hostlen;
             read_abs_int< absint_t >(hostlen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
             hostlen_ = hostlen;
@@ -445,6 +449,9 @@ private:
                             memcpy(rr.rdata.c_array(), addr.to_v6().to_bytes().data(), 16);
                             rr.rtype = T_AAAA;
                         }
+
+                        log4.infoStream() << "Home agent returned IP address " << addr << " for '" << query->questions_begin()->name << "'; Sending reply to DNS client";
+
                         query->rcode(R_SUCCESS);
                         query->add_answer(rr);
                         query->send_reply();
@@ -463,6 +470,11 @@ private:
                     query->send_reply();
                 }
             }
+            else
+            {
+                log4.warnStream() << "Unable to find an outstanding query with sequence number " << sequence_;
+            }
+
             async_read(socket_, buffer(buf_, devicenamelen),
                     boost::bind( &harecvconnection::handle_devicename_read, shared_from_this(), ph::error, ph::bytes_transferred ) );
         }
