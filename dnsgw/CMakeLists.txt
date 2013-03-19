@@ -15,3 +15,5 @@ target_link_libraries(dnsgw ${LOG4CPP_LIB} ${Boost_LIBRARIES})
 if(UNIX AND NOT APPLE)
     target_link_libraries(dnsgw rt)
 endif()
+
+install(TARGETS dnsgw DESTINATION bin)

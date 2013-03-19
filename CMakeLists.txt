@@ -1,6 +1,16 @@
 cmake_minimum_required (VERSION 2.6)
 project (pWeb)
 
+set(pWeb_VERSION_MAJOR 0)
+set(pWeb_VERSION_MINOR 1)
+set(pWeb_VERSION_BUILD 6)
+
+configure_file(
+    "${PROJECT_SOURCE_DIR}/config.h.in"
+    "${PROJECT_BINARY_DIR}/config.h"
+)
+include_directories("${PROJECT_BINARY_DIR}")
+
 set(LOG4CPP_INCLUDE_DIR "" CACHE FILEPATH "Path to log4cpp includes")
 include_directories(${LOG4CPP_INCLUDE_DIR})
 
@@ -32,3 +42,12 @@ if (UNIX)
 endif()
 
 add_subdirectory( pwclient pwclient.bin )
+
+# build a CPack driven installer package
+include (InstallRequiredSystemLibraries)
+set (CPACK_RESOURCE_FILE_LICENSE  
+     "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
+set (CPACK_PACKAGE_VERSION_MAJOR "${pWeb_VERSION_MAJOR}")
+set (CPACK_PACKAGE_VERSION_MINOR "${pWeb_VERSION_MINOR}")
+set (CPACK_PACKAGE_VERSION_PATCH "${pWeb_VERSION_BUILD}")
+include (CPack)

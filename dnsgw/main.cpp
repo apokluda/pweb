@@ -21,6 +21,7 @@
  */
 
 #include "stdhdr.hpp"
+#include "config.h"
 #include "haproxy.hpp"
 #include "dnsspeaker.hpp"
 #include "haloadbalancer.hpp"
@@ -162,7 +163,7 @@ int main(int argc, char const* argv[])
 
         if ( vm.count("version") )
         {
-            cout << "pWeb DNS Gateway Development version" << endl;
+            cout << "pWeb DNS Gateway " PWEB_VERSION_STR << endl;
             return EXIT_SUCCESS;
         }
         if ( vm.count("help") )
