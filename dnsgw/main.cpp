@@ -101,7 +101,6 @@ int main(int argc, char const* argv[])
     {
         typedef std::vector< string > haaddr_list_t;
 
-        string config_file;
         string log_file;
         string log_level;
         string interface;
@@ -118,26 +117,26 @@ int main(int argc, char const* argv[])
         // on the command line
         po::options_description generic("Generic options");
         generic.add_options()
-                    ("version,v", "print version string")
-                    ("help,h", "produce help message")
-                    ("config,c", po::value< string >(&config_file)->implicit_value("dnsgw.cfg"), "config file name")
+                    ("version,v", po::value< bool >  ()->implicit_value(true), "print version string")
+                    ("help,h",    po::value< bool >  ()->implicit_value(true), "produce help message")
+                    ("config,c",  po::value< string >(),                       "config file name")
                     ;
 
         // Declare a group of options that will be allowed both
         // on the command line and in the config file
         po::options_description config("Configuration");
         config.add_options()
-                    ("ttl", po::value< boost::uint16_t >(&ttl)->default_value(3600), "number of seconds to cache name to IP mappings")
-                    ("timeout,t", po::value< unsigned >(&timeout)->default_value(12), "max number of seconds to wait for response from home agent")
-                    ("log_file,l", po::value< string >(&log_file)->default_value("dnsgw.log"), "log file name")
-                    ("log_level,L", po::value< string >(&log_level)->default_value("WARN"), "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
-                    ("iface,i", po::value< string >(&interface), "IP v4 or v6 address of interface to listen on")
-                    ("port,p", po::value< boost::uint16_t >(&port)->default_value(53), "port to listen on")
-                    ("home_agents,H", po::value< haaddr_list_t >(&home_agents)->required(), "list of home agent addresses to connect to")
-                    ("nshostname,N", po::value< string >(&nshostname)->required(), "the hostname of the DNS gateway (included in DNS replies and in requests to home agents)" )
-                    ("nsport,P", po::value< boost::uint16_t >(&nsport)->required(), "the port the DNS gateway uses to receive replies from home agents")
-                    ("suffix,s", po::value< string >(&suffix)->default_value(".dht."), "suffix to be removed from names before querying DHT")
-                    ("threads", po::value< std::size_t >(&num_threads)->default_value(1), "number of application threads (0 = one thread per hardware core)")
+                    ("ttl",           po::value< boost::uint16_t >(&ttl)        ->default_value(3600),        "number of seconds to cache name to IP mappings")
+                    ("timeout,t",     po::value< unsigned >       (&timeout)    ->default_value(12),          "max number of seconds to wait for response from home agent")
+                    ("log_file,l",    po::value< string >         (&log_file)   ->default_value("dnsgw.log"), "log file name")
+                    ("log_level,L",   po::value< string >         (&log_level)  ->default_value("WARN"),      "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
+                    ("iface,i",       po::value< string >         (&interface),                               "IP v4 or v6 address of interface to listen on")
+                    ("port,p",        po::value< boost::uint16_t >(&port)       ->default_value(53),          "port to listen on")
+                    ("home_agents,H", po::value< haaddr_list_t >  (&home_agents)->required(),                 "list of home agent addresses to connect to")
+                    ("nshostname,N",  po::value< string >         (&nshostname) ->required(),                 "the hostname of the DNS gateway (included in DNS replies and in requests to home agents)" )
+                    ("nsport,P",      po::value< boost::uint16_t >(&nsport)     ->required(),                 "the port the DNS gateway uses to receive replies from home agents")
+                    ("suffix,s",      po::value< string >         (&suffix)     ->default_value(".dht."),     "suffix to be removed from names before querying DHT")
+                    ("threads",       po::value< std::size_t >    (&num_threads)->default_value(1),           "number of application threads (0 = one thread per hardware core)")
                     ;
 
         // Hidden options, will be allowed both on command line
@@ -157,33 +156,34 @@ int main(int argc, char const* argv[])
         po::options_description visible_options("Allowed options");
         visible_options.add(generic).add(config);
 
-        // Might not need to store the arguments in the vm because we store them in variables directly
         po::variables_map vm;
         po::store(po::command_line_parser(argc, argv).options(cmdline_options).run(), vm);
 
-        if ( vm.count("version") )
-        {
-            cout << "pWeb DNS Gateway " PWEB_VERSION_STR << endl;
-            return EXIT_SUCCESS;
-        }
+        cout << "pWeb DNS Gateway " PWEB_VERSION_STR << endl;
+        if ( vm.count("version") ) return EXIT_SUCCESS; // Exit after printing version
+
         if ( vm.count("help") )
         {
             cout << visible_options << endl;
             return EXIT_SUCCESS;
         }
 
+        // DEBUG
+        string config_file( vm["config_file"].as< string >() );
+        cout << "Using config file: " << config_file << endl;
         if ( !config_file.empty() )
         {
             ifstream ifs(config_file.c_str());
-            if (!ifs)
+            if ( !ifs )
             {
                 cerr << "Unable to open config file: " << config_file << endl;
                 return EXIT_FAILURE;
             }
             else
             {
+                // DEBUG
+                cout << "Reading config file" << endl;
                 po::store(po::parse_config_file(ifs, conffile_options), vm);
-                po::notify(vm);
             }
         }
 
