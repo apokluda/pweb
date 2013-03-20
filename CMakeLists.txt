@@ -1,9 +1,9 @@
 cmake_minimum_required (VERSION 2.6)
 project (pWeb)
 
-set(pWeb_VERSION_MAJOR 0)
-set(pWeb_VERSION_MINOR 1)
-set(pWeb_VERSION_BUILD 6)
+set(pWeb_VERSION_MAJOR 1)
+set(pWeb_VERSION_MINOR 0)
+set(pWeb_VERSION_BUILD 0)
 
 configure_file(
     "${PROJECT_SOURCE_DIR}/config.h.in"
