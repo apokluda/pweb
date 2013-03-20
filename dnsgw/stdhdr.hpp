@@ -27,9 +27,6 @@
 // liblog4cpp5-dev
 
 // Boost
-// Disable auto-link feature on Windows (this can conflict with our CMake settings)
-#define BOOST_ALL_NO_LIB
-
 #include <boost/program_options.hpp>
 #include <boost/cstdint.hpp>
 #include <boost/asio.hpp>

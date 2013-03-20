@@ -28,6 +28,8 @@ include_directories( mongoose )
 # One of the other libraries depends on it and MSVC can't
 # find it because cmake doesn't set the lib directory.
 
+add_definitions(-DBOOST_ALL_DYN_LINK)
+
 set( Boost_USE_STATIC_LIBS      OFF  )
 set( Boost_USE_MULTITHREADED    ON  )
 set( Boost_USE_STATIC_RUNTIME   OFF )
