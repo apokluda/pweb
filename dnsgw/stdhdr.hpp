@@ -19,6 +19,13 @@
 #include <cstring>
 #include <cstdlib>
 
+// Ubuntu package dependencies
+// libboost-program-options1.53-dev
+// libboost-thread1.53-dev
+// libboost-atomic1.53-dev
+// libboost-date-time1.53-dev
+// liblog4cpp5-dev
+
 // Boost
 #include <boost/program_options.hpp>
 #include <boost/cstdint.hpp>
