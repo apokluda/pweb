@@ -168,9 +168,7 @@ int main(int argc, char const* argv[])
             return EXIT_SUCCESS;
         }
 
-        // DEBUG
-        string config_file( vm["config_file"].as< string >() );
-        cout << "Using config file: " << config_file << endl;
+        string config_file( vm["config"].as< string >() );
         if ( !config_file.empty() )
         {
             ifstream ifs(config_file.c_str());
@@ -181,8 +179,6 @@ int main(int argc, char const* argv[])
             }
             else
             {
-                // DEBUG
-                cout << "Reading config file" << endl;
                 po::store(po::parse_config_file(ifs, conffile_options), vm);
             }
         }
