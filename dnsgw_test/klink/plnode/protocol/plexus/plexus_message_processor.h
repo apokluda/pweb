@@ -191,7 +191,9 @@ public:
 						container_peer->getOverlayID(), OverlayID(), OverlayID(),
 						r.second);
 				int hash = (int) urlHash(r.second.c_str()) & 0x003FFFFF;
-				MessageStateIndex ind(hash, rtr_msg->getSequenceNo());
+				MessageStateIndex ind(hash, msg_index.getMessageSeqNo());
+				rtr_msg->setSequenceNo(msg_index.getMessageSeqNo());
+
 				plexus->getUnresolvedGet().add(ind, r);
 				plexus->addToOutgoingQueue(rtr_msg);
 				//message->setDestHost(requester.GetHostName().c_str());
@@ -223,6 +225,9 @@ public:
 		{
 			RetrieveMessage* msg = (RetrieveMessage*) message;
 			HostAddress result;
+
+			//msg->message_print_dump();
+
 			container_peer->searchNameDb(msg->GetDeviceName(), &result);
 
 			MessageRetrieveReply* rtr_reply = new MessageRetrieveReply(
@@ -262,6 +267,7 @@ public:
 						container_peer->getOverlayID(), OverlayID(), SUCCESS, OverlayID(),
 						msg->getHostAddress(), msg->getDeviceName());
 
+				rtr_msg->setSequenceNo(msg_index.getMessageSeqNo());
 //				plexus->getUnresolvedGet().add(ind, r);
 				plexus->addToOutgoingQueue(rtr_msg);
 				//message->setDestHost(requester.GetHostName().c_str());

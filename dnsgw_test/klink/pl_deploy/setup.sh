@@ -1,11 +1,16 @@
 #!/bin/bash
-#./find_non_ready_nodes.sh
-#./all_node_idgen.sh
-#./all_node_idcopy.sh
-#cat not_ready >> ready_nodes
+./find_non_ready_nodes.sh
+./all_node_idgen.sh
+./all_node_idcopy.sh
+cat not_ready >> ready_nodes
 if [ -f nodes_temp ]
 then
 	rm nodes_temp
+fi
+
+if [ -f nodes ]
+then
+	rm nodes
 fi
 
 touch nodes
@@ -19,9 +24,9 @@ do
 done
 cat nodes_temp | awk '{len=split($1,array,"."); print $1, $2, $3, array[len-1] map[array[len-1]]++;}' > nodes
 
-#scp pssh_nodes ../config ../imonitorlist ../agent nodes pweb@cn102.cs.uwaterloo.ca:~/klink/pl_deploy
-#ssh pweb@cn102.cs.uwaterloo.ca "cd klink/pl_deploy ; ./upload_wrap.sh &"
-#scp -i ~/.ssh/id_rsa ../config ../imonitorlist nodes uwaterloo_pweb@plink.cs.uwaterloo.ca:~/
+scp pssh_nodes ../config ../imonitorlist ../agent nodes pweb@cn102.cs.uwaterloo.ca:~/klink/pl_deploy
+ssh pweb@cn102.cs.uwaterloo.ca "cd klink/pl_deploy ; ./upload_wrap.sh &"
+scp -i ~/.ssh/id_rsa ../config ../imonitorlist nodes uwaterloo_pweb@plink.cs.uwaterloo.ca:~/
 
 #for machine in `cat pssh_nodes`
 #do

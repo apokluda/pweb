@@ -120,7 +120,8 @@ namespace dns_query_parser
     {
         boost::uint16_t val;
         buf = parse_short(val, buf, end);
-        if (  (val >= T_MIN && val <= T_MAX) || (val >= QT_MIN && val <= QT_MAX ) )
+        // Changed condition to allow new types that have been added since 1987
+        if (  (val >= T_MIN && /*val <= T_MAX) || (val >= QT_MIN &&*/ val <= QT_MAX ) )
         {
             qtype = static_cast< qtype_t >( val );
             return buf;
@@ -134,7 +135,8 @@ namespace dns_query_parser
     {
         boost::uint16_t val;
         buf = parse_short(val, buf, end);
-        if ( (val >= C_MIN && val <= C_MAX) || (val >= QC_MIN && val <= QC_MAX) )
+        // Change condition to allow new types that have been added since 1987
+        if ( (val >= C_MIN && /*val <= C_MAX) || (val >= QC_MIN &&*/ val <= QC_MAX) )
         {
             qclass = static_cast< qclass_t >( val );
             return buf;

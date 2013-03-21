@@ -18,6 +18,16 @@
  *   on something like memcached could be accessed by a
  *   dnsgw server farm.
  *
+ * Known Issues:
+ *  - The home agent protocol is crap:
+ *      - security issue: send out going connections to "trusted" servers, receive connections from anyone
+ *      - don't know if server is up until we try to contact them
+ *      - inefficient (multiple TCP handshakes, unused fields)
+ *  - The serial number used for messages to the home agents is copied from the DNS queries (this is also used internally)
+ *      - a better approach would be to hash the DNS ID with connections specific information
+ *  - The Gateway should return SOA records, NS records pointing to itself, and A/AAAA records for the NS servers
+ *  - Log messages could be improved
+ *  - Newer DNS features (such as compression and extensions) are not implemented
  */
 
 #include "stdhdr.hpp"
@@ -126,7 +136,7 @@ int main(int argc, char const* argv[])
                     ("log_level,L",   po::value< string >         (&log_level)  ->default_value("WARN"),      "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
                     ("iface,i",       po::value< string >         (&interface),                               "IP v4 or v6 address of interface to listen on")
                     ("port,p",        po::value< boost::uint16_t >(&port)       ->default_value(53),          "port to listen on")
-                    ("home_agents,H", po::value< haaddr_list_t >  (&home_agents)->required(),                 "list of home agent addresses to connect to")
+                    ("home_agent,H",  po::value< haaddr_list_t >  (&home_agents)->required(),                 "list of home agent addresses to connect to")
                     ("nshostname,N",  po::value< string >         (&nshostname) ->required(),                 "the hostname of the DNS gateway (included in DNS replies and in requests to home agents)" )
                     ("nsport,P",      po::value< boost::uint16_t >(&nsport)     ->required(),                 "the port the DNS gateway uses to receive replies from home agents")
                     ("suffix,s",      po::value< string >         (&suffix)     ->default_value(".dht."),     "suffix to be removed from names before querying DHT")
