@@ -36,6 +36,11 @@ public:
     void start();
     void process_query( query_ptr query );
 
+    std::string hostname() const
+    {
+        return hahostname_;
+    }
+
 private:
     void handle_resolve(boost::system::error_code const& ec, boost::asio::ip::tcp::resolver::iterator iter);
     void handle_query_sent(boost::system::error_code const& ec, std::size_t const bytes_tranferred);

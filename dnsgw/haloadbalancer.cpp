@@ -19,6 +19,7 @@ void ha_load_balancer< hacontainer_iter_t, hacontainer_diff_t >::process_query( 
 
     for (hacontainer_diff_t cnt = 0; cnt < size_; ++cnt)
     {
+        log4.debugStream() << "Selected home agent " << (*hs)->hostname() << " (offset = " << my_offset << ", cnt =" << cnt << ")";
         if ( (*hs)->enabled() )
         {
             (*hs)->process_query( query );
