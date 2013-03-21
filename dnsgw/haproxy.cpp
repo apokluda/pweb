@@ -553,7 +553,7 @@ void hasendproxy::handle_resolve(bs::error_code const& ec, ip::tcp::resolver::it
 {
     if( !ec )
     {
-        log4.infoStream() << "Successfully resolved hostname '" << hahostname_ << "'; enabling home agent proxy object"
+        log4.infoStream() << "Successfully resolved hostname '" << hahostname_ << "'; enabling home agent proxy object";
 
         iter_ = iter;
         enabled_.store(true, boost::memory_order_release);
