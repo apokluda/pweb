@@ -193,7 +193,8 @@ void parse_dns_query(dnsquery& query, dns_query_header const& header, boost::uin
 {
     using namespace dns_query_parser;
 
-    query.id( header.id() );
+    boost::uint16_t const id( header.id() );
+    query.id( id );
     query.rd( header.rd() );
 
     // Warning: calling query.num_questions() may cause it to allocate memory for
@@ -204,34 +205,36 @@ void parse_dns_query(dnsquery& query, dns_query_header const& header, boost::uin
     // The same applies for query.num_answers/authority/additional().
 
     std::size_t num_questions = header.qdcount();
+    int num_answers = header.ancount();
+    int num_authorities = header.nscount();
+    int num_additionals = header.arcount();
+
+    log4.infoStream() << "Parsing DNS query from " << query.remote_address() << ": ID=" << id << ", QDCOUNT=" << num_questions << ", ANCOUNT=" << num_answers << ", NSCOUNT=" << num_authorities << ", ARCOUNT=" << num_additionals;
+
     query.num_questions(num_questions);
     for ( std::size_t i = 0; i < num_questions; ++i )
     {
         buf = parse_question(query, buf, end);
     }
 
-    if ( buf != end )
-    {
-        log4.infoStream() << "Interesting, we received a query with non-empty answer, authority and additional sections";
-    }
-
-    int num_answers = header.ancount();
     for ( int i = 0; i < num_answers; ++i )
     {
         buf = parse_answer(query, buf, end);
     }
 
-    int num_authorities = header.nscount();
     for ( int i = 0; i < num_authorities; ++i )
     {
         buf = parse_authority(query, buf, end);
     }
 
-    int num_additionals = header.arcount();
     for ( int i = 0; i < num_additionals; ++i )
     {
         buf = parse_additional(query, buf, end);
     }
+
+    // TEMOPORARY
+    // We don't parse the answer, authority or additonal sections yet, so move the pointer to the end
+    buf = end;
 
     if ( buf != end )
     {
