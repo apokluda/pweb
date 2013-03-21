@@ -126,7 +126,7 @@ namespace dns_query_parser
             return buf;
         }
         sstream ss;
-        ss << "Invalid QTYPE value in question: " << val;
+        ss << "Invalid QTYPE value: " << val;
         throw parse_error(ss.str());
     }
 
@@ -140,23 +140,16 @@ namespace dns_query_parser
             return buf;
         }
         sstream ss;
-        ss << "Invalid QCLASS value in question: " << val;
+        ss << "Invalid QCLASS value: " << val;
         throw parse_error(ss.str());
     }
 
     boost::uint8_t const* parse_rr(dnsrr& rr, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
-        boost::uint16_t val;
 
         buf = parse_name( rr.owner, buf, end );
-        buf = parse_short( val, buf, end );
-
-        rr.rtype = to_qtype( val );
-
-        buf = parse_short( val, buf, end );
-
-        rr.rclass = to_qclass( val );
-
+        buf = parse_qtype( rr.rtype, buf, end );
+        buf = parse_qclass( rr.rclass, buf, end );
         buf = parse_ulong( rr.ttl, buf, end);
         buf = parse_short( rr.rdlength, buf, end );
 
@@ -375,9 +368,9 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
 
                 // Fall through to start() below
             }
-            catch ( dns_query_parser::parse_error const& )
+            catch ( dns_query_parser::parse_error const& e )
             {
-                log4.noticeStream() << "An error occurred while parsing UDP DNS query from " << sender_endpoint_;
+                log4.noticeStream() << "An error occurred while parsing UDP DNS query from " << sender_endpoint_ << ": " << e.what();
 
                 // Fall through to start() below
             }
