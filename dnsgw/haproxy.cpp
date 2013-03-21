@@ -27,7 +27,6 @@ namespace haproxy
     {
         _timeout = timeout;
     }
-
 }
 
 namespace
@@ -202,7 +201,7 @@ namespace
     };
 }
 
-querymap queries; // Note: constructors run at global scope
+querymap queries; // Note: constructor run at global scope
 
 class hasendconnection: public boost::enable_shared_from_this<hasendconnection>
 {
@@ -231,6 +230,8 @@ public:
             buf = write_abs_get(*query_, suffix_, buf, end);
 
             send_buf_ = buffer(buf_,  buf - buf_.data());
+
+            log4.debugStream() << "Created new home agent send connection object for '" << hahostname_ << '\'';
         }
         catch ( std::exception const& )
         {
@@ -255,6 +256,8 @@ public:
 
     void start(ip::tcp::resolver::iterator iter)
     {
+        log4.infoStream() << "Attempting to connect to '" << hahostname_ << '\'';
+
         async_connect(socket_, iter,
             boost::bind( &hasendconnection::handle_connect, shared_from_this(), ph::error ));
     }
@@ -264,6 +267,8 @@ private:
     {
         if ( !ec )
         {
+            log4.infoStream() << "Connection established to '" << hahostname_ << "'; sending query";
+
             async_write(socket_, buffer(send_buf_),
                     boost::bind( &hasendconnection::handle_query_sent, shared_from_this(), ph::error, ph::bytes_transferred ) );
         }
@@ -537,6 +542,9 @@ void hasendproxy::start()
     sstream ss;
     ss << haport_;
     ip::tcp::resolver::query q(hahostname_, ss.str());
+
+    log4.infoStream() << "Created home agent proxy object for '" << hahostname_ << "'; resolving hostname";
+
     resolver_.async_resolve(q,
             boost::bind( &hasendproxy::handle_resolve, shared_from_this(), ph::error, ph::iterator ));
 }
@@ -545,6 +553,8 @@ void hasendproxy::handle_resolve(bs::error_code const& ec, ip::tcp::resolver::it
 {
     if( !ec )
     {
+        log4.infoStream() << "Successfully resolved hostname '" << hahostname_ << "'; enabling home agent proxy object"
+
         iter_ = iter;
         enabled_.store(true, boost::memory_order_release);
     }
@@ -558,6 +568,8 @@ void hasendproxy::process_query( query_ptr query )
 {
     try
     {
+        log4.infoStream() << "Proxy object for '" << hahostname_ << "' processing query";
+
         boost::shared_ptr< hasendconnection > conn(new hasendconnection( resolver_.get_io_service(), hahostname_, haport_, nshostname_, nsport_, query, suffix_));
         conn->start(iter_);
     }
