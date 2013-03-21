@@ -144,6 +144,30 @@ namespace dns_query_parser
         throw parse_error(ss.str());
     }
 
+    boost::uint8_t const* parse_rr(dnsrr& rr, boost::uint8_t const* buf, boost::uint8_t const* const end)
+    {
+        boost::uint16_t val;
+
+        buf = parse_name( rr.owner, buf, end );
+        buf = parse_short( val, buf, end );
+
+        rr.rtype = to_qtype( val );
+
+        buf = parse_short( val, buf, end );
+
+        rr.rclass = to_qclass( val );
+
+        buf = parse_ulong( rr.ttl, buf, end);
+        buf = parse_short( rr.rdlength, buf, end );
+
+        static std::size_t const MAX_RDATA = 1024; // A kilobyte ought to be enough...
+        if ( rr.rdlength > MAX_RDATA ) throw parse_error("Error parsing DNS RR: rdlength > MAX_RDATA");
+        check_end(rr.rdlength, buf, end);
+        rr.rdata.resize( rr.rdlength );
+        std::copy( buf, buf + rr.rdlength, rr.rdata.begin() );
+        return buf + rr.rdlength;
+    }
+
     boost::uint8_t const* parse_question(dnsquery& query, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
         dnsquestion question;
@@ -158,19 +182,32 @@ namespace dns_query_parser
 
     boost::uint8_t const* parse_answer(dnsquery& query, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
-        // Not needed!
+        dnsrr rr;
+        buf = parse_rr(rr, buf, end);
+        query.add_answer(rr);
         return buf;
     }
 
     boost::uint8_t const* parse_authority(dnsquery& query, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
-        // Not needed!
+        dnsrr rr;
+        buf = parse_rr(rr, buf, end);
+        query.add_authority(rr);
         return buf;
     }
 
     boost::uint8_t const* parse_additional(dnsquery& query, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
-        // Not needed!
+        dnsrr rr;
+        buf = parse_rr(rr, buf, end);
+        query.add_additional(rr);
+
+        // This is not really the best place for this log line
+        // (It would be better to create a "dump query" function or sommething)
+        // But this is OK for now.
+
+        log4.debugStream() << "Received a DNS query with additional section: ID=" << query.id() << ", name=" << rr.owner << ", rtype=" << rr.rtype << ", rclass=" << rr.rclass << ", ttl=" << rr.ttl << ", rdlength=" << rr.rdlength << ", rdata omitted";
+
         return buf;
     }
 
@@ -179,12 +216,12 @@ namespace dns_query_parser
         buf = write_name( rr.owner, buf, end );
         buf = write_short( rr.rtype, buf, end );
         buf = write_short( rr.rclass, buf, end );
-        buf = write_slong( rr.ttl, buf, end);
+        buf = write_ulong( rr.ttl, buf, end);
         buf = write_short( rr.rdlength, buf, end );
 
-        if ( rr.rdlength > sizeof(rr.rdata) ) throw parse_error("Error writing DNS RR: rdlength > sizeof(rdata)");
+        if ( rr.rdlength > rr.rdata.size() ) throw parse_error("Error writing DNS RR: rdlength > rdata.size()");
         check_end(rr.rdlength, buf, end);
-        memcpy(buf, rr.rdata.data(), rr.rdlength);
+        std::copy( rr.rdata.begin(), rr.rdata.begin() + rr.rdlength, buf );
         return buf + rr.rdlength;
     }
 };
@@ -231,10 +268,6 @@ void parse_dns_query(dnsquery& query, dns_query_header const& header, boost::uin
     {
         buf = parse_additional(query, buf, end);
     }
-
-    // TEMOPORARY
-    // We don't parse the answer, authority or additonal sections yet, so move the pointer to the end
-    buf = end;
 
     if ( buf != end )
     {

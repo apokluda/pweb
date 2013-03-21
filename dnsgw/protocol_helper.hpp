@@ -52,10 +52,17 @@ namespace protocol_helper
         return buf + 2;
     }
 
-    inline boost::uint8_t* write_slong(boost::int32_t const val, boost::uint8_t* buf, boost::uint8_t const* const end)
-    { // slong = signed long (ie. int 32)
+    inline boost::uint8_t const* parse_ulong(boost::uint32_t& val, boost::uint8_t const* buf, boost::uint8_t const* const end)
+    { // ulong = unsigned long (ie. uint 32)
         check_end(4, buf, end);
-        *reinterpret_cast< boost::int32_t* >( buf ) = htonl(val);
+        val = ntohl( *reinterpret_cast< boost::uint32_t const* >( buf ) );
+        return buf + 4;
+    }
+
+    inline boost::uint8_t* write_ulong(boost::uint32_t const val, boost::uint8_t* buf, boost::uint8_t const* const end)
+    { // ulong = unsigned long (ie. uint 32)
+        check_end(4, buf, end);
+        *reinterpret_cast< boost::uint32_t* >( buf ) = htonl(val);
         return buf + 4;
     }
 

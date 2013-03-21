@@ -73,6 +73,8 @@ enum qtype_t
      QT_MAX      = 255
  };
 
+qtype_t to_qtype( unsigned val  );
+
 enum qclass_t
 {
     C_MIN        =   1,
@@ -90,6 +92,8 @@ enum qclass_t
     QC_MAX       = 255
 };
 
+qclass_t to_qclass( unsigned val  );
+
 struct dnsquestion
 {
     std::string name;
@@ -104,7 +108,7 @@ struct dnsrr
     qclass_t rclass;
     boost::uint32_t ttl;
     boost::uint16_t rdlength;
-    boost::array<boost::uint8_t, 16> rdata;
+    std::vector<boost::uint8_t> rdata;
 };
 
 class dnsquery

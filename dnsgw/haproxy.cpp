@@ -445,13 +445,19 @@ private:
                         if ( addr.is_v4() )
                         {
                             rr.rdlength = 4;
-                            memcpy(rr.rdata.c_array(), addr.to_v4().to_bytes().data(), 4);
+                            address_v4::bytes_type addr_bytes = addr.to_v4().to_bytes();
+                            assert( sizeof(addr_bytes) == 4 );
+                            rr.rdata.resize( sizeof( addr_bytes ) );
+                            std::copy( addr_bytes.begin(), addr_bytes.end(), rr.rdata.begin() );
                             rr.rtype = T_A;
                         }
                         else // addr.is_v6()
                         {
                             rr.rdlength = 16;
-                            memcpy(rr.rdata.c_array(), addr.to_v6().to_bytes().data(), 16);
+                            address_v6::bytes_type addr_bytes = addr.to_v6().to_bytes();
+                            assert( sizeof(addr_bytes) == 16 );
+                            rr.rdata.resize( sizeof( addr_bytes ) );
+                            std::copy( addr_bytes.begin(), addr_bytes.end(), rr.rdata.begin() );
                             rr.rtype = T_AAAA;
                         }
 
