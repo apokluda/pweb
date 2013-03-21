@@ -36,12 +36,6 @@ namespace po = boost::program_options;
 log4cpp::Category& log4 = log4cpp::Category::getRoot();
 bool debug = false;
 
-/* Change this to whatever your daemon is called */
-#define DAEMON_NAME "dnsgw"
-
-// Defined in daemonize.cpp
-void daemonize(const char *);
-
 static void checked_io_service_run(boost::asio::io_service& io_service)
 {
     for (;;)
@@ -249,10 +243,6 @@ int main(int argc, char const* argv[])
 
         udp_dnsspeaker.start();
         tcp_dnsspeaker.start();
-
-        // Daemonize here so that we can open privileged ports and files
-        if ( !debug )
-            daemonize( "/var/lock/" DAEMON_NAME );
 
         run( io_service, num_threads );
 
