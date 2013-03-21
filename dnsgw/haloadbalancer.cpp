@@ -14,15 +14,17 @@ extern log4cpp::Category& log4;
 template < class hacontainer_iter_t, class hacontainer_diff_t >
 void ha_load_balancer< hacontainer_iter_t, hacontainer_diff_t >::process_query( query_ptr query )
 {
+    hacontainer_diff_t my_offset = offset_.fetch_add(1, boost::memory_order_relaxed);
+    hacontainer_iter_t hs = begin_ + (my_offset % size_);
+
     for (hacontainer_diff_t cnt = 0; cnt < size_; ++cnt)
     {
-        hacontainer_diff_t my_offset = offset_.fetch_add(1, boost::memory_order_relaxed);
-        hacontainer_iter_t hs = begin_ + (my_offset % size_);
         if ( (*hs)->enabled() )
         {
             (*hs)->process_query( query );
             return;
         }
+        if ( ++hs == (begin_ + size_) ) hs = begin_;
     }
     log4.warnStream() << "Unable to process query from " << query->remote_address() << ": Not connected to any home agents";
 
