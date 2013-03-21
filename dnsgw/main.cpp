@@ -162,18 +162,21 @@ int main(int argc, char const* argv[])
             return EXIT_SUCCESS;
         }
 
-        string config_file( vm["config"].as< string >() );
-        if ( !config_file.empty() )
+        if ( vm.count("config") )
         {
-            ifstream ifs(config_file.c_str());
-            if ( !ifs )
+            string config_file( vm["config"].as< string >() );
+            if ( !config_file.empty() )
             {
-                cerr << "Unable to open config file: " << config_file << endl;
-                return EXIT_FAILURE;
-            }
-            else
-            {
-                po::store(po::parse_config_file(ifs, conffile_options), vm);
+                ifstream ifs(config_file.c_str());
+                if ( !ifs )
+                {
+                    cerr << "Unable to open config file: " << config_file << endl;
+                    return EXIT_FAILURE;
+                }
+                else
+                {
+                    po::store(po::parse_config_file(ifs, conffile_options), vm);
+                }
             }
         }
 
