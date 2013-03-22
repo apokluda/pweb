@@ -41,6 +41,7 @@ enum rcode_t
 
 enum qtype_t
  {
+     QTYPE_MIN   =   0,
      T_MIN       =   1,
 
      T_A         =   1,
@@ -70,13 +71,13 @@ enum qtype_t
      QT_MAILA    = 254,
      QT_ALL      = 255,
 
-     QT_MAX      = 255
+     QT_MAX      = 255,
+     QTYPE_MAX   = 65535
  };
-
-qtype_t to_qtype( unsigned val  );
 
 enum qclass_t
 {
+    QCLASS_MIN   =   0,
     C_MIN        =   1,
 
     C_IN         =   1,
@@ -89,7 +90,8 @@ enum qclass_t
 
     QC_ANY       = 255,
 
-    QC_MAX       = 255
+    QC_MAX       = 255,
+    QCLASS_MAX   = 65535
 };
 
 qclass_t to_qclass( unsigned val  );

@@ -9,22 +9,6 @@
 #include "dnsquery.hpp"
 #include "dnsspeaker.hpp"
 
-qtype_t to_qtype( unsigned val  )
-{
-    if ( ( val > T_MIN && val < T_MAX ) || ( val > QT_MIN && val < QT_MAX ) )
-        return static_cast< qtype_t >( val );
-
-    throw std::range_error("Invalid qtype value");
-}
-
-qclass_t to_qclass( unsigned val  )
-{
-    if ( ( val > C_MIN && val < C_MAX ) || ( val > QC_MIN && val < QC_MAX ) )
-        return static_cast< qclass_t >( val );
-
-    throw std::range_error("Invalid qclass value");
-}
-
 boost::asio::ip::udp::endpoint dnsquery::remote_udp_endpoint() const
 {
     typedef boost::asio::ip::udp::endpoint endpoint_t;

@@ -121,14 +121,14 @@ namespace dns_query_parser
         boost::uint16_t val;
         buf = parse_short(val, buf, end);
         // Changed condition to allow new types that have been added since 1987
-        if (  (val >= T_MIN && /*val <= T_MAX) || (val >= QT_MIN &&*/ val <= QT_MAX ) )
-        {
+        //if (  (val >= T_MIN && /*val <= T_MAX) || (val >= QT_MIN &&*/ val <= QT_MAX ) )
+        //{
             qtype = static_cast< qtype_t >( val );
             return buf;
-        }
-        sstream ss;
-        ss << "Invalid QTYPE value: " << val;
-        throw parse_error(ss.str());
+        //}
+        //sstream ss;
+        //ss << "Invalid QTYPE value: " << val;
+        //throw parse_error(ss.str());
     }
 
     boost::uint8_t const* parse_qclass(qclass_t& qclass, boost::uint8_t const* buf, boost::uint8_t const* const end)
@@ -136,14 +136,14 @@ namespace dns_query_parser
         boost::uint16_t val;
         buf = parse_short(val, buf, end);
         // Change condition to allow new types that have been added since 1987
-        if ( (val >= C_MIN && /*val <= C_MAX) || (val >= QC_MIN &&*/ val <= QC_MAX) )
-        {
+        //if ( (val >= C_MIN && /*val <= C_MAX) || (val >= QC_MIN &&*/ val <= QC_MAX) )
+        //{
             qclass = static_cast< qclass_t >( val );
             return buf;
-        }
-        sstream ss;
-        ss << "Invalid QCLASS value: " << val;
-        throw parse_error(ss.str());
+        //}
+        //sstream ss;
+        //ss << "Invalid QCLASS value: " << val;
+        //throw parse_error(ss.str());
     }
 
     boost::uint8_t const* parse_rr(dnsrr& rr, boost::uint8_t const* buf, boost::uint8_t const* const end)
