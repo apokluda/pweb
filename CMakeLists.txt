@@ -40,7 +40,7 @@ add_subdirectory( dnsgw dnsgw.bin )
 
 # klink headers unnecessarily pull in plafom-specific stuff
 if (UNIX)
-    add_subdirectory( dnsgw_test dnsgw_test.bin )
+    add_subdirectory( dnsgw_test_ha dnsgw_test_ha.bin )
 endif()
 
 add_subdirectory( pwclient pwclient.bin )
