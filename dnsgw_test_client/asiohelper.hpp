@@ -10,25 +10,19 @@
 
 namespace curl
 {
-    namespace internal
-    {
-        void init(GlobalInfo*);
-        void cleanup(GlobalInfo*);
-    }
-
     class Context : boost::noncopyable
     {
-        friend class AsyncHTTPRequest;
+        friend class AsyncHTTPRequester;
         friend curl_socket_t curl::opensocket(void*, curlsocktype, struct curl_sockaddr*);
         friend void addsock(curl_socket_t, CURL*, int, Context*);
+        friend void timer_cb(const boost::system::error_code&, Context*);
+        friend void event_cb(Context*, boost::asio::ip::tcp::socket*, int);
+        friend void check_multi_info(Context*);
+        friend int multi_timer_cb(CURLM*, long, Context*);
 
     public:
         Context(boost::asio::io_service& io_service);
-
-        ~Context()
-        {
-            internal::cleanup(&g_);
-        }
+        ~Context();
 
     private:
         boost::asio::deadline_timer timer_;

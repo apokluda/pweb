@@ -84,7 +84,8 @@ int main( int argc, char const* argv[] )
         }
         log4.errorStream() << "-- " << inaccessible_count << " Home Agents are Inaccessible --";
 
-        curl::Context c;
+        boost::asio::io_service io_service;
+        curl::Context c(io_service);
 
         exit_code = EXIT_SUCCESS;
         // Fall through to shutdown logging
