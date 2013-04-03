@@ -7,6 +7,7 @@
 
 #include "stdhdr.hpp"
 #include "ha_config.hpp"
+#include "asiohelper.hpp"
 
 using std::cout;
 using std::cerr;
@@ -82,6 +83,8 @@ int main( int argc, char const* argv[] )
             if ( iter->status != GOOD ) { log4.errorStream() << iter->url; ++inaccessible_count; }
         }
         log4.errorStream() << "-- " << inaccessible_count << " Home Agents are Inaccessible --";
+
+        curl::Context c;
 
         exit_code = EXIT_SUCCESS;
         // Fall through to shutdown logging

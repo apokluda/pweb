@@ -22,6 +22,9 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/bind.hpp>
 
+// cURL
+#include <curl/curl.h>
+
 // Logging
 #include <log4cpp/Category.hh>
 #include <log4cpp/Appender.hh>
