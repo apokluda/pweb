@@ -5,6 +5,7 @@
  *      Author: alex
  */
 
+#pragma once
 #include "stdhdr.hpp"
 
 enum hastate_t
