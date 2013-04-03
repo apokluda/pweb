@@ -7,6 +7,7 @@
 
 #include "stdhdr.hpp"
 #include "ha_config.hpp"
+#include "ha_register.hpp"
 #include "asiohelper.hpp"
 
 using std::cout;
@@ -19,6 +20,10 @@ using namespace boost::asio;
 
 log4cpp::Category& log4 = log4cpp::Category::getRoot();
 
+void handle_fetch(CURLcode rc, std::string const& content)
+{
+    std::cout << "It seemed to work! Fetched a URL.\nCURLCode: " << rc << "\nContent:\n" << content << std::endl;
+}
 
 int main( int argc, char const* argv[] )
 {
@@ -85,7 +90,13 @@ int main( int argc, char const* argv[] )
         log4.errorStream() << "-- " << inaccessible_count << " Home Agents are Inaccessible --";
 
         boost::asio::io_service io_service;
-        curl::Context c(io_service);
+        curl::Context c( io_service );
+        //boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(c) );
+        //r->fetch("http://pwebproject-does-not-exist.net", &handle_fetch);
+
+        register_names(halist.begin(), halist.end(), c, 1000, 20);
+
+        io_service.run();
 
         exit_code = EXIT_SUCCESS;
         // Fall through to shutdown logging

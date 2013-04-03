@@ -9,6 +9,7 @@
 #define STDHDR_HPP_
 
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <string>
 #include <stdexcept>
