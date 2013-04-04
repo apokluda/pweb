@@ -148,15 +148,15 @@ private:
     haconfig& haconfig_;
 };
 
-template < typename iter_t, typename const_iter_t >
-ha_checker<iter_t, const_iter_t>::ha_checker( iter_t begin, const_iter_t const end )
+template < typename InputIterator >
+ha_checker< InputIterator >::ha_checker( InputIterator begin, InputIterator const end )
 : iter_( begin )
 , end_( end )
 {
 }
 
-template < typename iter_t, typename const_iter_t >
-void ha_checker< iter_t, const_iter_t >::sync_run( std::size_t maxconn )
+template < typename InputIterator >
+void ha_checker< InputIterator >::sync_run( std::size_t maxconn )
 {
     std::size_t activeconn = 0;
     while ( ++activeconn <= maxconn ) start_check();
@@ -164,8 +164,8 @@ void ha_checker< iter_t, const_iter_t >::sync_run( std::size_t maxconn )
     io_service_.run();
 }
 
-template < typename iter_t, typename const_iter_t >
-void ha_checker< iter_t, const_iter_t >::start_check()
+template < typename InputIterator >
+void ha_checker< InputIterator >::start_check()
 {
     // Steps (but done in a async manner!):
     // 1. Check that iter != end
@@ -176,9 +176,9 @@ void ha_checker< iter_t, const_iter_t >::start_check()
     if ( iter_ != end_ )
     {
         boost::shared_ptr< ha_checker_impl > checker( new ha_checker_impl( io_service_, *iter_ ) );
-        checker->start( boost::bind( &ha_checker< iter_t, const_iter_t >::start_check, this ) );
+        checker->start( boost::bind( &ha_checker< InputIterator >::start_check, this ) );
         ++iter_;
     }
 }
 
-template class ha_checker< halist_t::iterator, halist_t::const_iterator >;
+template class ha_checker< halist_t::iterator >;

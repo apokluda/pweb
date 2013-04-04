@@ -8,6 +8,7 @@
 #include "stdhdr.hpp"
 #include "ha_config.hpp"
 #include "ha_register.hpp"
+#include "token_counter.hpp"
 #include "asiohelper.hpp"
 
 using std::cout;
@@ -78,7 +79,7 @@ int main( int argc, char const* argv[] )
 
         log4.infoStream() << "Checking home agent state";
         std::size_t maxconn = vm["maxconn"].as< std::size_t >();
-        ha_checker< halist_t::iterator, halist_t::const_iterator > hac( halist.begin(), halist.end() );
+        ha_checker< halist_t::iterator > hac( halist.begin(), halist.end() );
         hac.sync_run( maxconn );
 
         log4.errorStream() << "-- The Following Home Agents are Inaccessible --";
@@ -91,10 +92,12 @@ int main( int argc, char const* argv[] )
 
         boost::asio::io_service io_service;
         curl::Context c( io_service );
-        //boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(c) );
-        //r->fetch("http://pwebproject-does-not-exist.net", &handle_fetch);
+        boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(c) );
+        r->fetch("http://pwebproject.net", &handle_fetch);
 
-        register_names(halist.begin(), halist.end(), c, 1000, 20);
+        token_counter tc(maxconn);
+        std::size_t maxconnha = vm["maxconnha"].as< std::size_t >();
+        register_names(halist.begin(), halist.end(), c, tc, 1000, maxconnha);
 
         io_service.run();
 

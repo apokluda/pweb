@@ -31,17 +31,17 @@ typedef std::vector< haconfig > halist_t;
 
 void load_halist(halist_t& halist, std::istream& is);
 
-template < typename iter_t, typename const_iter_t >
+template < typename InputIterator >
 class ha_checker : private boost::noncopyable
 {
 public:
-    ha_checker( iter_t begin, const_iter_t const end );
+    ha_checker( InputIterator begin, InputIterator const end );
     void sync_run( std::size_t maxconn );
 
 private:
     void start_check();
 
     boost::asio::io_service io_service_;
-    iter_t iter_;
-    const_iter_t const end_;
+    InputIterator iter_;
+    InputIterator const end_;
 };

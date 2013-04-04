@@ -14,8 +14,9 @@
 #include <string>
 #include <stdexcept>
 #include <sstream>
-
+#include <algorithm>
 #include <cstdlib>
+#include <queue>
 
 // Boost
 #include <boost/program_options.hpp>
