@@ -21,10 +21,10 @@ using namespace boost::asio;
 
 log4cpp::Category& log4 = log4cpp::Category::getRoot();
 
-void handle_fetch(CURLcode rc, std::string const& content)
-{
-    std::cout << "It seemed to work! Fetched a URL.\nCURLCode: " << rc << "\nContent:\n" << content << std::endl;
-}
+//void handle_fetch(CURLcode rc, std::string const& content)
+//{
+//    std::cout << "It seemed to work! Fetched a URL.\nCURLCode: " << rc << "\nContent:\n" << content << std::endl;
+//}
 
 int main( int argc, char const* argv[] )
 {
@@ -40,6 +40,9 @@ int main( int argc, char const* argv[] )
                     ("help,h",      po::value< bool >  ()->implicit_value(true),    "produce help message")
                     ("maxconn,M",   po::value< std::size_t >()->default_value(100), "maximum number of simultaneous connections overall")
                     ("maxconnha,m", po::value< std::size_t >()->default_value(20),  "maximum number of simultaneous connections to one home agent")
+                    ("numnames,n",  po::value< std::size_t >()->default_value(1000),"the number of device names to be registered at each home agent")
+                    ("owner,o",     po::value< string >()->default_value("test"),   "the owner name to be used in device names")
+                    ("precheck,c",  po::value< bool >()->default_value(true),      "check that the IP addresses in the file match DNS entries and TCP connections can be established to the home agents before registering names")
                     ;
 
         po::variables_map vm;
@@ -71,33 +74,39 @@ int main( int argc, char const* argv[] )
         log4.infoStream() << "Reading list of home agents from file '" << filename << '\'';
         std::vector< haconfig > halist;
         std::ifstream is;
-        //is.exceptions( std::istream::failbit | std::istream::badbit );
         is.open( filename.c_str() );
         if ( is.fail() ) throw std::runtime_error("Unable to open file");
         load_halist(halist, is);
         log4.infoStream() << "Read list of " << halist.size() << " home agents";
 
-        log4.infoStream() << "Checking home agent state";
         std::size_t maxconn = vm["maxconn"].as< std::size_t >();
-        ha_checker< halist_t::iterator > hac( halist.begin(), halist.end() );
-        hac.sync_run( maxconn );
-
-        log4.errorStream() << "-- The Following Home Agents are Inaccessible --";
-        std::size_t inaccessible_count = 0;
-        for (halist_t::iterator iter = halist.begin(); iter != halist.end(); ++iter)
+        if ( vm["precheck"].as< bool >() )
         {
-            if ( iter->status != GOOD ) { log4.errorStream() << iter->url; ++inaccessible_count; }
+            log4.infoStream() << "Checking home agent state";
+            ha_checker< halist_t::iterator > hac( halist.begin(), halist.end() );
+            hac.sync_run( maxconn );
+
+            log4.errorStream() << "-- The Following Home Agents are Inaccessible --";
+            std::size_t inaccessible_count = 0;
+            for (halist_t::iterator iter = halist.begin(); iter != halist.end(); ++iter)
+            {
+                if ( iter->status != GOOD ) { log4.errorStream() << iter->url; ++inaccessible_count; }
+            }
+            log4.errorStream() << "-- " << inaccessible_count << " Home Agents are Inaccessible --";
         }
-        log4.errorStream() << "-- " << inaccessible_count << " Home Agents are Inaccessible --";
+        else
+        {
+            for (halist_t::iterator begin = halist.begin(); begin != halist.end(); ++begin) begin->status = GOOD;
+        }
 
         boost::asio::io_service io_service;
         curl::Context c( io_service );
-        boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(c) );
-        r->fetch("http://pwebproject.net", &handle_fetch);
+        //boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(c) );
+        //r->fetch("http://pwebproject.net", &handle_fetch);
 
         token_counter tc(maxconn);
         std::size_t maxconnha = vm["maxconnha"].as< std::size_t >();
-        register_names(halist.begin(), halist.end(), c, tc, 1000, maxconnha);
+        register_names(halist.begin(), halist.end(), c, tc, vm["owner"].as< string >(), vm["numnames"].as< std::size_t >(), maxconnha);
 
         io_service.run();
 

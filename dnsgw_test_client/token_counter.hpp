@@ -39,7 +39,7 @@ public:
 private:
     void notify()
     {
-        while ( numtokens_ )
+        while ( numtokens_ && !cbqueue_.empty() )
         {
             cbqueue_.front()();
             cbqueue_.pop();

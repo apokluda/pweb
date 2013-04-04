@@ -23,7 +23,7 @@ void ha_register::async_run()
 void ha_register::register_name(boost::shared_ptr< curl::AsyncHTTPRequester > r)
 {
     std::ostringstream name;
-    name << 'd' << std::setw(3) << std::setfill('0') << (--namenum_) << ".alex." << haconfig_.haname;
+    name << 'd' << std::setw(3) << std::setfill('0') << (--namenum_) << '.' << owner_ << '.' << haconfig_.haname;
 
     std::string url("http://pwebproject.net");
 
