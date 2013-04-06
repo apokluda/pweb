@@ -3,7 +3,7 @@ add_executable(dnsgw_test_client stdhdr.cpp main.cpp ha_config.cpp ha_register.c
 
 add_precompiled_header( dnsgw_test_client stdhdr.hpp )
 
-find_package( CURL )
+find_package( CURL REQUIRED )
 include_directories( ${CURL_INCLUDE_DIRS} )
 target_link_libraries(dnsgw_test_client log4cpp ${CURL_LIBRARIES} ${Boost_LIBRARIES})
 
