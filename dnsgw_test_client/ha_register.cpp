@@ -26,7 +26,7 @@ void ha_register::register_name(boost::shared_ptr< curl::AsyncHTTPRequester > r)
     name << 'd' << std::setw(3) << std::setfill('0') << (--namenum_) << '.' << owner_ << '.' << haconfig_.haname;
 
     std::ostringstream url;
-    url << "http://" << haconfig_.url << ':' << haconfig_.port << "/?method=publish&name=" << name << "&port=12345";
+    url << "http://" << haconfig_.url << ":20005/?method=publish&name=" << name << "&port=12345";
 
     r->fetch(url.str(), boost::bind(&ha_register::handle_register_name, shared_from_this(), _1, _2, name.str(), r));
 }
@@ -34,7 +34,7 @@ void ha_register::register_name(boost::shared_ptr< curl::AsyncHTTPRequester > r)
 void ha_register::handle_register_name(CURLcode const code, std::string const& content, std::string const& name, boost::shared_ptr< curl::AsyncHTTPRequester > rptr)
 {
     // check that code is CURLE_OK, log result, and start a new request
-    if ( code == CURLE_OK || code == CURLE_GOT_NOTHING )
+    if ( code == CURLE_OK )
     {
         log4.infoStream() << "Successfully registered '" << name << '\'';
         if ( namenum_ > 0 ) register_name( rptr );
