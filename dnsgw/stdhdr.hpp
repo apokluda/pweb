@@ -41,6 +41,11 @@
 #include <boost/circular_buffer.hpp>
 #include <boost/tokenizer.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/chrono.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/date_time/gregorian/greg_serialize.hpp>
+#include <boost/date_time/posix_time/time_serialize.hpp>
+#include <boost/archive/binary_oarchive.hpp>
 
 // Logging
 #include <log4cpp/Category.hh>
