@@ -15,8 +15,6 @@
 // instrumenter for how the instrumentation system works.
 class metric
 {
-    friend class boost::serialization::access;
-
 public:
     enum result_t
     {
@@ -63,31 +61,30 @@ public:
         return start_time_;
     }
 
-    boost::chrono::duration duration() const
+    boost::chrono::nanoseconds duration() const
     {
         return duration_;
     }
 
 private:
-    template <class Archive>
-    void serialize(Archive& ar, const unsigned int version)
-    { // class version defined at end of file
-        ar & device_name_;
-        ar & start_time_;
-        ar & duration_;
-        ar & result_;
-    }
+    friend class boost::serialization::access;
 
+    template <class Archive>
+    void serialize(Archive& ar, const unsigned int version);
+
+public:
+    // NOTE: If any changes are made to these members, the serialize()
+    // method should be updated and the class version should be incremented!
+    static int const VERSION = 1;
+private:
     std::string const device_name_;
     boost::posix_time::ptime start_time_;
-    union // Note: There is no check to ensure that this class is used correctly!
-    {     // start_timer() and stop_timer() must be called exactly once each in that order
-          // before duration() is called.
-        boost::chrono::high_resolution_clock::time_point start_time_point_;
-        boost::chrono::nanoseconds duration_;
-    };
+    boost::chrono::high_resolution_clock::time_point start_time_point_;
+    boost::chrono::nanoseconds duration_;
     result_t result_;
 };
+
+BOOST_CLASS_VERSION(metric, metric::VERSION)
 
 // Instances of "metric" will be added to the instrumenter, which will
 // package one or more serialzied metric instances into a UDP packet
@@ -108,9 +105,7 @@ private:
 
     boost::asio::ip::udp::socket socket_;
     std::size_t buf_size_; // the number of bytes currently in the buffer
-    boost::array<boost::uint8_t, 65507> buf_;
+    boost::shared_ptr< std::vector< boost::shared_ptr< std::string > > > buf_;
 };
-
-BOOST_CLASS_VERSION(metric, 1)
 
 #endif /* INSTRUMENTER_HPP_ */

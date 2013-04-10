@@ -33,7 +33,7 @@ add_definitions(-DBOOST_ALL_DYN_LINK)
 set( Boost_USE_STATIC_LIBS      OFF  )
 set( Boost_USE_MULTITHREADED    ON  )
 set( Boost_USE_STATIC_RUNTIME   OFF )
-find_package( Boost 1.53.0 COMPONENTS program_options thread date_time chrono regex atomic system REQUIRED )
+find_package( Boost 1.53.0 COMPONENTS program_options thread date_time chrono regex atomic serialization system REQUIRED )
 include_directories( ${Boost_INCLUDE_DIRS} )
 
 add_subdirectory( dnsgw dnsgw.bin )
