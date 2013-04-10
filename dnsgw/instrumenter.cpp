@@ -54,10 +54,14 @@ void metric::serialize(Archive& ar, const unsigned int version)
     ar & result_;
 }
 
-instrumenter::instrumenter( io_service& io_service, string const& server, string const& port)
+const boost::asio::deadline_timer::duration_type udp_instrumenter::NAGLE_PERIOD = boost::posix_time::milliseconds(500);
+
+udp_instrumenter::udp_instrumenter( io_service& io_service, string const& server, string const& port)
 : socket_( io_service )
+, strand_( io_service )
+, timer_( io_service )
 , buf_size_( 0 )
-, buf_( new vector< shared_ptr< string > > )
+, buf_( new vector< string > )
 {
     ip::udp::resolver resolver( io_service );
     ip::udp::resolver::query const query( server, port );
@@ -73,7 +77,7 @@ instrumenter::instrumenter( io_service& io_service, string const& server, string
     socket_.connect(endpoint);
 }
 
-void instrumenter::add_metric(boost::shared_ptr<metric> pmetric)
+void udp_instrumenter::add_metric(metric const& metric)
 {
     std::ostringstream oss;
     // NOTE: The boost serialization library provides three archive formats:
@@ -82,8 +86,70 @@ void instrumenter::add_metric(boost::shared_ptr<metric> pmetric)
     // and instrumentation service on heterogeneous hardware, the text archive
     // format should be used.
     boost::archive::text_oarchive oa(oss);
-    oa << *pmetric;
-    boost::shared_ptr< string > buf( new string( oss.str() ) );
+    oa << metric;
+    strand_.dispatch( boost::bind(&udp_instrumenter::add_metric_, this, oss.str()) );
+}
 
+void udp_instrumenter::add_metric_(string const& buf)
+{
+    // Note: calls to this method must be serialized
 
+    std::size_t const my_buf_size = buf.size();
+    if ( buf_size_ + my_buf_size > MAX_BUF_SIZE ) send_now();
+    buf_size_ += my_buf_size;
+    buf_->push_back(buf);
+    if ( buf_size_ == MAX_BUF_SIZE ) send_now();
+    if ( buf_size_ == my_buf_size ) start_timer();
+}
+
+void udp_instrumenter::send_now()
+{
+    // Note: calls to this method must be serialized
+
+    timer_.cancel();
+
+    vector< const_buffer > bufseq;
+    bufseq.reserve(buf_->size());
+    for ( vector<string>::iterator begin = buf_->begin(); begin != buf_->end(); ++begin)
+        bufseq.push_back(buffer(*begin));
+    socket_.async_send(bufseq, boost::bind(&udp_instrumenter::handle_datagram_sent, this, buf_, ph::error, ph::bytes_transferred));
+
+    buf_ptr_t new_buf( new vector< string > );
+    buf_.swap( new_buf );
+}
+
+void udp_instrumenter::handle_datagram_sent(buf_ptr_t buf, bs::error_code const& ec, std::size_t const bytes_transferred)
+{
+    // Note: calls to this method are not serialized
+
+    if ( !ec )
+    {
+        log4.infoStream() << "Successfully sent instrumentation datagram";
+    }
+    else
+    {
+        log4.infoStream() << "An error occurred while sending instrumentation datagram: " << ec;
+    }
+}
+
+void udp_instrumenter::start_timer()
+{
+    // Note: calls to this method must be serialized
+
+    timer_.expires_from_now(NAGLE_PERIOD);
+    timer_.async_wait(strand_.wrap(boost::bind(&udp_instrumenter::handle_nagle_timeout, this, ph::error)));
+}
+
+void udp_instrumenter::handle_nagle_timeout(bs::error_code const& ec)
+{
+    // Note: calls to this method must be serialized
+
+    if ( !ec )
+    {
+        send_now();
+    }
+    else if ( ec != boost::asio::error::operation_aborted )
+    {
+        log4.errorStream() << "An error occurred while waiting for the instrumentation nagle timer: " << ec;
+    }
 }

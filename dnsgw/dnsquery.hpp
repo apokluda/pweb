@@ -9,6 +9,7 @@
 #define DNSQUERY_HPP_
 
 #include "stdhdr.hpp"
+#include "instrumenter.hpp"
 
 class udp_dnsspeaker;
 
@@ -282,9 +283,15 @@ public:
         return timer_;
     }
 
+    ::metric& metric()
+    {
+        return metric_;
+    }
+
 private:
     boost::variant< udp_connection_t, dns_connection_ptr > sender_;
     boost::asio::deadline_timer timer_;
+    ::metric metric_;
     std::vector< dnsquestion > questions_;
     std::vector< dnsrr > answers_;
     std::vector< dnsrr > authorities_;
@@ -295,5 +302,12 @@ private:
     bool rd_;
 
 };
+
+void inline complete_query(dnsquery& query, rcode_t const rcode, metric::result_t const result)
+{
+    query.rcode(rcode);
+    query.metric().result(result);
+    query.send_reply();
+}
 
 #endif /* DNSQUERY_HPP_ */

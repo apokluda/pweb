@@ -22,11 +22,12 @@ public:
         HA_CONNECTION_ERROR,
         HA_RETURNED_ERROR,
         TIMEOUT,
+        INVALID_REQUEST,
         UNKNOWN
     };
 
-    metric(std::string const& device_name)
-    : device_name_( device_name )
+    metric()
+    : start_time_( boost::posix_time::microsec_clock::local_time() )
     , result_( UNKNOWN )
     {
     }
@@ -46,14 +47,19 @@ public:
         result_ = result;
     }
 
-    std::string device_name() const
-    {
-        return device_name_;
-    }
-
     result_t result() const
     {
         return result_;
+    }
+
+    void device_name(std::string const& device_name)
+    {
+        device_name_ = device_name;
+    }
+
+    std::string device_name() const
+    {
+        return device_name_;
     }
 
     boost::posix_time::ptime start_time() const
@@ -77,8 +83,8 @@ public:
     // method should be updated and the class version should be incremented!
     static int const VERSION = 1;
 private:
-    std::string const device_name_;
-    boost::posix_time::ptime start_time_;
+    std::string device_name_;
+    boost::posix_time::ptime const start_time_;
     boost::chrono::high_resolution_clock::time_point start_time_point_;
     boost::chrono::nanoseconds duration_;
     result_t result_;
@@ -86,26 +92,48 @@ private:
 
 BOOST_CLASS_VERSION(metric, metric::VERSION)
 
-// Instances of "metric" will be added to the instrumenter, which will
-// package one or more serialzied metric instances into a UDP packet
-// and send them to an instrumentation daemon (possibly using a Nagle timer)
-// to reduce the number of datagrams/packets sent). The
 class instrumenter
 {
 public:
-    instrumenter( boost::asio::io_service& io_service, std::string const& server, std::string const& port);
+    virtual ~instrumenter() {}
+    virtual void add_metric(metric const&) = 0;
+};
 
-    void add_metric(boost::shared_ptr<metric> pmetric);
+class null_instrumenter : public instrumenter
+{
+public:
+    virtual void add_metric(metric const&) {}
+};
+
+// Instances of "metric" will be added to the instrumenter, which will
+// package one or more serialzied metric instances into a UDP packet
+// and send them to an instrumentation daemon (possibly using a Nagle timer)
+// to reduce the number of datagrams/packets sent).
+class udp_instrumenter : public instrumenter
+{
+    typedef boost::shared_ptr< std::vector< std::string > > buf_ptr_t;
+
+public:
+    udp_instrumenter( boost::asio::io_service& io_service, std::string const& server, std::string const& port);
+
+    void add_metric(metric const& pmetric);
 
 private:
-    void handle_resolve(boost::system::error_code const& ec, boost::asio::ip::udp::resolver::iterator iter);
+    void add_metric_(std::string const& buf);
 
-    void start_nagle_timer();
-    void send();
+    void send_now();
+    void handle_datagram_sent(buf_ptr_t, boost::system::error_code const&, std::size_t const);
+    void start_timer();
+    void handle_nagle_timeout(boost::system::error_code const&);
+
+    static const boost::asio::deadline_timer::duration_type NAGLE_PERIOD;
+    static const std::size_t MAX_BUF_SIZE = 65507; // practical limit for UDP datagram over IPv4
 
     boost::asio::ip::udp::socket socket_;
+    boost::asio::strand strand_;
+    boost::asio::deadline_timer timer_;
     std::size_t buf_size_; // the number of bytes currently in the buffer
-    boost::shared_ptr< std::vector< boost::shared_ptr< std::string > > > buf_;
+    buf_ptr_t buf_;
 };
 
 #endif /* INSTRUMENTER_HPP_ */

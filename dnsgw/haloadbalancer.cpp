@@ -29,8 +29,7 @@ void ha_load_balancer< hacontainer_iter_t, hacontainer_diff_t >::process_query( 
     }
     log4.warnStream() << "Unable to process query from " << query->remote_address() << ": Not connected to any home agents";
 
-    query->rcode(R_SERVER_FAILURE);
-    query->send_reply();
+    complete_query(*query, R_SERVER_FAILURE, metric::HA_CONNECTION_ERROR);
 }
 
 #include "haproxy.hpp"
