@@ -230,12 +230,15 @@ private:
 
     inline boost::uint16_t read_short( int offset ) const
     {
-        return ntohs( *reinterpret_cast< boost::uint16_t const* >( buf_.data() + offset ) );
+        boost::uint16_t val;
+        memcpy(&val, buf_.data() + offset, sizeof( boost::uint16_t ));
+        return ntohs( val );
     }
 
-    void write_short( int offset, boost::uint16_t const val )
+    void write_short( int offset, boost::uint16_t val )
     {
-        *reinterpret_cast< boost::uint16_t* >( buf_.data() + offset ) = htons(val);
+        val = htons( val );
+        memcpy(buf_.data() + offset, &val, sizeof( boost::uint16_t ));
     }
 
     static std::size_t const HEADER_LENGTH = 12;

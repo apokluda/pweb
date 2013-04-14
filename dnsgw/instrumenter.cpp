@@ -116,6 +116,7 @@ void udp_instrumenter::send_now()
 
     buf_ptr_t new_buf( new vector< string > );
     buf_.swap( new_buf );
+    buf_size_ = 0;
 }
 
 void udp_instrumenter::handle_datagram_sent(buf_ptr_t buf, bs::error_code const& ec, std::size_t const bytes_transferred)
@@ -128,7 +129,7 @@ void udp_instrumenter::handle_datagram_sent(buf_ptr_t buf, bs::error_code const&
     }
     else
     {
-        log4.infoStream() << "An error occurred while sending instrumentation datagram: " << ec;
+        log4.infoStream() << "An error occurred while sending instrumentation datagram: " << ec.message();
     }
 }
 

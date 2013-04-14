@@ -61,7 +61,7 @@ namespace
     boost::uint8_t* read_abs_int(IntType& val, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         check_end( sizeof( IntType), buf, end );
-        val = *reinterpret_cast< IntType* >( buf );
+        memcpy(&val, buf, sizeof(  IntType ));
         return buf + sizeof( IntType );
     }
 
@@ -69,7 +69,7 @@ namespace
     boost::uint8_t* write_abs_int(IntType const val, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         check_end( sizeof( IntType ), buf, end );
-        *reinterpret_cast< IntType* >( buf ) = static_cast< IntType >( val );
+        memcpy(buf, &val, sizeof( IntType ));
         return buf + sizeof( IntType );
     }
 
@@ -117,6 +117,11 @@ namespace
             + sizeof(absint_t) // target max length
             + sizeof(absint_t);// destination hostname length
 
+    static std::size_t const unused_abs_get_len =
+              sizeof(absint_t) // target overlay ID
+            + sizeof(absint_t) // target prefix length
+            + sizeof(absint_t);// target max length
+
     boost::uint8_t* write_abs_header(absmsgid_t const msgid, boost::uint32_t const sequence, string const& hahostname, boost::uint16_t const haport, string const& nshostname, boost::uint16_t const nsport, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         check_end(buf, end);
@@ -143,6 +148,7 @@ namespace
         string const devicename( remove_suffix( question.name, suffix ) );
         query.metric().device_name(devicename);
 
+        buf = write_abs_zero(unused_abs_get_len, buf, end);
         return write_abs_string< absint_t >( devicename, buf, end );
     }
 
@@ -318,7 +324,7 @@ public:
 
     void start()
     {
-        async_read( socket_, buffer(buf_, 1 + sizeof(absint_t) + sizeof(absint_t)),
+        async_read( socket_, buffer(buf_, 1 /* messageType*/ + sizeof(absint_t) /*sequence_no*/ + sizeof(absint_t) /*destHostLength*/),
                boost::bind( &harecvconnection::handle_read_to_desthostlen, shared_from_this(), ph::error, ph::bytes_transferred ) );
     }
 
