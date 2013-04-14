@@ -1,0 +1,16 @@
+node_file=nodes_project
+monitors_file=imonitorlist_project
+seq_file=seq_project
+log_server_name=cn101.cs.uwaterloo.ca
+log_server_user=pweb
+k=12
+alpha=0.9
+timeout=5.5
+name_count=10000
+retry=10
+check_point_row=50
+cache_storage=path
+cache_type=reactive
+input=e.db.0
+client_listen_port=55000
+

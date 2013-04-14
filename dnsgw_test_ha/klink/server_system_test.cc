@@ -101,20 +101,20 @@ int main(int argc, char* argv[]) {
     }
 
     pthread_create(&logger, NULL, logging_thread, NULL);
-    //pthread_create(&controller, NULL, controlling_thread, NULL);
+    pthread_create(&controller, NULL, controlling_thread, NULL);
     pthread_create(&web, NULL, web_thread, NULL);
     pthread_create(&web_interface, NULL, web_interface_thread, NULL);
     pthread_create(&storage_stat, NULL, storage_stat_thread, NULL);
     pthread_create(&pending_msg_processor, NULL, pending_message_process_thread, NULL);
 
-    while(true)
+   /* while(true)
     {
-	if(this_peer->IsInitRcvd()) 
-	{
-		publish_alias();
-		break;
-	}
-    }
+		if(this_peer->IsInitRcvd())
+		{
+			publish_alias();
+			break;
+		}
+    }*/
 
     pthread_join(listener, NULL);
 
@@ -451,7 +451,7 @@ void *processing_thread(void* args) {
             printf("[Processing Thread %d]\tpushed a %d type message for forwarding\n",
                     t_param.getThreadId(), message->getMessageType());
 
-            message->getDstOid().printBits();
+            //message->getDstOid().printBits();
             /*printf("[Processing Thread %d:]\thost: %s:%d TTL: %d Hops: %d\n", t_param.getThreadId(),
                     message->getDestHost().c_str(), message->getDestPort(),
                     message->getOverlayTtl(), message->getOverlayHops());*/
@@ -474,6 +474,7 @@ void *controlling_thread(void* args) {
 
     bool publish_name_done = false, lookup_name_done = false;
     char buffer[33];
+
     while (!publish_name_done || !lookup_name_done) {
 
     	while(!this_peer->IsInitRcvd());
