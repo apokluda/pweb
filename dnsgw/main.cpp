@@ -35,6 +35,7 @@
 #include "haproxy.hpp"
 #include "dnsspeaker.hpp"
 #include "haloadbalancer.hpp"
+#include "instrumenter.hpp"
 
 using std::cout;
 using std::cerr;
@@ -44,6 +45,8 @@ using std::ifstream;
 namespace po = boost::program_options;
 
 log4cpp::Category& log4 = log4cpp::Category::getRoot();
+typedef instrumenter instrumenter_t;
+std::auto_ptr< instrumenter > instrumenter;
 bool debug = false;
 
 static void checked_io_service_run(boost::asio::io_service& io_service)
@@ -97,6 +100,23 @@ static void run( boost::asio::io_service& io_service, std::size_t const num_thre
     }
 }
 
+void split_hostname(string& host, string& port, string const& hostname)
+{
+    std::vector<string> address;
+    boost::split(address, hostname, boost::is_any_of(":"));
+    if ( address.size() == 2 )
+    {
+        host = address[0];
+        port = address[1];
+    }
+    else
+    {
+        std::ostringstream oss;
+        oss << "Invalid hostname '" << hostname << "'; Format should be 'hostname:port'";
+        throw std::runtime_error(oss.str());
+    }
+}
+
 int main(int argc, char const* argv[])
 {
     int exit_code = EXIT_SUCCESS;
@@ -110,6 +130,7 @@ int main(int argc, char const* argv[])
         string interface;
         string nshostname;
         string suffix;
+        string instsrv;
         haaddr_list_t home_agents;
         std::size_t num_threads;
         unsigned timeout;
@@ -141,6 +162,7 @@ int main(int argc, char const* argv[])
                     ("nsport,P",      po::value< boost::uint16_t >(&nsport)     ->required(),                 "the port the DNS gateway uses to receive replies from home agents")
                     ("suffix,s",      po::value< string >         (&suffix)     ->default_value(".dht."),     "suffix to be removed from names before querying DHT")
                     ("threads",       po::value< std::size_t >    (&num_threads)->default_value(1),           "number of application threads (0 = one thread per hardware core)")
+                    ("instsrv",       po::value< string >         (&instsrv),                                 "hostname:port of instrumentation server")
                     ;
 
         // Hidden options, will be allowed both on command line
@@ -218,6 +240,17 @@ int main(int argc, char const* argv[])
         }
 
         boost::asio::io_service io_service;
+        // Initialize instrumentation
+        if ( !instsrv.empty() )
+        {
+            string hostname, port;
+            split_hostname(hostname, port, instsrv);
+            instrumenter.reset( new udp_instrumenter(io_service, hostname, port) );
+        }
+        else
+        {
+            instrumenter.reset( new null_instrumenter );
+        }
 
         // These typedefs must match the typedefs at the end of haspeaker.cpp
         // in order to avoid linker errors
@@ -228,20 +261,12 @@ int main(int argc, char const* argv[])
         haproxies.reserve( home_agents.size() );
         for (haaddr_list_t::const_iterator i = home_agents.begin(); i != home_agents.end(); ++i)
         {
-            std::vector<string> address;
-            boost::split( address, *i, boost::is_any_of(":") );
-            if ( address.size() == 2 )
-            {
-                boost::uint16_t const haport = boost::lexical_cast< boost::uint16_t >( address[1] );
-
-                hasendproxy_ptr hptr(new hasendproxy(io_service, address[0], haport, nshostname, nsport, suffix) );
-                hptr->start();
-                haproxies.push_back(hptr);
-            }
-            else
-            {
-                log4.errorStream() << "Invalid home agent hostname '" << *i << "', format should be 'hostname:port'";
-            }
+            string hostname, port;
+            split_hostname(hostname, port, *i);
+            boost::uint16_t iport = boost::lexical_cast<boost::uint16_t>(port);
+            hasendproxy_ptr hptr(new hasendproxy(io_service, hostname, iport, nshostname, nsport, suffix) );
+            hptr->start();
+            haproxies.push_back(hptr);
         }
 
         // Ownership of haproxies vector remains with caller
@@ -257,6 +282,9 @@ int main(int argc, char const* argv[])
         udp_dnsspeaker.start();
         tcp_dnsspeaker.start();
 
+        // FOR DEBUGGING
+        instrumenter_t* instr = instrumenter.get();
+
         run( io_service, num_threads );
 
         // Fall through to shutdown logging
@@ -271,6 +299,8 @@ int main(int argc, char const* argv[])
 
     // Shutdown logging
     log4cpp::Category::shutdown();
+    // Shutdown instrumentation
+    instrumenter.reset();
 
     return exit_code;
 }

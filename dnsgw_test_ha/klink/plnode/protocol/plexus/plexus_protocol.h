@@ -374,7 +374,9 @@ public:
         }
 
         void get(string name) {
-                int hash_name_to_get = (int)urlHash(name) & 0x003FFFFF;
+                //int hash_name_to_get = (int)urlHash(name) & 0x003FFFFF;
+		//int hash_name_to_get = (int)urlHash(name);
+		int hash_name_to_get = atoi(name.c_str());
                 OverlayID targetID(hash_name_to_get, getContainerPeer()->GetiCode());
 
                 //printf("h_name = %d, oid = %d\n", hash_name_to_get, targetID.GetOverlay_id());
@@ -429,7 +431,8 @@ public:
         }
 
         void get_from_client(string name, HostAddress destination) {
-                int hash_name_to_get = (int)urlHash(name) & 0x003FFFFF;
+                //int hash_name_to_get = (int)urlHash(name) & 0x003FFFFF;
+		int hash_name_to_get = atoi(name.c_str());
                 OverlayID destID(hash_name_to_get, getContainerPeer()->GetiCode());
 
                 cout << "id = " << hash_name_to_get << " oid = ";
@@ -447,7 +450,9 @@ public:
         }
 
         void put(string name, HostAddress hostAddress) {
-                int hash_name_to_publish = (int)urlHash(name) & 0x003FFFFF;
+                //int hash_name_to_publish = (int)urlHash(name) & 0x003FFFFF;
+		//int hash_name_to_publish = (int)urlHash(name);
+		int hash_name_to_publish = atoi(name.c_str());
                 OverlayID targetID(hash_name_to_publish, getContainerPeer()->GetiCode());
 		
                 targetID.printBits();
@@ -472,7 +477,8 @@ public:
 
         void put_from_client(string name, HostAddress hostAddress,
                 HostAddress destination) {
-                int hash_name_to_publish = (int)urlHash(name) & 0x003FFFFF;
+                //int hash_name_to_publish = (int)urlHash(name) & 0x003FFFFF;
+		int hash_name_to_publish = atoi(name.c_str());
                 OverlayID destID(hash_name_to_publish, getContainerPeer()->GetiCode());
 
                 cout << "id = " << hash_name_to_publish << " oid = ";

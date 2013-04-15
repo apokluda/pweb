@@ -41,28 +41,32 @@ namespace protocol_helper
     inline boost::uint8_t const* parse_short(boost::uint16_t& val, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
        check_end(2, buf, end);
-       val = ntohs( *reinterpret_cast< boost::uint16_t const* >( buf ) );
+       memcpy(&val, buf, sizeof( boost::uint16_t ));
+       val = ntohs( val );
        return buf + 2;
     }
 
-    inline boost::uint8_t* write_short(boost::uint16_t const val, boost::uint8_t* buf, boost::uint8_t const* const end)
+    inline boost::uint8_t* write_short(boost::uint16_t val, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         check_end(2, buf, end);
-        *reinterpret_cast< boost::uint16_t* >( buf ) = htons(val);
+        val = htons( val );
+        memcpy(buf, &val, sizeof( boost::uint16_t ));
         return buf + 2;
     }
 
     inline boost::uint8_t const* parse_ulong(boost::uint32_t& val, boost::uint8_t const* buf, boost::uint8_t const* const end)
     { // ulong = unsigned long (ie. uint 32)
         check_end(4, buf, end);
-        val = ntohl( *reinterpret_cast< boost::uint32_t const* >( buf ) );
+        memcpy(&val, buf, sizeof( boost::uint32_t ));
+        val = ntohl( val );
         return buf + 4;
     }
 
-    inline boost::uint8_t* write_ulong(boost::uint32_t const val, boost::uint8_t* buf, boost::uint8_t const* const end)
+    inline boost::uint8_t* write_ulong(boost::uint32_t val, boost::uint8_t* buf, boost::uint8_t const* const end)
     { // ulong = unsigned long (ie. uint 32)
         check_end(4, buf, end);
-        *reinterpret_cast< boost::uint32_t* >( buf ) = htonl(val);
+        val = htonl( val );
+        memcpy(buf, &val, sizeof( boost::uint32_t ));
         return buf + 4;
     }
 

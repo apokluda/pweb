@@ -10,107 +10,50 @@
 
 #include "stdhdr.hpp"
 
-// In the future, it may make sense to make this a class hierarchy.
-// Right now, one class seems appropriate. Read the comment below on
-// instrumenter for how the instrumentation system works.
-class metric
+class metric;
+
+class instrumenter
 {
-    friend class boost::serialization::access;
-
 public:
-    enum result_t
-    {
-        SUCCESS,
-        HA_CONNECTION_ERROR,
-        HA_RETURNED_ERROR,
-        TIMEOUT,
-        UNKNOWN
-    };
+    virtual ~instrumenter() {}
+    virtual void add_metric(metric const&) = 0;
+};
 
-    metric(std::string const& device_name)
-    : device_name_( device_name )
-    , result_( UNKNOWN )
-    {
-    }
-
-    void start_timer()
-    {
-        start_time_point_ = boost::chrono::high_resolution_clock::now();
-    }
-
-    void stop_timer()
-    {
-        duration_ = boost::chrono::high_resolution_clock::now() - start_time_point_;
-    }
-
-    void result(result_t const result)
-    {
-        result_ = result;
-    }
-
-    std::string device_name() const
-    {
-        return device_name_;
-    }
-
-    result_t result() const
-    {
-        return result_;
-    }
-
-    boost::posix_time::ptime start_time() const
-    {
-        return start_time_;
-    }
-
-    boost::chrono::duration duration() const
-    {
-        return duration_;
-    }
-
-private:
-    template <class Archive>
-    void serialize(Archive& ar, const unsigned int version)
-    { // class version defined at end of file
-        ar & device_name_;
-        ar & start_time_;
-        ar & duration_;
-        ar & result_;
-    }
-
-    std::string const device_name_;
-    boost::posix_time::ptime start_time_;
-    union // Note: There is no check to ensure that this class is used correctly!
-    {     // start_timer() and stop_timer() must be called exactly once each in that order
-          // before duration() is called.
-        boost::chrono::high_resolution_clock::time_point start_time_point_;
-        boost::chrono::nanoseconds duration_;
-    };
-    result_t result_;
+class null_instrumenter : public instrumenter
+{
+public:
+    virtual void add_metric(metric const&) {}
 };
 
 // Instances of "metric" will be added to the instrumenter, which will
 // package one or more serialzied metric instances into a UDP packet
 // and send them to an instrumentation daemon (possibly using a Nagle timer)
-// to reduce the number of datagrams/packets sent). The
-class instrumenter
+// to reduce the number of datagrams/packets sent).
+class udp_instrumenter : public instrumenter
 {
-public:
-    instrumenter( boost::asio::io_service& io_service, std::string const& server, std::string const& port);
+    typedef boost::shared_ptr< std::vector< std::string > > buf_ptr_t;
 
-    void add_metric(boost::shared_ptr<metric> pmetric);
+public:
+    udp_instrumenter( boost::asio::io_service& io_service, std::string const& server, std::string const& port);
+
+    void add_metric(metric const& pmetric);
 
 private:
-    void handle_resolve(boost::system::error_code const& ec, boost::asio::ip::udp::resolver::iterator iter);
+    void add_metric_(std::string const& buf);
 
-    void start_nagle_timer();
-    void send();
+    void send_now();
+    void handle_datagram_sent(buf_ptr_t, boost::system::error_code const&, std::size_t const);
+    void start_timer();
+    void handle_nagle_timeout(boost::system::error_code const&);
+
+    static const boost::asio::deadline_timer::duration_type NAGLE_PERIOD;
+    static const std::size_t MAX_BUF_SIZE = 65507; // practical limit for UDP datagram over IPv4
 
     boost::asio::ip::udp::socket socket_;
+    boost::asio::strand strand_;
+    boost::asio::deadline_timer timer_;
     std::size_t buf_size_; // the number of bytes currently in the buffer
-    boost::array<boost::uint8_t, 65507> buf_;
+    buf_ptr_t buf_;
 };
-
-BOOST_CLASS_VERSION(metric, 1)
 
 #endif /* INSTRUMENTER_HPP_ */

@@ -134,7 +134,6 @@ public:
 				plexus->addToOutgoingQueue(reply);
 			} else
 			{
-
 				puts("GET Failed");
 				MessageGET_REPLY *reply = new MessageGET_REPLY(
 						container_peer->getHostName(),
@@ -168,7 +167,7 @@ public:
 					msg->getDestHost().c_str(), msg->getSequenceNo());
 			string key = i_str;
 
-			int hash_name_to_get = (int) urlHash(msg->getDeviceName().c_str())
+			/*int hash_name_to_get = (int) urlHash(msg->getDeviceName().c_str())
 					& 0x003FFFFF;
 			MessageStateIndex msg_index(hash_name_to_get,
 					msg->getOriginSeqNo());
@@ -199,7 +198,7 @@ public:
 				//message->setDestHost(requester.GetHostName().c_str());
 				//message->setDestPort(requester.GetHostPort());
 				//plexus->send_message(message);
-			}
+			}*/
 
 			//timeval total;
 			//timersub(&end_t, &start_t, &total);
@@ -284,7 +283,7 @@ public:
 					msg->getSrcOid().MAX_LENGTH);
 
 			HostAddress ha(msg->getSourceHost(), msg->getSourcePort());
-			cache->add(srcID, ha);
+			//cache->add(srcID, ha);
 			Log* p_log = plexus->getPutLog();
 
 			char i_str[300];
@@ -298,9 +297,9 @@ public:
 			MessageStateIndex msg_index(hash_name_to_publish,
 					msg->getOriginSeqNo());
 
-			double start = 0.0;
+			/*double start = 0.0;
 			plexus->getUnresolvedPut().lookup(msg_index, &start);
-			plexus->getUnresolvedPut().remove(msg_index);
+			plexus->getUnresolvedPut().remove(msg_index);*/
 
 			double latency = msg->getResolutionLatency();
 			int ip_hops = msg->getResolutionIpHops();
@@ -352,7 +351,8 @@ public:
 
 			plexus->initLogs(container_peer->getRunSequenceNo(),
 					container_peer->getLogServerName().c_str(),
-					container_peer->getLogServerUser().c_str());
+					//container_peer->getLogServerUser().c_str());
+					"pweb");
 
 			this->setup(container_protocol->getRoutingTable(),
 					container_protocol->getIndexTable(),
@@ -471,7 +471,7 @@ public:
 		} else
 		{
 			puts("unknown message type in processMessage");
-			exit(1);
+			//exit(1);
 		}
 
 		return false;

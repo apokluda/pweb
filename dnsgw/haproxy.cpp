@@ -61,7 +61,7 @@ namespace
     boost::uint8_t* read_abs_int(IntType& val, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         check_end( sizeof( IntType), buf, end );
-        val = *reinterpret_cast< IntType* >( buf );
+        memcpy(&val, buf, sizeof(  IntType ));
         return buf + sizeof( IntType );
     }
 
@@ -69,7 +69,7 @@ namespace
     boost::uint8_t* write_abs_int(IntType const val, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         check_end( sizeof( IntType ), buf, end );
-        *reinterpret_cast< IntType* >( buf ) = static_cast< IntType >( val );
+        memcpy(buf, &val, sizeof( IntType ));
         return buf + sizeof( IntType );
     }
 
@@ -117,6 +117,11 @@ namespace
             + sizeof(absint_t) // target max length
             + sizeof(absint_t);// destination hostname length
 
+//    static std::size_t const unused_abs_get_len =
+//              sizeof(absint_t) // target overlay ID
+//            + sizeof(absint_t) // target prefix length
+//            + sizeof(absint_t);// target max length
+
     boost::uint8_t* write_abs_header(absmsgid_t const msgid, boost::uint32_t const sequence, string const& hahostname, boost::uint16_t const haport, string const& nshostname, boost::uint16_t const nsport, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         check_end(buf, end);
@@ -132,7 +137,7 @@ namespace
         return buf;
     }
 
-    boost::uint8_t* write_abs_get(dnsquery const& query, string const& suffix, boost::uint8_t* buf, boost::uint8_t const* const end)
+    boost::uint8_t* write_abs_get(dnsquery& query, string const& suffix, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         if (query.num_questions() < 1) return buf;
 
@@ -141,7 +146,9 @@ namespace
 
         dnsquestion const& question = *query.questions_begin();
         string const devicename( remove_suffix( question.name, suffix ) );
+        query.metric().device_name(devicename);
 
+        //buf = write_abs_zero(unused_abs_get_len, buf, end);
         return write_abs_string< absint_t >( devicename, buf, end );
     }
 
@@ -189,9 +196,7 @@ namespace
             if ( query )
             {
                 log4.warnStream() << "Query for '" << query->questions_begin()->name << "' timed out";
-
-                query->rcode(R_NAME_ERROR);
-                query->send_reply();
+                complete_query(*query, R_NAME_ERROR, metric::TIMEOUT);
             }
         }
 
@@ -240,8 +245,7 @@ public:
             // return an error on duplicate sequence number because that may have the effect of canceling a
             // query in progress).
 
-            query_->rcode(R_NAME_ERROR);
-            query_->send_reply();
+            complete_query(*query, R_NAME_ERROR, metric::INVALID_REQUEST);
             throw;
         }
 
@@ -276,8 +280,7 @@ private:
         {
             log4.errorStream() << "Unable to connect to '" << hahostname_ << "'";
             queries.remove(query_->id());
-            query_->rcode(R_SERVER_FAILURE);
-            query_->send_reply();
+            complete_query(*query_, R_SERVER_FAILURE, metric::HA_CONNECTION_ERROR);
         }
     }
 
@@ -292,8 +295,7 @@ private:
         {
             log4.errorStream() << "An error occurred while sending query to '" << hahostname_ << "': " << ec.message();
             queries.remove(query_->id());
-            query_->rcode(R_SERVER_FAILURE);
-            query_->send_reply();
+            complete_query(*query_, R_SERVER_FAILURE, metric::HA_CONNECTION_ERROR);
         }
     }
 
@@ -322,7 +324,7 @@ public:
 
     void start()
     {
-        async_read( socket_, buffer(buf_, 1 + sizeof(absint_t) + sizeof(absint_t)),
+        async_read( socket_, buffer(buf_, 1 /* messageType*/ + sizeof(absint_t) /*sequence_no*/ + sizeof(absint_t) /*destHostLength*/),
                boost::bind( &harecvconnection::handle_read_to_desthostlen, shared_from_this(), ph::error, ph::bytes_transferred ) );
     }
 
@@ -428,8 +430,7 @@ private:
                 {
                     // Device name not found
                     log4.infoStream() << "No IP address found for '" << query->questions_begin()->name << '\'';
-                    query->rcode(R_NAME_ERROR);
-                    query->send_reply();
+                    complete_query(*query, R_NAME_ERROR, metric::HA_RETURNED_ERROR);
                 }
                 else if ( buf_.size() > hostlen_ )
                 {
@@ -463,22 +464,19 @@ private:
 
                         log4.infoStream() << "Home agent returned IP address " << addr << " for '" << query->questions_begin()->name << "'; Sending reply to DNS client";
 
-                        query->rcode(R_SUCCESS);
                         query->add_answer(rr);
-                        query->send_reply();
+                        complete_query(*query, R_SUCCESS, metric::SUCCESS);
                     }
                     else
                     {
                         log4.errorStream() << "An error occurred while parsing IP address returned from home agent: " << ec.message();
-                        query->rcode(R_SERVER_FAILURE);
-                        query->send_reply();
+                        complete_query(*query, R_SERVER_FAILURE, metric::UNKNOWN);
                     }
                 }
                 else
                 {
                     log4.errorStream() << "IP address length " << hostlen_ << " received from home agent is too long!";
-                    query->rcode(R_SERVER_FAILURE);
-                    query->send_reply();
+                    complete_query(*query, R_SERVER_FAILURE, metric::UNKNOWN);
                 }
             }
             else
@@ -494,10 +492,7 @@ private:
             log4.errorStream() << "An error occurred while reading GET REPLY message body: " << ec.message();
             query_ptr query( queries.remove( sequence_ ) );
             if ( query )
-            {
-                query->rcode(R_SERVER_FAILURE);
-                query->send_reply();
-            }
+                complete_query(*query, R_SERVER_FAILURE, metric::UNKNOWN);
         }
     }
 

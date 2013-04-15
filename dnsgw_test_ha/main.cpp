@@ -6,7 +6,7 @@
  */
 
 #include "stdhdr.hpp"
-#include "klink/plnode/message/p2p/message_get.h"
+#include "klink/plnode/message/control/peer_initiate_get.h"
 #include "klink/plnode/message/p2p/message_get_reply.h"
 
 using namespace boost::asio;
@@ -28,9 +28,9 @@ void session(socket_ptr sock, bool fail)
         size_t const length( read( *sock, boost::asio::buffer(data), error) );
         if (error == boost::asio::error::eof)
         {
-            MessageGET getmsg;
+            PeerInitiateGET getmsg;
             getmsg.deserialize(data, length);
-            getmsg.message_print_dump();
+            //getmsg.message_print_dump();
             // Close connection
             io_service& io_service = sock->get_io_service();
             sock.reset();
@@ -42,14 +42,15 @@ void session(socket_ptr sock, bool fail)
             if ( !fail )
             {
                 MessageGET_REPLY replymsg("alex.laptop.uw", 9999, "dnsgw.pwebproject.net", 8888, OverlayID(),
-                        OverlayID(), 0, OverlayID(), HostAddress("6.6.6.6", 7777), getmsg.GetDeviceName());
-                replymsg.setOriginSeqNo(getmsg.getSequenceNo());
+                        OverlayID(), 0, OverlayID(), HostAddress("6.6.6.6", 7777), getmsg.getDeviceName());
+                //replymsg.setOriginSeqNo(getmsg.getSequenceNo());
+                replymsg.setSequenceNo(getmsg.getSequenceNo());
                 replybuf = replymsg.serialize(&buflen);
             }
             else
             {
                 MessageGET_REPLY replymsg("alex.laptop.uw", 9999, "dnsgw.pwebproject.net", 8888, OverlayID(),
-                        OverlayID(), 1, OverlayID(), HostAddress(), getmsg.GetDeviceName());
+                        OverlayID(), 1, OverlayID(), HostAddress(), getmsg.getDeviceName());
                 replymsg.setOriginSeqNo(getmsg.getSequenceNo());
                 replybuf = replymsg.serialize(&buflen);
             }

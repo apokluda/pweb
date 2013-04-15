@@ -35,3 +35,10 @@ cmake_install.cmake
 ./dnsgw_test_ha/klink/ihostlist
 ./dnsgw_test_ha/klink/s.db.0.tmp
 ./dnsgw_test_ha/klink/seq
+*.0
+*.bak
+*.log
+./dnsgw_test_ha/klink/agent_project
+./dnsgw_test_ha/klink/client_project
+./dnsgw_test_ha/klink/pweb_agent
+./dnsgw_test_ha/klink/sim

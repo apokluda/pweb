@@ -1,9 +1,9 @@
 
 add_executable(dnsgw stdhdr.cpp main.cpp dnsspeaker.cpp dnsquery.cpp haproxy.cpp haloadbalancer.cpp instrumenter.cpp)
 
-add_precompiled_header(dnsgw stdhdr.hpp )
+add_precompiled_header(dnsgw ../shared/stdhdr.hpp )
 
-target_link_libraries(dnsgw log4cpp ${Boost_LIBRARIES})
+target_link_libraries(dnsgw log4cpp shared ${Boost_LIBRARIES})
 
 # On Linux we need to link with rt library
 if(UNIX AND NOT APPLE)

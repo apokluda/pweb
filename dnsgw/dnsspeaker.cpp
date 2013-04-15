@@ -9,6 +9,7 @@
 #include "dnsspeaker.hpp"
 #include "dnsquery.hpp"
 #include "protocol_helper.hpp"
+#include "instrumenter.hpp"
 
 using namespace boost::asio;
 using std::string;
@@ -18,6 +19,7 @@ namespace ph = boost::asio::placeholders;
 namespace bs = boost::system;
 
 extern log4cpp::Category& log4;
+extern std::auto_ptr< instrumenter > instrumenter;
 
 namespace dns_query_parser
 {
@@ -249,16 +251,19 @@ void parse_dns_query(dnsquery& query, dns_query_header const& header, boost::uin
         buf = parse_question(query, buf, end);
     }
 
+    query.num_answers(num_answers);
     for ( int i = 0; i < num_answers; ++i )
     {
         buf = parse_answer(query, buf, end);
     }
 
+    query.num_authorities(num_authorities);
     for ( int i = 0; i < num_authorities; ++i )
     {
         buf = parse_authority(query, buf, end);
     }
 
+    query.num_additionals(num_additionals);
     for ( int i = 0; i < num_additionals; ++i )
     {
         buf = parse_additional(query, buf, end);
@@ -362,6 +367,7 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
             log4.infoStream() << "Received UDP DNS query from " << sender_endpoint_;
 
             boost::shared_ptr< dnsquery > query( new dnsquery(socket_.get_io_service()) );
+            query->metric().start_timer();
             query->sender( this, sender_endpoint_ );
             try
             {
@@ -427,12 +433,11 @@ void udp_dnsspeaker::send_reply_( query_ptr query )
 
         send_buf_arr_[1] = buffer( send_buf_, end - send_buf_.data() );
 
-        // FOR DEBUGGING
-        std::size_t header_len = buffer_size(send_buf_arr_[0]);
-        std::size_t body_len = buffer_size(send_buf_arr_[1]);
-
         socket_.async_send_to( send_buf_arr_, query->remote_udp_endpoint(), strand_.wrap(
                 boost::bind( &udp_dnsspeaker::handle_send_reply, this, ph::error ) ) );
+
+        query->metric().stop_timer();
+        instrumenter->add_metric(query->metric());
     }
 }
 
@@ -561,6 +566,7 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
             log4.infoStream() << "Received TCP DNS query from " << socket_.remote_endpoint(ec);
 
             boost::shared_ptr< dnsquery > query( new dnsquery(socket_.get_io_service()) );
+            query->metric().start_timer();
             query->sender( shared_from_this() );
             try
             {
@@ -621,6 +627,9 @@ void dns_connection::send_reply_( query_ptr query )
         send_buf_arr_[2] = buffer( send_buf_, end - send_buf_.data() );
         async_write(socket_, send_buf_arr_, strand_.wrap(
                 boost::bind( &dns_connection::handle_send_reply, shared_from_this(), ph::error ) ) );
+
+        query->metric().stop_timer();
+        instrumenter->add_metric(query->metric());
     }
 }
 

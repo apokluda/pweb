@@ -17,6 +17,6 @@ public:
 	static int network_size;
 };
 
-string GlobalData::config_file_name = "config";
+string GlobalData::config_file_name = "config_project";
 int GlobalData::network_size;
 #endif /* GLOBALDATA_H_ */
