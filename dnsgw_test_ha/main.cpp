@@ -18,7 +18,7 @@ const int max_length = 4096;
 
 typedef boost::shared_ptr<tcp::socket> socket_ptr;
 
-void session(socket_ptr sock, bool fail)
+void session(socket_ptr sock, bool fail, bool verbose)
 {
     try
     {
@@ -30,7 +30,7 @@ void session(socket_ptr sock, bool fail)
         {
             PeerInitiateGET getmsg;
             getmsg.deserialize(data, length);
-            //getmsg.message_print_dump();
+            if (verbose) getmsg.message_print_dump();
             // Close connection
             io_service& io_service = sock->get_io_service();
             sock.reset();
@@ -79,14 +79,14 @@ void session(socket_ptr sock, bool fail)
     }
 }
 
-void server( io_service& io_service, short port, bool fail )
+void server( io_service& io_service, short port, bool fail, bool verbose )
 {
     tcp::acceptor a(io_service, tcp::endpoint(tcp::v4(), port));
     for (;;)
     {
         socket_ptr sock(new tcp::socket(io_service));
         a.accept(*sock);
-        boost::thread t(boost::bind(session, sock, fail));
+        boost::thread t(boost::bind(session, sock, fail, verbose));
     }
 }
 
@@ -94,8 +94,19 @@ int main(int argc, char const* argv[])
 {
     if ( argc < 2 )
     {
-        std::cerr << "Usage: dnsgw_test <port> [-f]\n           -f    reply with failure\n";
+        std::cerr << "Usage: dnsgw_test <port> [-f][-v]\n"
+                "-f    reply with failure\n"
+                "-v    verbose output";
         return 1;
+    }
+
+    bool fail = false;
+    bool verbose = false;
+
+    for (--argc; argc > 1; --argc)
+    {
+        if (strcmp(argv[argc], "-f")) fail = true;
+        else if (strcmp(argv[argc], "-v")) verbose = true;
     }
 
     try
@@ -103,7 +114,7 @@ int main(int argc, char const* argv[])
         io_service io_service;
 
         using namespace std; // for atoi
-        server( io_service, atoi(argv[1]), argc > 2 );
+        server( io_service, atoi(argv[1]), fail, verbose );
     }
     catch ( std::exception const& e )
     {
