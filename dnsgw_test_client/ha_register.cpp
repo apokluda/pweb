@@ -26,7 +26,7 @@ void ha_register::register_name(boost::shared_ptr< curl::AsyncHTTPRequester > r)
     name << 'd' << std::setw(3) << std::setfill('0') << (--namenum_) << '.' << owner_ << '.' << haconfig_.haname;
 
     std::ostringstream url;
-    url << "http://" << haconfig_.url << ":20005/?method=publish&name=" << name << "&port=12345";
+    url << "http://" << haconfig_.url << ":20005/?method=register&name=" << name << "&port=12345";
 
     r->fetch(url.str(), boost::bind(&ha_register::handle_register_name, shared_from_this(), _1, _2, name.str(), r));
 }

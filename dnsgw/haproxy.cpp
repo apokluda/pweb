@@ -117,10 +117,10 @@ namespace
             + sizeof(absint_t) // target max length
             + sizeof(absint_t);// destination hostname length
 
-    static std::size_t const unused_abs_get_len =
-              sizeof(absint_t) // target overlay ID
-            + sizeof(absint_t) // target prefix length
-            + sizeof(absint_t);// target max length
+//    static std::size_t const unused_abs_get_len =
+//              sizeof(absint_t) // target overlay ID
+//            + sizeof(absint_t) // target prefix length
+//            + sizeof(absint_t);// target max length
 
     boost::uint8_t* write_abs_header(absmsgid_t const msgid, boost::uint32_t const sequence, string const& hahostname, boost::uint16_t const haport, string const& nshostname, boost::uint16_t const nsport, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
@@ -148,7 +148,7 @@ namespace
         string const devicename( remove_suffix( question.name, suffix ) );
         query.metric().device_name(devicename);
 
-        buf = write_abs_zero(unused_abs_get_len, buf, end);
+        //buf = write_abs_zero(unused_abs_get_len, buf, end);
         return write_abs_string< absint_t >( devicename, buf, end );
     }
 

@@ -45,6 +45,7 @@ using std::ifstream;
 namespace po = boost::program_options;
 
 log4cpp::Category& log4 = log4cpp::Category::getRoot();
+typedef instrumenter instrumenter_t;
 std::auto_ptr< instrumenter > instrumenter;
 bool debug = false;
 
@@ -280,6 +281,9 @@ int main(int argc, char const* argv[])
 
         udp_dnsspeaker.start();
         tcp_dnsspeaker.start();
+
+        // FOR DEBUGGING
+        instrumenter_t* instr = instrumenter.get();
 
         run( io_service, num_threads );
 

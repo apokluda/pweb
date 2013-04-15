@@ -9,7 +9,7 @@
 #define DNSQUERY_HPP_
 
 #include "stdhdr.hpp"
-#include "instrumenter.hpp"
+#include "metric.hpp"
 
 class udp_dnsspeaker;
 

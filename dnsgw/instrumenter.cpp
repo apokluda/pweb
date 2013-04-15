@@ -6,6 +6,7 @@
  */
 
 #include "instrumenter.hpp"
+#include "metric.hpp"
 #include "protocol_helper.hpp"
 
 using namespace protocol_helper;
@@ -17,42 +18,6 @@ using std::vector;
 using boost::shared_ptr;
 
 extern log4cpp::Category& log4;
-
-static const int NANOSECONDS_VERSION = 1;
-BOOST_CLASS_VERSION(boost::chrono::nanoseconds, NANOSECONDS_VERSION)
-BOOST_SERIALIZATION_SPLIT_FREE(boost::chrono::nanoseconds)
-
-namespace boost {
-namespace serialization {
-
-template < class Archive >
-void save(Archive& ar, boost::chrono::nanoseconds const& nanos, unsigned const version)
-{
-    boost::chrono::nanoseconds::rep count = nanos.count();
-    ar << count;
-}
-
-template < class Archive >
-void load(Archive& ar, boost::chrono::nanoseconds& nanos, unsigned const version)
-{
-    if ( version != NANOSECONDS_VERSION ) throw std::runtime_error("invalid version for boost::chrono::nanoseconds");
-    boost::chrono::nanoseconds::rep count;
-    ar >> count;
-    nanos = boost::chrono::nanoseconds( count );
-}
-
-} // namespace serialization
-} // namespace boost
-
-template <class Archive>
-void metric::serialize(Archive& ar, const unsigned int version)
-{
-    if ( version != VERSION ) throw std::runtime_error("metric: invalid class version");
-    ar & device_name_;
-    ar & start_time_;
-    ar & duration_;
-    ar & result_;
-}
 
 const boost::asio::deadline_timer::duration_type udp_instrumenter::NAGLE_PERIOD = boost::posix_time::milliseconds(500);
 
@@ -129,7 +94,7 @@ void udp_instrumenter::handle_datagram_sent(buf_ptr_t buf, bs::error_code const&
     }
     else
     {
-        log4.infoStream() << "An error occurred while sending instrumentation datagram: " << ec.message();
+        log4.errorStream() << "An error occurred while sending instrumentation datagram: " << ec.message();
     }
 }
 

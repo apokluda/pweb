@@ -21,8 +21,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 include(PrecompiledHeader)
 
 add_subdirectory( mongoose mongoose.lib )
-
 include_directories( mongoose )
+
+add_subdirectory( shared shared.lib )
+include_directories( shared )
 
 # At the moment (Feb 25), we're not using date_time or regex directly.
 # One of the other libraries depends on it and MSVC can't
