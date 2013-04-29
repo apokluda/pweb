@@ -23,9 +23,6 @@ include(PrecompiledHeader)
 add_subdirectory( mongoose mongoose.lib )
 include_directories( mongoose )
 
-add_subdirectory( shared shared.lib )
-include_directories( shared )
-
 # At the moment (Feb 25), we're not using date_time or regex directly.
 # One of the other libraries depends on it and MSVC can't
 # find it because cmake doesn't set the lib directory.
@@ -37,6 +34,10 @@ set( Boost_USE_MULTITHREADED    ON  )
 set( Boost_USE_STATIC_RUNTIME   OFF )
 find_package( Boost 1.53.0 COMPONENTS program_options thread date_time chrono regex atomic serialization system REQUIRED )
 include_directories( ${Boost_INCLUDE_DIRS} )
+
+# Must come after Boost stuff
+add_subdirectory( shared shared.lib )
+include_directories( shared )
 
 add_subdirectory( dnsgw dnsgw.bin )
 
