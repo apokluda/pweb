@@ -142,27 +142,36 @@ int main(int argc, char const* argv[])
         // on the command line
         po::options_description generic("Generic options");
         generic.add_options()
-                    ("version,v", po::value< bool >  ()->implicit_value(true), "print version string")
-                    ("help,h",    po::value< bool >  ()->implicit_value(true), "produce help message")
-                    ("config,c",  po::value< string >(),                       "config file name")
+                    ("version,v", po::value< bool >  ()->implicit_value(true), "Print program version and exit")
+                    ("help,h",    po::value< bool >  ()->implicit_value(true), "Print summary of configuration options and exit")
+                    ("config,c",  po::value< string >(),                       "Path to configuration file")
                     ;
 
         // Declare a group of options that will be allowed both
         // on the command line and in the config file
         po::options_description config("Configuration");
         config.add_options()
-                    ("ttl",           po::value< boost::uint16_t >(&ttl)        ->default_value(3600),        "number of seconds to cache name to IP mappings")
-                    ("timeout,t",     po::value< unsigned >       (&timeout)    ->default_value(12),          "max number of seconds to wait for response from home agent")
-                    ("log_file,l",    po::value< string >         (&log_file)   ->default_value("dnsgw.log"), "log file name")
-                    ("log_level,L",   po::value< string >         (&log_level)  ->default_value("WARN"),      "log level (NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG)")
-                    ("iface,i",       po::value< string >         (&interface),                               "IP v4 or v6 address of interface to listen on")
-                    ("port,p",        po::value< boost::uint16_t >(&port)       ->default_value(53),          "port to listen on")
-                    ("home_agent,H",  po::value< haaddr_list_t >  (&home_agents)->required(),                 "list of home agent addresses to connect to")
-                    ("nshostname,N",  po::value< string >         (&nshostname) ->required(),                 "the hostname of the DNS gateway (included in DNS replies and in requests to home agents)" )
-                    ("nsport,P",      po::value< boost::uint16_t >(&nsport)     ->required(),                 "the port the DNS gateway uses to receive replies from home agents")
-                    ("suffix,s",      po::value< string >         (&suffix)     ->default_value(".dht."),     "suffix to be removed from names before querying DHT")
-                    ("threads",       po::value< std::size_t >    (&num_threads)->default_value(1),           "number of application threads (0 = one thread per hardware core)")
-                    ("instsrv",       po::value< string >         (&instsrv),                                 "hostname:port of instrumentation server")
+                    ("ttl",           po::value< boost::uint16_t >(&ttl)        ->default_value(3600),        "Number of seconds DNS clients will be instructed cache name to IP mappings")
+                    ("timeout,t",     po::value< unsigned >       (&timeout)    ->default_value(12),          "Maximum number of seconds to wait for response from a Home Agent before returning an error to the DNS client")
+                    ("log_file,l",    po::value< string >         (&log_file)   ->default_value("dnsgw.log"), "Log file path")
+                    ("log_level,L",   po::value< string >         (&log_level)  ->default_value("WARN"),      "Log level\n"
+                                                                                                              "    Only log messages with a level less than or equal to the specified severity will be logged."
+                                                                                                              "The log levels are NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG")
+                    ("iface,i",       po::value< string >         (&interface),                               "IP v4 or v6 address of interface to listen on for DNS queries")
+                    ("port,p",        po::value< boost::uint16_t >(&port)       ->default_value(53),          "TCP and UDP port to listen on for DNS queries")
+                    ("home_agent,H",  po::value< haaddr_list_t >  (&home_agents)->required(),                 "List of Home Agent addresses to connect to\n"
+                                                                                                              "    Any number of Home Agent addresses may be speficed, separated by commas."
+                                                                                                              "Each address should have the form '<hostname or IP address>:<port>'. The DNS"
+                                                                                                              "Gateway will use all the Home Agent addresses specified in a round-robin manner.")
+                    ("nshostname,N",  po::value< string >         (&nshostname) ->required(),                 "The hostname of the DNS gateway\n"
+                                                                                                              "    This hostname is included in DNS replies and in messages sent to to Home Agents."
+                                                                                                              "Home Agents will send repiles to this hostname using separate TCP connections." )
+                    ("nsport,P",      po::value< boost::uint16_t >(&nsport)     ->required(),                 "TCP port used to receive replies from Home Agents")
+                    ("suffix,s",      po::value< string >         (&suffix)     ->default_value(".dht."),     "Suffix to be removed from domain names in order to obtain pWeb device names")
+                    ("threads",       po::value< std::size_t >    (&num_threads)->default_value(1),           "Number of application threads\n"
+                                                                                                              "    Set to 0 to use one thread per hardware core")
+                    ("instsrv",       po::value< string >         (&instsrv),                                 "Address of instrumentation server\n"
+                                                                                                              "    The address should have the form '<hostname or IP address>:<port>'")
                     ;
 
         // Hidden options, will be allowed both on command line
