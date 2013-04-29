@@ -5,6 +5,7 @@
  *      Author: apokluda
  */
 
+#include "stdhdr.hpp"
 #include "instrumenter.hpp"
 #include "metric.hpp"
 #include "protocol_helper.hpp"
