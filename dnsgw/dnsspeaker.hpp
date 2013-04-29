@@ -143,7 +143,12 @@ public:
 
     int z() const
     {
-        return *(buf_.data() + 3) & 0x70;
+        return (*(buf_.data() + 3) & 0x40) >> 6;
+    }
+
+    int ad_cd() const
+    {
+        return (*(buf_.data() + 3) & 0x30) >> 4;
     }
 
     rcode_t rcode() const

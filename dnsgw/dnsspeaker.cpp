@@ -365,6 +365,9 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
         {
             // Header format OK
             log4.infoStream() << "Received UDP DNS query from " << sender_endpoint_;
+            if ( recv_header_.ad_cd() != 0 )
+                log4.warnStream() << "Ignoring security extension flags in DNS query from " << sender_endpoint_;
+
 
             boost::shared_ptr< dnsquery > query( new dnsquery(socket_.get_io_service()) );
             query->metric().start_timer();
@@ -386,7 +389,12 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
         else
         {
             // Malformed header
-            log4.noticeStream() << "Received UDP DNS query with invalid header from " << sender_endpoint_;
+            log4.noticeStream() << "Received UDP DNS query with invalid header from "
+                    << sender_endpoint_
+                    << ": length=" << recv_header_.length()
+                    << "; qr=" << recv_header_.qr()
+                    << "; opcode=" << recv_header_.opcode()
+                    << "; z=" << recv_header_.z();
 
             // Fall through to start() below
         }
@@ -553,6 +561,9 @@ void dns_connection::handle_msg_len_read( bs::error_code const& ec, std::size_t 
 
 void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t const bytes_transferred )
 {
+    bs::error_code endpec;
+    boost::asio::ip::tcp::endpoint remote_endpoint( socket_.remote_endpoint(endpec) );
+
     if ( !ec )
     {
         // Validate header
@@ -562,8 +573,9 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
                 recv_header_.z() == 0 )
         {
             // Header format OK
-            bs::error_code ec;
-            log4.infoStream() << "Received TCP DNS query from " << socket_.remote_endpoint(ec);
+            log4.infoStream() << "Received TCP DNS query from " << remote_endpoint;
+            if ( recv_header_.ad_cd() != 0 )
+                log4.warnStream() << "Ignoring security extension flags in DNS query from " << remote_endpoint;
 
             boost::shared_ptr< dnsquery > query( new dnsquery(socket_.get_io_service()) );
             query->metric().start_timer();
@@ -577,20 +589,18 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
             }
             catch ( dns_query_parser::parse_error const& )
             {
-                log4.noticeStream() << "An error occurred while parsing TCP DNS query from " << socket_.remote_endpoint(ec);
+                log4.noticeStream() << "An error occurred while parsing TCP DNS query from " << remote_endpoint;
             }
         }
         else
         {
             // Malformed header
-            bs::error_code ec;
-            log4.noticeStream() << "Received TCP DNS query with invalid header from " << socket_.remote_endpoint(ec);
+            log4.noticeStream() << "Received TCP DNS query with invalid header from " << remote_endpoint;
         }
     }
     else
     {
-        bs::error_code ec;
-        log4.errorStream() << "An error occurred while receiving TCP DNS query from " << socket_.remote_endpoint(ec) << ": " << ec.message();
+        log4.errorStream() << "An error occurred while receiving TCP DNS query from " << remote_endpoint << ": " << ec.message();
     }
 }
 
