@@ -39,11 +39,16 @@ find_package( Boost 1.53.0 COMPONENTS program_options thread date_time chrono re
 include_directories( ${Boost_INCLUDE_DIRS} )
 
 add_subdirectory( dnsgw dnsgw.bin )
-add_subdirectory( dnsgw_test_client dnsgw_test_client.bin )
 
-# klink headers unnecessarily pull in plafom-specific stuff
 if (UNIX)
+    # klink headers unnecessarily pull in plafom-specific stuff and don't work on Windows
     add_subdirectory( dnsgw_test_ha dnsgw_test_ha.bin )
+    
+    # The the dnsgw_test_client needs libcurl on Windows. There are Windows versions of
+    # libcur available on the cURL download page at http://curl.haxx.se/download.html#Win32
+    # but I don't have the time to get cURL working on Windows at the moment--other priorities
+    # take precidence.
+    add_subdirectory( dnsgw_test_client dnsgw_test_client.bin )
 endif()
 
 # Not much is happening in this folder right now
