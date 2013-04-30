@@ -231,9 +231,13 @@ int main(int argc, char const* argv[])
         haproxy::timeout( boost::posix_time::seconds( timeout ) );
 
         // Initialize logging
-        log4cpp::Appender* app = new log4cpp::FileAppender("file", log_file.c_str());
-        log4.addAppender(app); // ownership of appender passed to category
-        app->setLayout(new log4cpp::BasicLayout()); // ownership of layout passed to appender
+        {
+            log4cpp::Appender* app = new log4cpp::FileAppender("file", log_file.c_str());
+            log4.addAppender(app); // ownership of appender passed to category
+            log4cpp::PatternLayout* lay = new log4cpp::PatternLayout();
+            lay->setConversionPattern("%d [%p] %m%n");
+            app->setLayout(lay); // ownership of layout passed to appender
+        }
 
         if ( debug )
         {
