@@ -18,9 +18,19 @@ using std::string;
 using std::vector;
 using boost::shared_ptr;
 
+using namespace instrumentation;
+
 extern log4cpp::Category& log4;
 
 const boost::asio::deadline_timer::duration_type udp_instrumenter::NAGLE_PERIOD = boost::posix_time::milliseconds(500);
+
+using namespace instrumentation;
+
+void instrumenter::add_metric(metric const& metric)
+{
+    log4.infoStream() << "Statistics: " << metric;
+    do_add_metric(metric);
+}
 
 udp_instrumenter::udp_instrumenter( io_service& io_service, string const& server, string const& port)
 : socket_( io_service )
@@ -43,7 +53,7 @@ udp_instrumenter::udp_instrumenter( io_service& io_service, string const& server
     socket_.connect(endpoint);
 }
 
-void udp_instrumenter::add_metric(metric const& metric)
+void udp_instrumenter::do_add_metric(metric const& metric)
 {
     std::ostringstream oss;
     // NOTE: The boost serialization library provides three archive formats:

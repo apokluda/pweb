@@ -283,7 +283,7 @@ public:
         return timer_;
     }
 
-    ::metric& metric()
+    instrumentation::metric& metric()
     {
         return metric_;
     }
@@ -291,7 +291,7 @@ public:
 private:
     boost::variant< udp_connection_t, dns_connection_ptr > sender_;
     boost::asio::deadline_timer timer_;
-    ::metric metric_;
+    instrumentation::metric metric_;
     std::vector< dnsquestion > questions_;
     std::vector< dnsrr > answers_;
     std::vector< dnsrr > authorities_;
@@ -303,7 +303,7 @@ private:
 
 };
 
-void inline complete_query(dnsquery& query, rcode_t const rcode, metric::result_t const result)
+void inline complete_query(dnsquery& query, rcode_t const rcode, instrumentation::result_t const result)
 {
     query.rcode(rcode);
     query.metric().result(result);

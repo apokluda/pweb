@@ -44,9 +44,13 @@ using std::string;
 using std::ifstream;
 namespace po = boost::program_options;
 
+typedef instrumentation::instrumenter instrumenter_t;
+using namespace instrumentation::result_types;
+using instrumentation::udp_instrumenter;
+using instrumentation::null_instrumenter;
+
 log4cpp::Category& log4 = log4cpp::Category::getRoot();
-typedef instrumenter instrumenter_t;
-std::auto_ptr< instrumenter > instrumenter;
+std::auto_ptr< instrumenter_t > instrumenter;
 bool debug = false;
 
 static void checked_io_service_run(boost::asio::io_service& io_service)
@@ -290,9 +294,6 @@ int main(int argc, char const* argv[])
 
         udp_dnsspeaker.start();
         tcp_dnsspeaker.start();
-
-        // FOR DEBUGGING
-        instrumenter_t* instr = instrumenter.get();
 
         run( io_service, num_threads );
 

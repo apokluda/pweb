@@ -34,6 +34,8 @@ void load(Archive& ar, boost::chrono::nanoseconds& nanos, unsigned const version
 } // namespace serialization
 } // namespace boost
 
+using namespace instrumentation;
+
 template <class Archive>
 void metric::serialize(Archive& ar, const unsigned int version)
 {
@@ -45,3 +47,31 @@ void metric::serialize(Archive& ar, const unsigned int version)
 }
 
 template void metric::serialize<boost::archive::text_oarchive>(boost::archive::text_oarchive&, unsigned int);
+
+const char* instrumentation::result_str(result_t const result)
+{
+    switch ( result )
+    {
+    case SUCCESS:
+        return "SUCCESS";
+    case HA_CONNECTION_ERROR:
+        return "HA_CONNECTION_ERROR";
+    case HA_RETURNED_ERROR:
+        return "HA_RETURNED_ERROR";
+    case TIMEOUT:
+        return "TIMEOUT";
+    case INVALID_REQUEST:
+        return "INVALID_REQUEST";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+std::ostream& instrumentation::operator<<(std::ostream& out, metric const& metric)
+{
+    out << "device_name=" << metric.device_name()
+            << "; start_time=" << metric.start_time()
+            << "; duration=" << metric.duration()
+            << "; result=" << result_str( metric.result() );
+    return out;
+}

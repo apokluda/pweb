@@ -18,8 +18,10 @@ namespace b = boost;
 namespace ph = boost::asio::placeholders;
 namespace bs = boost::system;
 
+typedef instrumentation::instrumenter instrumenter_t;
+
 extern log4cpp::Category& log4;
-extern std::auto_ptr< instrumenter > instrumenter;
+extern std::auto_ptr< instrumenter_t > instrumenter;
 
 namespace dns_query_parser
 {

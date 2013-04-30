@@ -10,19 +10,25 @@
 
 #include "stdhdr.hpp"
 
+namespace instrumentation
+{
+
 class metric;
 
 class instrumenter
 {
 public:
+    void add_metric(metric const&);
     virtual ~instrumenter() {}
-    virtual void add_metric(metric const&) = 0;
+
+private:
+    virtual void do_add_metric(metric const&) = 0;
 };
 
 class null_instrumenter : public instrumenter
 {
-public:
-    virtual void add_metric(metric const&) {}
+private:
+    virtual void do_add_metric(metric const&) {}
 };
 
 // Instances of "metric" will be added to the instrumenter, which will
@@ -36,9 +42,8 @@ class udp_instrumenter : public instrumenter
 public:
     udp_instrumenter( boost::asio::io_service& io_service, std::string const& server, std::string const& port);
 
-    void add_metric(metric const& pmetric);
-
 private:
+    void do_add_metric(metric const& pmetric);
     void add_metric_(std::string const& buf);
 
     void send_now();
@@ -55,5 +60,7 @@ private:
     std::size_t buf_size_; // the number of bytes currently in the buffer
     buf_ptr_t buf_;
 };
+
+} // namespace instrumentation
 
 #endif /* INSTRUMENTER_HPP_ */

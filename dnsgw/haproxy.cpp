@@ -17,6 +17,8 @@ using namespace boost::asio;
 namespace ph = boost::asio::placeholders;
 namespace bs = boost::system;
 
+using namespace instrumentation::result_types;
+
 extern log4cpp::Category& log4;
 
 namespace haproxy
@@ -196,7 +198,7 @@ namespace
             if ( query )
             {
                 log4.warnStream() << "Query for '" << query->questions_begin()->name << "' timed out";
-                complete_query(*query, R_NAME_ERROR, metric::TIMEOUT);
+                complete_query(*query, R_NAME_ERROR, TIMEOUT);
             }
         }
 
@@ -245,7 +247,7 @@ public:
             // return an error on duplicate sequence number because that may have the effect of canceling a
             // query in progress).
 
-            complete_query(*query, R_NAME_ERROR, metric::INVALID_REQUEST);
+            complete_query(*query, R_NAME_ERROR, INVALID_REQUEST);
             throw;
         }
 
@@ -280,7 +282,7 @@ private:
         {
             log4.errorStream() << "Unable to connect to '" << hahostname_ << "'";
             queries.remove(query_->id());
-            complete_query(*query_, R_SERVER_FAILURE, metric::HA_CONNECTION_ERROR);
+            complete_query(*query_, R_SERVER_FAILURE, HA_CONNECTION_ERROR);
         }
     }
 
@@ -295,7 +297,7 @@ private:
         {
             log4.errorStream() << "An error occurred while sending query to '" << hahostname_ << "': " << ec.message();
             queries.remove(query_->id());
-            complete_query(*query_, R_SERVER_FAILURE, metric::HA_CONNECTION_ERROR);
+            complete_query(*query_, R_SERVER_FAILURE, HA_CONNECTION_ERROR);
         }
     }
 
@@ -430,7 +432,7 @@ private:
                 {
                     // Device name not found
                     log4.infoStream() << "No IP address found for '" << query->questions_begin()->name << '\'';
-                    complete_query(*query, R_NAME_ERROR, metric::HA_RETURNED_ERROR);
+                    complete_query(*query, R_NAME_ERROR, HA_RETURNED_ERROR);
                 }
                 else if ( buf_.size() > hostlen_ )
                 {
@@ -465,18 +467,18 @@ private:
                         log4.infoStream() << "Home agent returned IP address " << addr << " for '" << query->questions_begin()->name << "'; Sending reply to DNS client";
 
                         query->add_answer(rr);
-                        complete_query(*query, R_SUCCESS, metric::SUCCESS);
+                        complete_query(*query, R_SUCCESS, SUCCESS);
                     }
                     else
                     {
                         log4.errorStream() << "An error occurred while parsing IP address returned from home agent: " << ec.message();
-                        complete_query(*query, R_SERVER_FAILURE, metric::UNKNOWN);
+                        complete_query(*query, R_SERVER_FAILURE, UNKNOWN);
                     }
                 }
                 else
                 {
                     log4.errorStream() << "IP address length " << hostlen_ << " received from home agent is too long!";
-                    complete_query(*query, R_SERVER_FAILURE, metric::UNKNOWN);
+                    complete_query(*query, R_SERVER_FAILURE, UNKNOWN);
                 }
             }
             else
@@ -492,7 +494,7 @@ private:
             log4.errorStream() << "An error occurred while reading GET REPLY message body: " << ec.message();
             query_ptr query( queries.remove( sequence_ ) );
             if ( query )
-                complete_query(*query, R_SERVER_FAILURE, metric::UNKNOWN);
+                complete_query(*query, R_SERVER_FAILURE, UNKNOWN);
         }
     }
 

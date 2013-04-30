@@ -11,6 +11,8 @@
 
 extern log4cpp::Category& log4;
 
+using namespace instrumentation::result_types;
+
 template < class hacontainer_iter_t, class hacontainer_diff_t >
 void ha_load_balancer< hacontainer_iter_t, hacontainer_diff_t >::process_query( query_ptr query )
 {
@@ -29,7 +31,7 @@ void ha_load_balancer< hacontainer_iter_t, hacontainer_diff_t >::process_query( 
     }
     log4.warnStream() << "Unable to process query from " << query->remote_address() << ": Not connected to any home agents";
 
-    complete_query(*query, R_SERVER_FAILURE, metric::HA_CONNECTION_ERROR);
+    complete_query(*query, R_SERVER_FAILURE, HA_CONNECTION_ERROR);
 }
 
 #include "haproxy.hpp"

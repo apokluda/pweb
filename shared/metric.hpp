@@ -11,22 +11,33 @@
 // Note: stdhdr.hpp should be included before this header
 #include <boost/archive/text_oarchive.hpp>
 
+namespace instrumentation
+{
+
 // In the future, it may make sense to make this a class hierarchy.
 // Right now, one class seems appropriate. Read the comment below on
 // instrumenter for how the instrumentation system works.
+namespace result_types
+{
+enum result_t
+{
+    SUCCESS,
+    HA_CONNECTION_ERROR,
+    HA_RETURNED_ERROR,
+    TIMEOUT,
+    INVALID_REQUEST,
+    UNKNOWN
+};
+} // namespace result_types
+using namespace result_types;
+
+class metric;
+const char* result_str(result_t const result);
+std::ostream& operator<<(std::ostream& out, metric const& metric);
+
 class metric
 {
 public:
-    enum result_t
-    {
-        SUCCESS,
-        HA_CONNECTION_ERROR,
-        HA_RETURNED_ERROR,
-        TIMEOUT,
-        INVALID_REQUEST,
-        UNKNOWN
-    };
-
     metric()
     : start_time_( boost::posix_time::microsec_clock::local_time() )
     , result_( UNKNOWN )
@@ -91,6 +102,8 @@ private:
     result_t result_;
 };
 
-BOOST_CLASS_VERSION(metric, metric::VERSION)
+} // namespace instrumentation
+
+BOOST_CLASS_VERSION(instrumentation::metric, instrumentation::metric::VERSION)
 
 #endif /* METRIC_HPP_ */
