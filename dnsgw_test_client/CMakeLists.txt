@@ -1,7 +1,7 @@
 
-add_executable(dnsgw_test_client stdhdr.cpp main.cpp ha_config.cpp ha_register.cpp asiohelper.cpp)
+add_executable(dnsgw_test_client main.cpp ha_config.cpp ha_register.cpp asiohelper.cpp)
 
-add_precompiled_header( dnsgw_test_client stdhdr.hpp )
+add_precompiled_header( dnsgw_test_client ../shared/stdhdr.hpp )
 
 find_package( CURL REQUIRED )
 include_directories( ${CURL_INCLUDE_DIRS} )

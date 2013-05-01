@@ -14,8 +14,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <algorithm>
-
 #include <vector>
+#include <queue>
 
 #include <cstring>
 #include <cstdlib>
@@ -57,5 +57,8 @@
 #include <log4cpp/BasicLayout.hh>
 #include <log4cpp/PatternLayout.hh>
 #include <log4cpp/Priority.hh>
+
+// cURL
+#include <curl/curl.h>
 
 #endif /* STDHDR_H_ */
