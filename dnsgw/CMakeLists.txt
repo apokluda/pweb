@@ -3,7 +3,7 @@ add_executable(dnsgw main.cpp dnsspeaker.cpp dnsquery.cpp haproxy.cpp haloadbala
 
 add_precompiled_header(dnsgw ../shared/stdhdr.hpp )
 
-target_link_libraries(dnsgw log4cpp instrumentation ${Boost_LIBRARIES})
+target_link_libraries(dnsgw instrumentation shared log4cpp ${Boost_LIBRARIES})
 
 # On Linux we need to link with rt library
 if(UNIX AND NOT APPLE)

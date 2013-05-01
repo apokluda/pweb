@@ -45,10 +45,14 @@ include_directories( ${Boost_INCLUDE_DIRS} )
 add_subdirectory( shared shared.lib )
 include_directories( shared )
 
-add_subdirectory( instrumentation instrumentation.lib )
-include_directories( instrumentation )
+add_subdirectory( dnsgw_instrumentation instrumentation.lib )
+include_directories( dnsgw_instrumentation )
 
 add_subdirectory( dnsgw dnsgw.bin )
+
+add_subdirectory( crawler_manager crawler_manager.bin )
+
+add_subdirectory( crawler_poller crawler_poller.bin)
 
 if (UNIX)
     # klink headers unnecessarily pull in plafom-specific stuff and don't work on Windows

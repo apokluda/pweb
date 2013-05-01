@@ -21,11 +21,6 @@ using namespace boost::asio;
 
 log4cpp::Category& log4 = log4cpp::Category::getRoot();
 
-//void handle_fetch(CURLcode rc, std::string const& content)
-//{
-//    std::cout << "It seemed to work! Fetched a URL.\nCURLCode: " << rc << "\nContent:\n" << content << std::endl;
-//}
-
 int main( int argc, char const* argv[] )
 {
     int exit_code = 0;
@@ -118,6 +113,9 @@ int main( int argc, char const* argv[] )
         cerr << e.what() << endl;
         exit_code = EXIT_FAILURE;
     }
+
+    // Shutdown logging
+    log4cpp::Category::shutdown();
 
     return exit_code;
 }

@@ -36,6 +36,7 @@
 #include "dnsspeaker.hpp"
 #include "haloadbalancer.hpp"
 #include "instrumenter.hpp"
+#include "service.hpp"
 
 using std::cout;
 using std::cerr;
@@ -52,57 +53,6 @@ using instrumentation::null_instrumenter;
 log4cpp::Category& log4 = log4cpp::Category::getRoot();
 std::auto_ptr< instrumenter_t > instrumenter;
 bool debug = false;
-
-static void checked_io_service_run(boost::asio::io_service& io_service)
-{
-    for (;;)
-    {
-        try
-        {
-            // Is it a good idea to re-run the service after an uncaught exception?
-            io_service.run();
-            break;
-        }
-        catch ( std::exception const& e )
-        {
-            log4.alertStream() << "UNCAUGHT EXCEPTION: " << e.what();
-        }
-    }
-}
-
-static void run( boost::asio::io_service& io_service, std::size_t const num_threads )
-{
-    // Register to handle the signals that indicate when the server should exit.
-    // It is safe to register for the same signal multiple times in a program,
-    // provided all registration for the specified signal is made through asio.
-    boost::asio::signal_set sig_set( io_service, SIGINT, SIGTERM );
-    sig_set.async_wait( boost::bind( &boost::asio::io_service::stop, &io_service ) );
-
-    if ( num_threads > 1 )
-    {
-        // Create a pool of threads to run all of the io_services.
-        std::vector<boost::shared_ptr<boost::thread> > threads;
-        threads.reserve( num_threads );
-        for (std::size_t i = 0; i < num_threads; ++i)
-        {
-            boost::shared_ptr<boost::thread> thread( new boost::thread(
-                    boost::bind( checked_io_service_run, boost::ref( io_service ) ) ) );
-            threads.push_back( thread );
-
-            log4.debugStream() << "Started io_service thread " << i << " with id " << thread->get_id();
-        }
-
-        // Wait for all threads in the pool to exit.
-        for (std::size_t i = 0; i < threads.size(); ++i)
-            threads[i]->join();
-    }
-    else
-    {
-        // Run one io_service in current thread
-        log4.debug("Starting io_service event loop");
-        checked_io_service_run( io_service );
-    }
-}
 
 void split_hostname(string& host, string& port, string const& hostname)
 {
@@ -182,7 +132,7 @@ int main(int argc, char const* argv[])
         // and in config file, but will not be shown to the user
         po::options_description hidden("Hidden options");
         hidden.add_options()
-                    ("debug,d", po::value< bool >(&debug)->implicit_value(true), "don't daemonize and enable debugging output")
+                    ("debug,d", po::value< bool >(&debug)->implicit_value(true), "Enable debugging output")
                     ;
 
         // Combine options
