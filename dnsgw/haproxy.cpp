@@ -471,7 +471,7 @@ private:
                     }
                     else
                     {
-                        log4.errorStream() << "An error occurred while parsing IP address returned from home agent: " << ec.message();
+                        log4.errorStream() << "An error occurred while parsing IP address '" << reinterpret_cast< char* >( buf_.data() ) << "'  returned from home agent: " << ec.message();
                         complete_query(*query, R_SERVER_FAILURE, UNKNOWN);
                     }
                 }
