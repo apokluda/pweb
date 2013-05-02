@@ -42,7 +42,8 @@ private:
 
     typedef std::queue< std::string > pollerq_t;
     typedef std::set< std::string > hadb_t;
-    typedef std::map< pollerconnection_ptr, std::list< std::string const* > > pollerdb_t;
+    typedef std::list< std::string const* > halist_t;
+    typedef std::map< pollerconnection_ptr, halist_t > pollerdb_t;
 
     boost::asio::strand strand_;
     pollerq_t pollerq_;

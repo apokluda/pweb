@@ -14,14 +14,30 @@ homeagentdb::homeagentdb( boost::asio::io_service& io_service )
 {
 }
 
-void homeagentdb::poller_connected_( pollerconnection_ptr )
+void homeagentdb::poller_connected_( pollerconnection_ptr ptr )
 {
-    throw std::runtime_error("Not implemented yet.");
+    pollerdb_.insert( std::make_pair( ptr, pollerdb_t::mapped_type() ) );
+    process_queue();
 }
 
-void homeagentdb::poller_disconnected_( pollerconnection_ptr )
+void homeagentdb::poller_disconnected_( pollerconnection_ptr ptr )
 {
-    throw std::runtime_error("Not implemented yet.");
+    pollerdb_t::iterator polleriter = pollerdb_.find( ptr );
+    assert( polleriter != pollerdb_.end() );
+    halist_t& halist = polleriter->second;
+
+    // It would be nice to use std::for_each here, but we need to double dereference i which complicates things
+    for ( halist_t::iterator i = halist.begin(); i != halist.end(); ++i )
+    {
+        // Note: We must push the string to the queue first, before removing the string
+        // from the hadb because this will effectively delete the string pointed to by
+        // the pointer in the interator!
+        pollerq_.push( **i );
+        hadb_.erase( **i );
+    }
+
+    pollerdb_.erase( polleriter );
+    process_queue();
 }
 
 void homeagentdb::add_home_agent_( std::string const& hahostname )
