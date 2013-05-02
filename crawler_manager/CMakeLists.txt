@@ -1,4 +1,4 @@
-add_executable( manager main.cpp signals.cpp pollerconnector.cpp )
+add_executable( manager main.cpp signals.cpp pollerconnector.cpp homeagentdb.cpp )
 
 add_precompiled_header( manager ../shared/stdhdr.hpp )
 

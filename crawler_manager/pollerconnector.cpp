@@ -23,8 +23,7 @@ extern log4cpp::Category& log4;
 
 void pollerconnection::start()
 {
-    bs::error_code ec;
-    log4.noticeStream() << "Received a new poller connection from " << socket_.remote_endpoint(ec);
+    log4.noticeStream() << "Received a new poller connection from " << *this;
 
     signals::poller_connected( shared_from_this() );
 
@@ -80,8 +79,7 @@ void pollerconnection::handle_home_agent_discovered( bs::error_code const& ec, s
     {
         std::string hahostname;
         protocol_helper::parse_string(hahostname, recv_header_.length(), recv_buf_.begin(), recv_buf_.end());
-        bs::error_code ec;
-        log4.infoStream() << "New Home Agent '" << hahostname << "' discovered by " << socket_.remote_endpoint( ec );
+        log4.infoStream() << "New Home Agent '" << hahostname << "' discovered by " << *this;
 
         signals::home_agent_discovered( hahostname );
 
@@ -98,8 +96,7 @@ void pollerconnection::send_bufitem(bufitem_ptr& bufitem)
 {
     if ( !send_in_progress_ )
     {
-        bs::error_code ec;
-        log4.debugStream() << "Sending bufitem to " << socket_.remote_endpoint(ec);
+        log4.debugStream() << "Sending bufitem to " << *this;
 
         send_in_progress_ = true;
         boost::array< const_buffer, 2 > bufs;
@@ -110,8 +107,7 @@ void pollerconnection::send_bufitem(bufitem_ptr& bufitem)
     }
     else
     {
-        bs::error_code ec;
-        log4.debugStream() << "Queuing bufitem for " << socket_.remote_endpoint(ec);
+        log4.debugStream() << "Queuing bufitem for " << *this;
 
         send_queue_.push( bufitem );
         std::size_t const size = send_queue_.size();
@@ -128,8 +124,7 @@ void pollerconnection::handle_bufitem_sent( bufitem_ptr&, bs::error_code const& 
 {
     if ( !ec )
     {
-        bs::error_code ec;
-        log4.debugStream() << "Successfully sent bufitem to " << socket_.remote_endpoint(ec);
+        log4.debugStream() << "Successfully sent bufitem to " << *this;
 
         send_in_progress_ = false;
         if ( !send_queue_.empty() )
@@ -150,6 +145,11 @@ void pollerconnection::disconnect()
     socket_.shutdown( ip::tcp::socket::shutdown_both );
     socket_.close();
     signals::poller_disconnected( shared_from_this() );
+}
+
+ip::tcp::socket const& pollerconnection::socket() const
+{
+    return socket_;
 }
 
 ip::tcp::socket& pollerconnection::socket()

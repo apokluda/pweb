@@ -41,7 +41,9 @@ private:
     void disconnect();
 
     friend class pollerconnector;
+    friend std::ostream& operator<<(std::ostream&, pollerconnection const&);
 
+    boost::asio::ip::tcp::socket const& socket() const;
     boost::asio::ip::tcp::socket& socket();
 
     boost::asio::ip::tcp::socket socket_;
@@ -51,6 +53,13 @@ private:
     boost::array< boost::uint8_t, 256 > recv_buf_;
     bool send_in_progress_;
 };
+
+inline std::ostream& operator<<(std::ostream& out, pollerconnection const& conn)
+{
+    boost::system::error_code ec;
+    out << conn.socket().remote_endpoint(ec);
+    return out;
+}
 
 class pollerconnector :
         private boost::noncopyable
