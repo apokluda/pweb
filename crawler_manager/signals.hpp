@@ -8,10 +8,15 @@
 #ifndef SIGNALS_HPP_
 #define SIGNALS_HPP_
 
+#include "stdhdr.hpp"
+#include "pollerconnector.hpp"
+
 namespace signals
 {
+    extern boost::signals2::signal<void (pollerconnection_ptr)> poller_connected;
+    extern boost::signals2::signal<void (pollerconnection_ptr)> poller_disconnected;
 
+    extern boost::signals2::signal<void (std::string const&)> home_agent_discovered;
 }
-
 
 #endif /* SIGNALS_HPP_ */

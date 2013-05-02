@@ -47,6 +47,7 @@
 #include <boost/date_time/gregorian/greg_serialize.hpp>
 #include <boost/date_time/posix_time/time_serialize.hpp>
 #include <boost/archive/text_oarchive.hpp>
+#include <boost/signals2.hpp>
 
 // Logging
 #include <log4cpp/Category.hh>
