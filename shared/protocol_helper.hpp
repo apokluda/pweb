@@ -28,6 +28,11 @@ namespace protocol_helper
        throw parse_error("Unexpected end of message/buffer");
     }
 
+    inline void invalid_string_format()
+    {
+        throw parse_error("Invalid string format");
+    }
+
     inline void check_end(boost::uint8_t const* const buf, boost::uint8_t const* const end)
     {
        if (buf == end) unexpected_end_of_message();
@@ -70,15 +75,21 @@ namespace protocol_helper
         return buf + 4;
     }
 
-// UNUSED
-//    inline boost::uint8_t* write_lpstring(std::string const& str, boost::uint8_t* buf, boost::uint8_t const* const end)
-//    { // lpstring = length-prefixed string
-//        std::size_t len = str.length();
-//        buf = write_short(len, buf, end);
-//        check_end(len, buf, end);
-//        memcpy(buf, str.c_str(), len);
-//        return buf + len;
-//    }
+    inline boost::uint8_t const* parse_string(std::string& str, std::string::size_type const len, boost::uint8_t const* buf, boost::uint8_t const* const end)
+    {
+        check_end(len, buf, end);
+        if ( buf[len - 1] != '\0' ) invalid_string_format();
+        str = reinterpret_cast< char const* >( buf );
+        return buf + len;
+    }
+
+    inline boost::uint8_t* write_string(std::string const& str, boost::uint8_t* buf, boost::uint8_t const* const end)
+    {
+        std::size_t const len = str.length() + 1; // length including null
+        check_end(len, buf, end);
+        memcpy(buf, str.c_str(), len);
+        return buf + len;
+    }
 }
 
 

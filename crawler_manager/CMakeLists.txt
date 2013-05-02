@@ -1,4 +1,4 @@
-add_executable( manager main.cpp )
+add_executable( manager main.cpp pollerconnector.cpp )
 
 add_precompiled_header( manager ../shared/stdhdr.hpp )
 

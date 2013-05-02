@@ -50,6 +50,9 @@ include_directories( dnsgw_instrumentation )
 
 add_subdirectory( dnsgw dnsgw.bin )
 
+add_subdirectory( crawler_protocol crawler_protocol.lib )
+include_directories( crawler_protocol )
+
 add_subdirectory( crawler_manager crawler_manager.bin )
 
 add_subdirectory( crawler_poller crawler_poller.bin)

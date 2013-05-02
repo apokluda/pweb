@@ -8,6 +8,7 @@
 #include "stdhdr.hpp"
 #include "config.h"
 #include "service.hpp"
+#include "pollerconnector.hpp"
 
 using std::cout;
 using std::cerr;
@@ -16,6 +17,7 @@ using std::string;
 using std::ifstream;
 
 namespace po = boost::program_options;
+namespace ptime = boost::posix_time;
 using namespace boost::asio;
 
 log4cpp::Category& log4 = log4cpp::Category::getRoot();
@@ -32,8 +34,9 @@ int main(int argc, char const* argv[] )
         string log_file;
         string log_level;
         string interface;
-        string port;
         haaddr_list_t home_agents;
+        boost::uint16_t port;
+        std::size_t poll_interval;
         std::size_t num_threads;
 
         // Declare a group of options that will be available only
@@ -54,11 +57,12 @@ int main(int argc, char const* argv[] )
                                                                                                               "    Only log messages with a level less than or equal to the specified severity will be logged. "
                                                                                                               "The log levels are NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG")
                     ("iface,i",       po::value< string >         (&interface),                               "IP v4 or v6 address of interface to listen on for connections from poller processes")
-                    ("port,p",        po::value< string >         (&port)       ->default_value("1141"),      "TCP port to listen on for poller processes queries")
+                    ("port,p",        po::value< boost::uint16_t >(&port)       ->default_value(1141),        "TCP port to listen on for poller processes queries")
                     ("home_agent,H",  po::value< haaddr_list_t >  (&home_agents)->required(),                 "List of well-known Home Agent web interface addresses\n"
                                                                                                               "    Any number of Home Agent addresses may be specified, separated by commas. "
                                                                                                               "Each address should have the form '<hostname or IP address>:<port>'. These "
                                                                                                               "addresses are used to 'seed' the crawlers.")
+                    ("poll_interval", po::value< std::size_t >    (&poll_interval)->default_value(300),       "Number of seconds between Home Agent polls")
                     ("threads",       po::value< std::size_t >    (&num_threads)->default_value(1),           "Number of application threads\n"
                                                                                                               "    Set to 0 to use one thread per hardware core")
                     ;
@@ -168,6 +172,8 @@ int main(int argc, char const* argv[] )
 //        token_counter tc(maxconn);
 //        std::size_t maxconnha = vm["maxconnha"].as< std::size_t >();
 //        register_names(halist.begin(), halist.end(), c, tc, vm["owner"].as< string >(), vm["numnames"].as< std::size_t >(), maxconnha);
+
+        pollerconnector(io_service, interface, port, ptime::seconds( poll_interval ) );
 
         run( io_service, vm["num_threads"].as< std::size_t >() );
 
