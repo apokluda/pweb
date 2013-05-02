@@ -157,7 +157,7 @@ ip::tcp::socket& pollerconnection::socket()
     return socket_;
 }
 
-pollerconnector::pollerconnector(io_service& io_service, string const& interface, boost::uint16_t const port, ptime::time_duration interval)
+pollerconnector::pollerconnector(io_service& io_service, string const& interface, boost::uint16_t const port)
 : acceptor_( io_service )
 {
     try

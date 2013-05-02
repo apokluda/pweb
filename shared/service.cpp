@@ -24,7 +24,7 @@ void checked_io_service_run(boost::asio::io_service& io_service)
     }
 }
 
-void run( boost::asio::io_service& io_service, std::size_t const num_threads )
+void run( boost::asio::io_service& io_service, std::size_t num_threads )
 {
     // Register to handle the signals that indicate when the server should exit.
     // It is safe to register for the same signal multiple times in a program,
@@ -32,8 +32,16 @@ void run( boost::asio::io_service& io_service, std::size_t const num_threads )
     boost::asio::signal_set sig_set( io_service, SIGINT, SIGTERM );
     sig_set.async_wait( boost::bind( &boost::asio::io_service::stop, &io_service ) );
 
-    if ( num_threads > 1 )
+    if ( num_threads == 1 )
     {
+        // Run one io_service in current thread
+        log4.debug("Starting io_service event loop");
+        checked_io_service_run( io_service );
+    }
+    else
+    {
+        if ( num_threads == 0 ) num_threads = boost::thread::hardware_concurrency();
+
         // Create a pool of threads to run all of the io_services.
         std::vector<boost::shared_ptr<boost::thread> > threads;
         threads.reserve( num_threads );
@@ -49,12 +57,6 @@ void run( boost::asio::io_service& io_service, std::size_t const num_threads )
         // Wait for all threads in the pool to exit.
         for (std::size_t i = 0; i < threads.size(); ++i)
             threads[i]->join();
-    }
-    else
-    {
-        // Run one io_service in current thread
-        log4.debug("Starting io_service event loop");
-        checked_io_service_run( io_service );
     }
 }
 

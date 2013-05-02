@@ -65,7 +65,7 @@ class pollerconnector :
         private boost::noncopyable
 {
 public:
-    pollerconnector(boost::asio::io_service& io_service, std::string const& interface, boost::uint16_t const port, boost::posix_time::time_duration interval);
+    pollerconnector(boost::asio::io_service& io_service, std::string const& interface, boost::uint16_t const port);
 
     void start();
 

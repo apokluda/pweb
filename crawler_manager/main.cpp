@@ -9,6 +9,8 @@
 #include "config.h"
 #include "service.hpp"
 #include "pollerconnector.hpp"
+#include "signals.hpp"
+#include "homeagentdb.hpp"
 
 using std::cout;
 using std::cerr;
@@ -29,14 +31,13 @@ int main(int argc, char const* argv[] )
 
     try
     {
-        typedef std::vector< string > haaddr_list_t;
+        typedef std::vector< string > halist_t;
 
         string log_file;
         string log_level;
         string interface;
-        haaddr_list_t home_agents;
+        halist_t home_agents;
         boost::uint16_t port;
-        std::size_t poll_interval;
         std::size_t num_threads;
 
         // Declare a group of options that will be available only
@@ -58,11 +59,10 @@ int main(int argc, char const* argv[] )
                                                                                                               "The log levels are NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG")
                     ("iface,i",       po::value< string >         (&interface),                               "IP v4 or v6 address of interface to listen on for connections from poller processes")
                     ("port,p",        po::value< boost::uint16_t >(&port)       ->default_value(1141),        "TCP port to listen on for poller processes queries")
-                    ("home_agent,H",  po::value< haaddr_list_t >  (&home_agents)->required(),                 "List of well-known Home Agent web interface addresses\n"
+                    ("home_agent,H",  po::value< halist_t >       (&home_agents)->required(),                 "List of well-known Home Agent web interface addresses\n"
                                                                                                               "    Any number of Home Agent addresses may be specified, separated by commas. "
                                                                                                               "Each address should have the form '<hostname or IP address>:<port>'. These "
                                                                                                               "addresses are used to 'seed' the crawlers.")
-                    ("poll_interval", po::value< std::size_t >    (&poll_interval)->default_value(300),       "Number of seconds between Home Agent polls")
                     ("threads",       po::value< std::size_t >    (&num_threads)->default_value(1),           "Number of application threads\n"
                                                                                                               "    Set to 0 to use one thread per hardware core")
                     ;
@@ -137,43 +137,15 @@ int main(int argc, char const* argv[] )
 
         log4.setPriority(log4cpp::Priority::getPriorityValue(log_level));
 
-//        std::string filename = vm["halist"].as< string >();
-//        log4.infoStream() << "Reading list of home agents from file '" << filename << '\'';
-//        std::vector< haconfig > halist;
-//        std::ifstream is;
-//        is.open( filename.c_str() );
-//        if ( is.fail() ) throw std::runtime_error("Unable to open file");
-//        load_halist(halist, is);
-//        log4.infoStream() << "Read list of " << halist.size() << " home agents";
-//
-//        std::size_t maxconn = vm["maxconn"].as< std::size_t >();
-//        if ( vm["precheck"].as< bool >() )
-//        {
-//            log4.infoStream() << "Checking home agent state";
-//            ha_checker< halist_t::iterator > hac( halist.begin(), halist.end() );
-//            hac.sync_run( maxconn );
-//
-//            log4.errorStream() << "-- The Following Home Agents are Inaccessible --";
-//            std::size_t inaccessible_count = 0;
-//            for (halist_t::iterator iter = halist.begin(); iter != halist.end(); ++iter)
-//            {
-//                if ( iter->status != GOOD ) { log4.errorStream() << iter->url; ++inaccessible_count; }
-//            }
-//            log4.errorStream() << "-- " << inaccessible_count << " Home Agents are Inaccessible --";
-//        }
-//        else
-//        {
-//            for (halist_t::iterator begin = halist.begin(); begin != halist.end(); ++begin) begin->status = GOOD;
-//        }
-
         boost::asio::io_service io_service;
-//        curl::Context c( io_service );
 
-//        token_counter tc(maxconn);
-//        std::size_t maxconnha = vm["maxconnha"].as< std::size_t >();
-//        register_names(halist.begin(), halist.end(), c, tc, vm["owner"].as< string >(), vm["numnames"].as< std::size_t >(), maxconnha);
+        pollerconnector pconn( io_service, interface, port );
+        homeagentdb hadb( io_service );
+        signals::poller_connected.connect( boost::bind( &homeagentdb::poller_connected, &hadb, _1 ) );
+        signals::poller_disconnected.connect( boost::bind( &homeagentdb::poller_disconnected, &hadb, _1 ) );
+        signals::home_agent_discovered.connect( boost::bind( &homeagentdb::add_home_agent, &hadb, _1 ) );
 
-        pollerconnector(io_service, interface, port, ptime::seconds( poll_interval ) );
+        for ( halist_t::const_iterator i = home_agents.begin(); i != home_agents.end(); ++i ) hadb.add_home_agent( *i );
 
         run( io_service, vm["num_threads"].as< std::size_t >() );
 

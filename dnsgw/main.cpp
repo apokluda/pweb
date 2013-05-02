@@ -201,11 +201,6 @@ int main(int argc, char const* argv[])
 
         log4.setPriority(log4cpp::Priority::getPriorityValue(log_level));
 
-        if ( num_threads == 0 )
-        {
-            num_threads = boost::thread::hardware_concurrency();
-        }
-
         boost::asio::io_service io_service;
         // Initialize instrumentation
         if ( !instsrv.empty() )
