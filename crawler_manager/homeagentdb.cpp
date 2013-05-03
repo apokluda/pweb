@@ -66,7 +66,7 @@ void homeagentdb::assign_home_agent( std::string const& hahostname )
         for ( pollerdb_t::iterator i = min; i != pollerdb_.end(); ++i )
             if ( i->second.size() < min->second.size() ) min = i;
 
-        log4.infoStream() << "Assigning Home Agent '" << hahostname << "' to " << *min->first;
+        log4.debugStream() << "Assigning Home Agent '" << hahostname << "' to " << *min->first;
         min->second.push_back( &(*res.first) );
         min->first->assign_home_agent( hahostname );
     }

@@ -503,7 +503,7 @@ private:
         if ( !ec )
         {
             // Done! We can let the connection close.
-            log4.infoStream() << "Successfully received message from home agent";
+            log4.debugStream() << "Successfully received message from home agent";
         }
         else
         {
@@ -546,7 +546,7 @@ void hasendproxy::start()
     ss << haport_;
     ip::tcp::resolver::query q(hahostname_, ss.str());
 
-    log4.infoStream() << "Created home agent proxy object for '" << hahostname_ << "'; resolving hostname";
+    log4.debugStream() << "Created home agent proxy object for '" << hahostname_ << "'; resolving hostname";
 
     resolver_.async_resolve(q,
             boost::bind( &hasendproxy::handle_resolve, shared_from_this(), ph::error, ph::iterator ));
@@ -556,7 +556,7 @@ void hasendproxy::handle_resolve(bs::error_code const& ec, ip::tcp::resolver::it
 {
     if( !ec )
     {
-        log4.infoStream() << "Successfully resolved hostname '" << hahostname_ << "'; enabling home agent proxy object";
+        log4.debugStream() << "Successfully resolved hostname '" << hahostname_ << "'; enabling home agent proxy object";
 
         iter_ = iter;
         enabled_.store(true, boost::memory_order_release);
@@ -571,14 +571,14 @@ void hasendproxy::process_query( query_ptr query )
 {
     try
     {
-        log4.infoStream() << "Proxy object for '" << hahostname_ << "' processing query";
+        log4.debugStream() << "Proxy object for '" << hahostname_ << "' processing query";
 
         boost::shared_ptr< hasendconnection > conn(new hasendconnection( resolver_.get_io_service(), hahostname_, haport_, nshostname_, nsport_, query, suffix_));
         conn->start(iter_);
     }
     catch ( std::exception const& e)
     {
-        log4.infoStream() << "Error processing query: " << e.what();
+        log4.errorStream() << "Error processing query: " << e.what();
     }
 }
 
@@ -616,7 +616,7 @@ void harecvproxy::handle_accept(bs::error_code const& ec )
 {
     if ( !ec )
     {
-        log4.infoStream() << "Received a new home agent connection from " << new_connection_->socket().remote_endpoint();
+        log4.debugStream() << "Received a new home agent connection from " << new_connection_->socket().remote_endpoint();
         new_connection_->start();
         // Fall through
     }

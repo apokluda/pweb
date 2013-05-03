@@ -199,13 +199,12 @@ namespace dns_query_parser
     {
         dnsrr rr;
         buf = parse_rr(rr, buf, end);
-        query.add_additional(rr);
 
-        // This is not really the best place for this log line
-        // (It would be better to create a "dump query" function or sommething)
-        // But this is OK for now.
-
-        log4.debugStream() << "Received a DNS query with additional section: ID=" << query.id() << ", name=" << rr.owner << ", rtype=" << rr.rtype << ", rclass=" << rr.rclass << ", ttl=" << rr.ttl << ", rdlength=" << rr.rdlength << ", rdata omitted";
+        // Added log line and commented out query.add_additonal().
+        // Many recursive DNS servers are sending is requests with DNSSEC
+        // flags and additional sections that the DNS Gateway doesn't handle.
+        log4.warnStream() << "Ignoring additional section in DNS query: ID=" << query.id() << ", name=" << rr.owner << ", rtype=" << rr.rtype << ", rclass=" << rr.rclass << ", ttl=" << rr.ttl << ", rdlength=" << rr.rdlength << ", rdata omitted";
+        //query.add_additional(rr);
 
         return buf;
     }
@@ -245,7 +244,7 @@ void parse_dns_query(dnsquery& query, dns_query_header const& header, boost::uin
     int num_authorities = header.nscount();
     int num_additionals = header.arcount();
 
-    log4.infoStream() << "Parsing DNS query from " << query.remote_address() << ": ID=" << id << ", QDCOUNT=" << num_questions << ", ANCOUNT=" << num_answers << ", NSCOUNT=" << num_authorities << ", ARCOUNT=" << num_additionals;
+    log4.debugStream() << "Parsing DNS query from " << query.remote_address() << ": ID=" << id << ", QDCOUNT=" << num_questions << ", ANCOUNT=" << num_answers << ", NSCOUNT=" << num_authorities << ", ARCOUNT=" << num_additionals;
 
     query.num_questions(num_questions);
     for ( std::size_t i = 0; i < num_questions; ++i )
@@ -366,7 +365,7 @@ void udp_dnsspeaker::handle_datagram_received( bs::error_code const& ec, std::si
                 recv_header_.z() == 0 )
         {
             // Header format OK
-            log4.infoStream() << "Received UDP DNS query from " << sender_endpoint_;
+            log4.debugStream() << "Received UDP DNS query from " << sender_endpoint_;
             if ( recv_header_.ad_cd() != 0 )
                 log4.warnStream() << "Ignoring security extension flags in DNS query from " << sender_endpoint_;
 
@@ -514,7 +513,7 @@ void tcp_dnsspeaker::handle_accept( bs::error_code const& ec )
 {
     if ( !ec )
     {
-        log4.infoStream() << "Established a new TCP DNS connection with " << new_connection_->socket().remote_endpoint();
+        log4.debugStream() << "Established a new TCP DNS connection with " << new_connection_->socket().remote_endpoint();
         new_connection_->start();
     }
     else
@@ -538,7 +537,7 @@ void dns_connection::handle_msg_len_read( bs::error_code const& ec, std::size_t 
     {
         recv_msg_len_ = ntohs(recv_msg_len_);
         bs::error_code ec;
-        log4.infoStream() << "Received DNS message length of " << recv_msg_len_ << " from " << socket_.remote_endpoint(ec);
+        log4.debugStream() << "Received DNS message length of " << recv_msg_len_ << " from " << socket_.remote_endpoint(ec);
 
         if (recv_msg_len_ > recv_header_.length() + recv_buf_.size())
         {
@@ -575,7 +574,7 @@ void dns_connection::handle_query_read( bs::error_code const& ec, std::size_t co
                 recv_header_.z() == 0 )
         {
             // Header format OK
-            log4.infoStream() << "Received TCP DNS query from " << remote_endpoint;
+            log4.debugStream() << "Received TCP DNS query from " << remote_endpoint;
             if ( recv_header_.ad_cd() != 0 )
                 log4.warnStream() << "Ignoring security extension flags in DNS query from " << remote_endpoint;
 

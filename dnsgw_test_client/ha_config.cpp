@@ -87,7 +87,7 @@ public:
         cb_ = cb;
 
         // Resolve host name to IP address and check that it matches
-        log4.infoStream() << "Performing DNS lookup for " << haconfig_.url;
+        log4.debugStream() << "Performing DNS lookup for " << haconfig_.url;
 
         ip::tcp::resolver::query query( haconfig_.url, string(haconfig_.port) );
         resolver_.async_resolve(query, boost::bind( &ha_checker_impl::handle_resolve, shared_from_this(), ph::error, ph::iterator ) );
@@ -124,7 +124,7 @@ private:
     {
         if ( !ec )
         {
-            log4.infoStream() << "Successfully connected to " << haconfig_.url;
+            log4.debugStream() << "Successfully connected to " << haconfig_.url;
             haconfig_.status = GOOD;
             // Fall through to done()
         }

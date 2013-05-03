@@ -101,7 +101,7 @@ void udp_instrumenter::handle_datagram_sent(buf_ptr_t buf, bs::error_code const&
 
     if ( !ec )
     {
-        log4.infoStream() << "Successfully sent instrumentation datagram";
+        log4.debugStream() << "Successfully sent instrumentation datagram";
     }
     else
     {
