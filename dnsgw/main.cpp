@@ -219,6 +219,8 @@ int main(int argc, char const* argv[])
         typedef boost::shared_ptr< hasendproxy > hasendproxy_ptr;
         typedef std::vector< hasendproxy_ptr > haproxies_t;
 
+        std::transform( suffix.begin(), suffix.end(), suffix.begin(), ::tolower );
+
         haproxies_t haproxies;
         haproxies.reserve( home_agents.size() );
         for (haaddr_list_t::const_iterator i = home_agents.begin(); i != home_agents.end(); ++i)

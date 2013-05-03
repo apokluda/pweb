@@ -37,7 +37,8 @@ namespace
 
     std::string remove_suffix(std::string const& name, std::string const& suffix)
     {
-        std::string const name_suffix = name.substr(name.length() - suffix.length());
+        std::string name_suffix = name.substr(name.length() - suffix.length());
+        std::transform( name_suffix.begin(), name_suffix.end(), name_suffix.begin(), ::tolower );
         if ( name_suffix != suffix)
         {
             sstream ss;

@@ -209,6 +209,15 @@ namespace dns_query_parser
         return buf;
     }
 
+    boost::uint8_t* write_rr(dnsquestion const& question, boost::uint8_t* buf, boost::uint8_t const* const end)
+    {
+        buf = write_name( question.name, buf, end );
+        buf = write_short( question.qtype, buf, end );
+        buf = write_short( question.qclass, buf, end );
+
+        return buf;
+    }
+
     boost::uint8_t* write_rr(dnsrr const& rr, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         buf = write_name( rr.owner, buf, end );
@@ -283,13 +292,20 @@ void compose_dns_header(dns_query_header& header, dnsquery const& query)
     header.qr( true );
     header.rd( query.rd() );
     header.rcode( query.rcode() );
+    header.qdcount( query.num_questions() );
     header.ancount( query.num_answers() );
+    header.nscount( query.num_authorities() );
     header.arcount( query.num_additionals() );
 }
 
 boost::uint8_t* compose_dns_response(dnsquery const& query, dns_query_header const& header, boost::uint8_t* buf, boost::uint8_t const* const end)
 {
     using namespace dns_query_parser;
+
+    for ( dnsquery::question_iterator i = query.questions_begin(); i != query.questions_end(); ++i )
+    {
+        buf = write_rr(*i, buf, end);
+    }
 
     for ( dnsquery::answer_iterator i = query.answers_begin(); i != query.answers_end(); ++i )
     {
