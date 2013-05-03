@@ -288,19 +288,22 @@ void parse_dns_query(dnsquery& query, dns_query_header const& header, boost::uin
 void compose_dns_header(dns_query_header& header, dnsquery const& query)
 {
     header.clear();
-    header.id( query.id() );
-    header.qr( true );
-    header.rd( query.rd() );
-    header.rcode( query.rcode() );
-    header.qdcount( query.num_questions() );
-    header.ancount( query.num_answers() );
-    header.nscount( query.num_authorities() );
-    header.arcount( query.num_additionals() );
+    header.id( query.id() );                    // set transaction id
+    header.qr( true );                          // set response flag
+    header.aa( true );                          // set authoritative answer flag
+    header.rd( query.rd() );                    // set recursion desired flag
+    header.rcode( query.rcode() );              // set result code
+    header.qdcount( query.num_questions() );    // set number of question sections
+    header.ancount( query.num_answers() );      // set number of answer resource records
+    header.nscount( query.num_authorities() );  // set number of authority resource records
+    header.arcount( query.num_additionals() );  // set number of additional resource records
 }
 
 boost::uint8_t* compose_dns_response(dnsquery const& query, dns_query_header const& header, boost::uint8_t* buf, boost::uint8_t const* const end)
 {
     using namespace dns_query_parser;
+
+
 
     for ( dnsquery::question_iterator i = query.questions_begin(); i != query.questions_end(); ++i )
     {
