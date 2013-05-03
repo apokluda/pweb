@@ -32,13 +32,7 @@ int main(int argc, char const* argv[] )
     try
     {
         typedef std::vector< string > halist_t;
-
-        string log_file;
-        string log_level;
-        string interface;
         halist_t home_agents;
-        boost::uint16_t port;
-        std::size_t num_threads;
 
         // Declare a group of options that will be available only
         // on the command line
@@ -53,17 +47,17 @@ int main(int argc, char const* argv[] )
         // on the command line and in the config file
         po::options_description config("Configuration");
         config.add_options()
-                    ("log_file,l",    po::value< string >         (&log_file)   ->default_value("dnsgw.log"), "Log file path")
-                    ("log_level,L",   po::value< string >         (&log_level)  ->default_value("WARN"),      "Log level\n"
+                    ("log_file,l",    po::value< string >         ()            ->default_value("dnsgw.log"), "Log file path")
+                    ("log_level,L",   po::value< string >         ()            ->default_value("WARN"),      "Log level\n"
                                                                                                               "    Only log messages with a level less than or equal to the specified severity will be logged. "
                                                                                                               "The log levels are NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG")
-                    ("iface,i",       po::value< string >         (&interface),                               "IP v4 or v6 address of interface to listen on for connections from poller processes")
-                    ("port,p",        po::value< boost::uint16_t >(&port)       ->default_value(1141),        "TCP port to listen on for poller processes queries")
+                    ("iface,i",       po::value< string >         (),                                         "IP v4 or v6 address of interface to listen on for connections from poller processes")
+                    ("port,p",        po::value< boost::uint16_t >()            ->default_value(1141),        "TCP port to listen on for poller processes queries")
                     ("home_agent,H",  po::value< halist_t >       (&home_agents)->required(),                 "List of well-known Home Agent web interface addresses\n"
                                                                                                               "    Any number of Home Agent addresses may be specified, separated by commas. "
                                                                                                               "Each address should have the form '<hostname or IP address>:<port>'. These "
                                                                                                               "addresses are used to 'seed' the crawlers.")
-                    ("threads",       po::value< std::size_t >    (&num_threads)->default_value(1),           "Number of application threads\n"
+                    ("threads",       po::value< std::size_t >    ()            ->default_value(1),           "Number of application threads\n"
                                                                                                               "    Set to 0 to use one thread per hardware core")
                     ;
 
@@ -118,7 +112,7 @@ int main(int argc, char const* argv[] )
 
         // Initialize logging
         {
-            log4cpp::Appender* app = new log4cpp::FileAppender("file", log_file.c_str());
+            log4cpp::Appender* app = new log4cpp::FileAppender("file", vm["log_file"].as< string >().c_str());
             log4.addAppender(app); // ownership of appender passed to category
             log4cpp::PatternLayout* lay = new log4cpp::PatternLayout();
             lay->setConversionPattern("%d [%p] %m%n");
@@ -135,11 +129,11 @@ int main(int argc, char const* argv[] )
             capp->setLayout(clay);
         }
 
-        log4.setPriority(log4cpp::Priority::getPriorityValue(log_level));
+        log4.setPriority(log4cpp::Priority::getPriorityValue( vm["log_level"].as< string >()) );
 
         boost::asio::io_service io_service;
 
-        pollerconnector pconn( io_service, interface, port );
+        pollerconnector pconn( io_service, vm["iface"].as< string >(), vm["port"].as< boost::uint16_t >() );
         homeagentdb hadb( io_service );
         signals::poller_connected.connect( boost::bind( &homeagentdb::poller_connected, &hadb, _1 ) );
         signals::poller_disconnected.connect( boost::bind( &homeagentdb::poller_disconnected, &hadb, _1 ) );
