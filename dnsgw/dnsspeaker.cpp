@@ -153,7 +153,7 @@ namespace dns_query_parser
     boost::uint8_t const* parse_rr(dnsrr& rr, boost::uint8_t const* buf, boost::uint8_t const* const end)
     {
 
-        buf = parse_name( rr.owner, buf, end );
+        buf = parse_name( rr.name, buf, end );
         buf = parse_qtype( rr.rtype, buf, end );
         buf = parse_qclass( rr.rclass, buf, end );
         buf = parse_ulong( rr.ttl, buf, end);
@@ -203,7 +203,7 @@ namespace dns_query_parser
         // Added log line and commented out query.add_additonal().
         // Many recursive DNS servers are sending is requests with DNSSEC
         // flags and additional sections that the DNS Gateway doesn't handle.
-        log4.warnStream() << "Ignoring additional section in DNS query: ID=" << query.id() << ", name=" << rr.owner << ", rtype=" << rr.rtype << ", rclass=" << rr.rclass << ", ttl=" << rr.ttl << ", rdlength=" << rr.rdlength << ", rdata omitted";
+        log4.warnStream() << "Ignoring additional section in DNS query: ID=" << query.id() << ", name=" << rr.name << ", rtype=" << rr.rtype << ", rclass=" << rr.rclass << ", ttl=" << rr.ttl << ", rdlength=" << rr.rdlength << ", rdata omitted";
         //query.add_additional(rr);
 
         return buf;
@@ -220,7 +220,7 @@ namespace dns_query_parser
 
     boost::uint8_t* write_rr(dnsrr const& rr, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
-        buf = write_name( rr.owner, buf, end );
+        buf = write_name( rr.name, buf, end );
         buf = write_short( rr.rtype, buf, end );
         buf = write_short( rr.rclass, buf, end );
         buf = write_ulong( rr.ttl, buf, end);

@@ -106,7 +106,7 @@ struct dnsquestion
 
 struct dnsrr
 {
-    std::string owner;
+    std::string name;
     qtype_t rtype;
     qclass_t rclass;
     boost::uint32_t ttl;

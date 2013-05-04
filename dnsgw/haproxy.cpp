@@ -427,12 +427,13 @@ private:
             read_abs_int< absint_t >(devicenamelen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
 
             query_ptr query( queries.remove( sequence_ ) );
+            std::string const& name = query->questions_begin()->name;
             if ( query )
             {
                 if (hostlen_ == 0)
                 {
                     // Device name not found
-                    log4.infoStream() << "No IP address found for '" << query->questions_begin()->name << '\'';
+                    log4.infoStream() << "No IP address found for '" << name << '\'';
                     complete_query(*query, R_NAME_ERROR, HA_RETURNED_ERROR);
                 }
                 else if ( buf_.size() > hostlen_ )
@@ -443,7 +444,7 @@ private:
                     if ( !ec )
                     {
                         dnsrr rr;
-                        rr.owner = nshostname_;
+                        rr.name = name;
                         rr.rclass = C_IN;
                         rr.ttl = ttl_;
                         if ( addr.is_v4() )
@@ -465,7 +466,7 @@ private:
                             rr.rtype = T_AAAA;
                         }
 
-                        log4.infoStream() << "Home agent returned IP address " << addr << " for '" << query->questions_begin()->name << "'; Sending reply to DNS client";
+                        log4.infoStream() << "Home agent returned IP address " << addr << " for '" << name << "'; Sending reply to DNS client";
 
                         query->add_answer(rr);
                         complete_query(*query, R_SUCCESS, SUCCESS);
