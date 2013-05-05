@@ -49,6 +49,7 @@
 #include <boost/date_time/posix_time/time_serialize.hpp>
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/signals2.hpp>
+#include <boost/ptr_container/ptr_deque.hpp>
 
 // Logging
 #include <log4cpp/Category.hh>
