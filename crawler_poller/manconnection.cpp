@@ -32,9 +32,11 @@ manconnection::manconnection(io_service& io_service, string const& mhostname, st
 , bufwrite_( &socket_ )
 , connected_( false )
 {
+    // Read callbacks are implicitly synchronized
     bufread_.add_handler( crawler_protocol::HOME_AGENT_ASSIGNMENT, boost::ref( signals::home_agent_assigned ) );
-    bufread_.error_handler( boost::bind( &manconnection::disconnect, this ) );
+    bufread_.error_handler( boost::bind( &manconnection::reconnect, this ) );
 
+    // Write callbacks are implicitly synchronized
     bufwrite_.success_handler( boost::bind( &manconnection::send_success, this, _1, _2 ) );
     bufwrite_.error_handler( boost::bind( &manconnection::send_failure, this, _1, _2 ) );
 
@@ -82,7 +84,7 @@ void manconnection::handle_connect(bs::error_code const& ec)
     {
         log4.infoStream() << "Connected to Crawler Manager process";
         errwait_ = boost::posix_time::seconds( 0 );
-        connected_ = true;
+        connected_.store(true, boost::memory_order_relaxed);
         signals::manager_connected( this );
 
         bufread_.start();
@@ -94,31 +96,24 @@ void manconnection::handle_connect(bs::error_code const& ec)
     }
 }
 
-void manconnection::disconnect()
-{
-    if ( connected_ )
-    {
-         connected_ = false;
-         signals::manager_disconnected( this );
-
-         bs::error_code shutdown_ec;
-         socket_.shutdown(ip::tcp::socket::shutdown_both, shutdown_ec);
-         if ( !shutdown_ec ) log4.errorStream() << "An error occurred while shutting down connection to Crawler Manager: " << shutdown_ec.message();
-
-         bs::error_code close_ec;
-         socket_.close(close_ec);
-         if ( !close_ec ) log4.errorStream() << "An error occurred while closing connection to Crawler Manager: " << close_ec.message();
-    }
-}
-
 void manconnection::reconnect()
 {
-    if ( connected_ )
+    // It is possible that this method could be called twice simultaneously if
+    // a read and write operation fail at the exact same instant
+
+    if ( connected_.exchange(false, boost::memory_order_acquire) )
     {
-        disconnect();
+        signals::manager_disconnected( this );
+
+        bs::error_code shutdown_ec;
+        socket_.shutdown(ip::tcp::socket::shutdown_both, shutdown_ec);
+        if ( !shutdown_ec ) log4.errorStream() << "An error occurred while shutting down connection to Crawler Manager: " << shutdown_ec.message();
+
+        bs::error_code close_ec;
+        socket_.close(close_ec);
+        if ( !close_ec ) log4.errorStream() << "An error occurred while closing connection to Crawler Manager: " << close_ec.message();
 
         using boost::posix_time::seconds;
-
         if (errwait_ < seconds(10)) errwait_ += seconds(2);
 
         log4.noticeStream() << "Retrying connection to Crawler Manager in " << errwait_;

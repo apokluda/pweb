@@ -32,7 +32,7 @@ public:
         // (A disconnected signal will be emitted and the pollerconncetion will be removed from
         // the homeagentdb). Otherwise, we could get into an infinite loop.
 
-        if ( connected_ ) bufwrite_->sendmsg( crawler_protocol::HOME_AGENT_ASSIGNMENT, hostname );
+        if ( connected_.load(boost::memory_order_acquire) ) bufwrite_->sendmsg( crawler_protocol::HOME_AGENT_ASSIGNMENT, hostname );
         else send_failure( crawler_protocol::HOME_AGENT_ASSIGNMENT, hostname );
     }
 
@@ -51,7 +51,7 @@ private:
     socket_ptr socket_; // order of initialization matters, socket must come first!!
     bufread_ptr bufread_;
     bufwrite_ptr bufwrite_;
-    bool connected_;
+    boost::atomic< bool > connected_;
 };
 
 inline std::ostream& operator<<(std::ostream& out, pollerconnection const& conn)

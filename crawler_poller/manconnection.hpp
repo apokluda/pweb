@@ -23,7 +23,7 @@ public:
 
     void home_agent_discovered( std::string const& hostname )
     {
-        if ( connected_ ) bufwrite_.sendmsg( crawler_protocol::HOME_AGENT_DISCOVERED, hostname );
+        if ( connected_.load(boost::memory_order_acquire) ) bufwrite_.sendmsg( crawler_protocol::HOME_AGENT_DISCOVERED, hostname );
         else send_failure( crawler_protocol::HOME_AGENT_ASSIGNMENT, hostname );
     }
 
@@ -33,7 +33,6 @@ private:
     void handle_resolve( boost::system::error_code const&, boost::asio::ip::tcp::resolver::iterator );
     void handle_connect( boost::system::error_code const& );
 
-    void disconnect();
     void reconnect();
 
     void send_success( crawler_protocol::message_type const, std::string const& );
@@ -49,7 +48,7 @@ private:
     boost::asio::ip::tcp::socket socket_;
     bufread< socket_ptr > bufread_;
     bufwrite< socket_ptr > bufwrite_;
-    bool connected_;
+    boost::atomic< bool > connected_;
 };
 
 #endif /* MANCONNECTION_HPP_ */

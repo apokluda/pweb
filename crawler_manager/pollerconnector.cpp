@@ -43,7 +43,7 @@ void pollerconnection::start()
 
 void pollerconnection::disconnect()
 {
-    connected_ = false;
+    connected_.store( false, boost::memory_order_acquire );
     socket_->shutdown( ip::tcp::socket::shutdown_both );
     socket_->close();
     signals::poller_disconnected( shared_from_this() );
