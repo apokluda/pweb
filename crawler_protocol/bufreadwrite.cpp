@@ -7,7 +7,8 @@ namespace bs = boost::system;
 
 extern log4cpp::Category& log4;
 
-void bufwrite::sendmsg( crawler_protocol::message_type const type, std::string const& str )
+template < typename socket_ptr >
+void bufwrite< socket_ptr >::sendmsg( crawler_protocol::message_type const type, std::string const& str )
 {
     // Note: calls to this function are not serialized!
     bufitem_ptr bufitem( new bufitem_t );
@@ -15,10 +16,11 @@ void bufwrite::sendmsg( crawler_protocol::message_type const type, std::string c
     std::size_t const length = str.length() + 1; // +1 for null character
     bufitem->first.length( length );
     bufitem->second = str;
-    strand_.dispatch( boost::bind( &bufwrite::send_bufitem, shared_from_this(), bufitem.release() ) );
+    strand_.dispatch( boost::bind( &bufwrite::send_bufitem, this->get_this(), bufitem.release() ) );
 }
 
-void bufwrite::send_bufitem( bufitem_t* raw_bufitem )
+template < typename socket_ptr >
+void bufwrite< socket_ptr >::send_bufitem( bufitem_t* raw_bufitem )
 {
     // Calls to this function are serialized using the strand
     bufitem_ptr bufitem( raw_bufitem );
@@ -31,7 +33,7 @@ void bufwrite::send_bufitem( bufitem_t* raw_bufitem )
         bufs[0] = buffer( bufitem->first.buffer() );
         bufs[1] = buffer( bufitem->second );
         async_write( *socket_, bufs,
-                strand_.wrap( boost::bind( &bufwrite::handle_bufitem_sent, shared_from_this(), ph::error, ph::bytes_transferred, bufitem.release() ) ) );
+                strand_.wrap( boost::bind( &bufwrite::handle_bufitem_sent, this->get_this(), ph::error, ph::bytes_transferred, bufitem.release() ) ) );
     }
     else
     {
@@ -49,39 +51,48 @@ void bufwrite::send_bufitem( bufitem_t* raw_bufitem )
 }
 
 // Last parameter is need to ensure that the bufitem lives until this handler is called
-void bufwrite::handle_bufitem_sent( bs::error_code const& ec, std::size_t const bytes_transferred, bufitem_t* raw_bufitem )
+template < typename socket_ptr >
+void bufwrite< socket_ptr >::handle_bufitem_sent( bs::error_code const& ec, std::size_t const bytes_transferred, bufitem_t* raw_bufitem )
 {
     bufitem_ptr bufitem( raw_bufitem );
 
+    send_in_progress_ = false;
     if ( !ec )
     {
         log4.debugStream() << "Successfully sent bufitem to " << remote_endpoint();
         if ( succb_ ) succb_( bufitem->first.type(), bufitem->second );
+
+        if ( !send_queue_.empty() )
+        {
+            // The documentation for the pointer containers is horrible.
+            // I think this is okay, but I'm not really sure why queue_t::auto_type
+            // is not compatible with std::auto_ptr??
+            bufitem_t* nextbufitem = send_queue_.pop_front().release();
+            send_bufitem( nextbufitem );
+        }
     }
     else
     {
         log4.errorStream() << "An error occurred while sending bufitem to " << remote_endpoint() << "; the message has been lost!!";
-        if ( errcb_ ) errcb_( bufitem->first.type(), bufitem->second );
+        if ( errcb_ )
+        {
+            errcb_( bufitem->first.type(), bufitem->second );
+            for ( queue_t::iterator i = send_queue_.begin(); i != send_queue_.end(); ++i ) errcb_( i->first.type(), i->second );
+        }
+        send_queue_.clear();
     }
 
-    send_in_progress_ = false;
-    if ( !send_queue_.empty() )
-    {
-        // The documentation for the pointer containers is horrible.
-        // I think this is okay, but I'm not really sure why queue_t::auto_type
-        // is not compatible with std::auto_ptr??
-        bufitem_t* bufitem = send_queue_.pop_front().release();
-        send_bufitem( bufitem );
-    }
 }
 
-void bufread::read_header()
+template < typename socket_ptr >
+void bufread< socket_ptr >::read_header()
 {
     async_read( *socket_, buffer( header_.buffer() ),
-            boost::bind( &bufread::handle_header_read, shared_from_this(), ph::error, ph::bytes_transferred ) );
+            boost::bind( &bufread::handle_header_read, this->get_this(), ph::error, ph::bytes_transferred ) );
 }
 
-void bufread::handle_header_read( bs::error_code const& ec, std::size_t const bytes_transferred )
+template < typename socket_ptr >
+void bufread< socket_ptr >::handle_header_read( bs::error_code const& ec, std::size_t const bytes_transferred )
 {
     if ( !ec )
     {
@@ -93,7 +104,7 @@ void bufread::handle_header_read( bs::error_code const& ec, std::size_t const by
         else if ( cbmap_.find( header_.type() ) != cbmap_.end() )
         {
             async_read( *socket_, buffer( buf_, header_.length() ),
-                    boost::bind( &bufread::handle_body_read, shared_from_this(), ph::error, ph::bytes_transferred ) );
+                    boost::bind( &bufread::handle_body_read, this->get_this(), ph::error, ph::bytes_transferred ) );
         }
         else
         {
@@ -108,7 +119,8 @@ void bufread::handle_header_read( bs::error_code const& ec, std::size_t const by
     }
 }
 
-void bufread::handle_body_read( bs::error_code const& ec, std::size_t const bytes_transferred )
+template < typename socket_ptr >
+void bufread< socket_ptr >::handle_body_read( bs::error_code const& ec, std::size_t const bytes_transferred )
 {
     if ( !ec )
     {
@@ -131,3 +143,8 @@ void bufread::handle_body_read( bs::error_code const& ec, std::size_t const byte
     if ( errcb_ ) errcb_();
 }
 
+typedef boost::asio::ip::tcp::socket socket_t;
+template class bufread< socket_t* >;
+template class bufread< boost::shared_ptr< socket_t > >;
+template class bufwrite< socket_t* >;
+template class bufwrite< boost::shared_ptr< socket_t > >;

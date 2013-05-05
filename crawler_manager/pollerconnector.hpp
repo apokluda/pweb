@@ -18,8 +18,8 @@ typedef boost::shared_ptr< pollerconnection > pollerconnection_ptr;
 class pollerconnection : private boost::noncopyable, public boost::enable_shared_from_this< pollerconnection >
 {
     typedef boost::shared_ptr< boost::asio::ip::tcp::socket > socket_ptr;
-    typedef boost::shared_ptr< bufwrite > bufwrite_ptr;
-    typedef boost::shared_ptr< bufread > bufread_ptr;
+    typedef boost::shared_ptr< bufwrite< socket_ptr > > bufwrite_ptr;
+    typedef boost::shared_ptr< bufread< socket_ptr > > bufread_ptr;
 
 public:
     pollerconnection( boost::asio::io_service& io_service );

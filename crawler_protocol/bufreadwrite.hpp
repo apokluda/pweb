@@ -11,9 +11,32 @@
 #include "stdhdr.hpp"
 #include "messages.hpp"
 
-typedef boost::shared_ptr< boost::asio::ip::tcp::socket > socket_ptr;
+typedef boost::shared_ptr< boost::asio::ip::tcp::socket > socket_shared_ptr;
+typedef boost::asio::ip::tcp::socket* socket_raw_ptr;
 
-class bufwrite : private boost::noncopyable, public boost::enable_shared_from_this< bufwrite >
+template< typename socket_ptr, typename T >
+class bufreadwritebase
+{
+};
+
+template< typename T >
+class bufreadwritebase< socket_shared_ptr, T > : public boost::enable_shared_from_this< T >
+{
+protected:
+    // If the socket is shared, so are we!
+    boost::shared_ptr< T > get_this() { return this->shared_from_this(); }
+};
+
+template< typename T >
+class bufreadwritebase< socket_raw_ptr, T >
+{
+protected:
+    // If the socket is not shared, neither are we!
+    T* get_this() { return static_cast< T* >( this ); }
+};
+
+template< typename socket_ptr >
+class bufwrite : private boost::noncopyable, public bufreadwritebase< socket_ptr, bufwrite< socket_ptr > >
 {
     typedef std::pair< crawler_protocol::header, std::string > bufitem_t;
     typedef std::auto_ptr< bufitem_t > bufitem_ptr;
@@ -22,7 +45,7 @@ class bufwrite : private boost::noncopyable, public boost::enable_shared_from_th
 public:
     typedef boost::function< void (crawler_protocol::message_type const type, std::string const&) > cb_t;
 
-    bufwrite( socket_ptr& socket )
+    bufwrite( socket_ptr socket )
     : strand_( socket->get_io_service() )
     , socket_( socket )
     , send_in_progress_( false )
@@ -54,13 +77,13 @@ private:
     bool send_in_progress_;
 };
 
-
-class bufread : private boost::noncopyable, public boost::enable_shared_from_this< bufread >
+template< typename socket_ptr >
+class bufread : private boost::noncopyable, public bufreadwritebase< socket_ptr, bufread< socket_ptr > >
 {
 public:
     typedef boost::function< void () > errcb_t;
 
-    bufread( socket_ptr& socket )
+    bufread( socket_ptr socket )
     : socket_( socket )
     {
     }

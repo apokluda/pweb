@@ -23,8 +23,8 @@ extern log4cpp::Category& log4;
 
 pollerconnection::pollerconnection( boost::asio::io_service& io_service )
 : socket_( new boost::asio::ip::tcp::socket( io_service ) )
-, bufread_( new bufread( socket_ ) )
-, bufwrite_( new bufwrite( socket_ ) )
+, bufread_( new bufread< socket_ptr >( socket_ ) )
+, bufwrite_( new bufwrite< socket_ptr >( socket_ ) )
 , connected_( true )
 {
     bufread_->add_handler( crawler_protocol::HOME_AGENT_DISCOVERED, boost::ref( signals::home_agent_discovered ) );
