@@ -8,6 +8,7 @@
 #include "stdhdr.hpp"
 #include "config.h"
 #include "service.hpp"
+#include "manconnection.hpp"
 
 using std::cout;
 using std::cerr;
@@ -158,8 +159,10 @@ int main(int argc, char const* argv[])
 //        std::size_t maxconnha = vm["maxconnha"].as< std::size_t >();
 //        register_names(halist.begin(), halist.end(), c, tc, vm["owner"].as< string >(), vm["numnames"].as< std::size_t >(), maxconnha);
 
-        run( io_service, vm["num_threads"].as< std::size_t >() );
+        manconnection conn( io_service, vm["manager"].as< string >(), vm["manport"].as< string >() );
+        //scheduler seched;
 
+        run( io_service, vm["num_threads"].as< std::size_t >() );
         exit_code = EXIT_SUCCESS;
         // Fall through to shutdown logging
     }

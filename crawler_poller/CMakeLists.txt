@@ -1,4 +1,4 @@
-add_executable( crawler main.cpp manconnection.cpp signals.cpp )
+add_executable( crawler main.cpp manconnection.cpp signals.cpp scheduler.cpp )
 
 add_precompiled_header( crawler ../shared/stdhdr.hpp )
 

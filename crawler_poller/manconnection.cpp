@@ -28,7 +28,7 @@ manconnection::manconnection(io_service& io_service, string const& mhostname, st
 , mhostname_( mhostname )
 , mport_( mport )
 , socket_( new tcp::socket( io_service ) )
-, bufwrite_( new bufwrite( io_service, socket_ ) )
+, bufwrite_( new bufwrite( socket_ ) )
 , connected_( false )
 {
     connect();

@@ -1,4 +1,5 @@
 #include "bufreadwrite.hpp"
+#include "protocol_helper.hpp"
 
 using namespace boost::asio;
 namespace ph = boost::asio::placeholders;
@@ -13,9 +14,7 @@ void bufwrite::sendmsg( crawler_protocol::message_type const type, std::string c
     bufitem->first.type( type );
     std::size_t const length = str.length() + 1; // +1 for null character
     bufitem->first.length( length );
-    bufitem->second.resize( length );
-    char const* cstr = str.c_str();
-    std::copy(cstr, cstr + length, bufitem->second.begin());
+    bufitem->second = str;
     strand_.dispatch( boost::bind( &bufwrite::send_bufitem, shared_from_this(), bufitem.release() ) );
 }
 
@@ -50,16 +49,20 @@ void bufwrite::send_bufitem( bufitem_t* raw_bufitem )
 }
 
 // Last parameter is need to ensure that the bufitem lives until this handler is called
-void bufwrite::handle_bufitem_sent( bs::error_code const& ec, std::size_t const bytes_transferred, bufitem_t* bufitem )
+void bufwrite::handle_bufitem_sent( bs::error_code const& ec, std::size_t const bytes_transferred, bufitem_t* raw_bufitem )
 {
-    delete bufitem;
+    bufitem_ptr bufitem( raw_bufitem );
 
-    if ( !ec ) log4.debugStream() << "Successfully sent bufitem to " << remote_endpoint();
-    else log4.errorStream() << "An error occurred while sending bufitem to " << remote_endpoint() << "; the message has been lost!!";
-    // NOTE: We could do something with the butitem that is the first parameter to this method
-    // to ensure that the message does /not/ get lost, but that's too complicated right now.
-    // For example, in the crawler manager, we could ensure that the Home Agent is assigned
-    // to another crawler process.
+    if ( !ec )
+    {
+        log4.debugStream() << "Successfully sent bufitem to " << remote_endpoint();
+        if ( succb_ ) succb_( bufitem->first.type(), bufitem->second );
+    }
+    else
+    {
+        log4.errorStream() << "An error occurred while sending bufitem to " << remote_endpoint() << "; the message has been lost!!";
+        if ( errcb_ ) errcb_( bufitem->first.type(), bufitem->second );
+    }
 
     send_in_progress_ = false;
     if ( !send_queue_.empty() )
@@ -71,3 +74,60 @@ void bufwrite::handle_bufitem_sent( bs::error_code const& ec, std::size_t const 
         send_bufitem( bufitem );
     }
 }
+
+void bufread::read_header()
+{
+    async_read( *socket_, buffer( header_.buffer() ),
+            boost::bind( &bufread::handle_header_read, shared_from_this(), ph::error, ph::bytes_transferred ) );
+}
+
+void bufread::handle_header_read( bs::error_code const& ec, std::size_t const bytes_transferred )
+{
+    if ( !ec )
+    {
+        if ( header_.length() > (sizeof buf_ - 1) ) // -1 because we insert a null character into the buffer in handle_msg_read
+        {
+            log4.errorStream() << "Message with size " << header_.length() << " is too big for buffer!";
+            if ( errcb_ ) errcb_();
+        }
+        else if ( cbmap_.find( header_.type() ) != cbmap_.end() )
+        {
+            async_read( *socket_, buffer( buf_, header_.length() ),
+                    boost::bind( &bufread::handle_body_read, shared_from_this(), ph::error, ph::bytes_transferred ) );
+        }
+        else
+        {
+            log4.errorStream() << "Received unknown message type: " << header_.type();
+            if ( errcb_ ) errcb_();
+        }
+    }
+    else
+    {
+        log4.errorStream() << "An error occurred while reading message header: " << ec.message();
+        if ( errcb_ ) errcb_();
+    }
+}
+
+void bufread::handle_body_read( bs::error_code const& ec, std::size_t const bytes_transferred )
+{
+    if ( !ec )
+    {
+        std::string str;
+        buf_[bytes_transferred] = '\0';
+        protocol_helper::parse_string(str, bytes_transferred + 1, buf_.begin(), buf_.end()); // +1 for null insterted into buffer
+
+        // This should work because we already checked that there is a cb present and the owner
+        // is not supposed to mess with our callback map after we start!
+        cbmap_t::iterator cb( cbmap_.find( header_.type() ) );
+        if (cb != cbmap_.end() )
+        {
+            cb->second(str);
+            read_header();
+            return;
+        }
+    }
+
+    log4.errorStream() << "An error occurred while reading message body: " << ec.message();
+    if ( errcb_ ) errcb_();
+}
+

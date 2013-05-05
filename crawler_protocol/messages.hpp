@@ -23,6 +23,8 @@ namespace crawler_protocol
     }
     using namespace message_types;
 
+    std::ostream& operator<<(std::ostream& out, message_type const type);
+
     class header
     {
     public:

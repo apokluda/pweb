@@ -16,6 +16,7 @@ namespace signals
     extern boost::signals2::signal<void (pollerconnection_ptr)> poller_connected;
     extern boost::signals2::signal<void (pollerconnection_ptr)> poller_disconnected;
 
+    typedef boost::signals2::signal<void (std::string const&)> home_agent_discovered_sigt;
     extern boost::signals2::signal<void (std::string const&)> home_agent_discovered;
 }
 
