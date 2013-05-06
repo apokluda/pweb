@@ -49,10 +49,10 @@ namespace poller
         void create_poller_( std::string const& hostname )
         {
             // The pointer must be stored in the container immediately for exception safety
-            pollers_.push_back( new poller( strand_.get_io_service(), hostname, interval_ ) );
+            pollers_.push_back( new poller( context_, hostname, interval_ ) );
         }
 
-        curl::Context context_;
+        curl::Context& context_;
         boost::ptr_vector< poller > pollers_;
         boost::asio::strand strand_;
         boost::posix_time::time_duration interval_;

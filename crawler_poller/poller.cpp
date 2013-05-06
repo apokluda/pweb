@@ -50,7 +50,7 @@ void poller::do_poll( bs::error_code const& ec )
             std::ostringstream url;
             url << "http://" << hostname_ << ":20005/?method=getall&timestamp=" << timestamp_;
 
-            requester_.fetch(url.str(), boost::bind(&ha_register::handle_register_name, this, _1, _2));
+            requester_.fetch(url.str(), boost::bind(&poller::handle_poll, this, _1, _2));
         }
         else
         {
