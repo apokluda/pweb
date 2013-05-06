@@ -23,10 +23,8 @@ extern log4cpp::Category& log4;
 
 manconnection::manconnection(io_service& io_service, string const& mhostname, string const& mport)
 : resolver_( io_service )
-, retrytimer_( io_service )
 , mhostname_( mhostname )
 , mport_( mport )
-, errwait_( boost::posix_time::seconds( 0 ) )
 , socket_( io_service )
 , bufread_( &socket_ )
 , bufwrite_( &socket_ )
@@ -34,7 +32,7 @@ manconnection::manconnection(io_service& io_service, string const& mhostname, st
 {
     // Read callbacks are implicitly synchronized
     bufread_.add_handler( crawler_protocol::HOME_AGENT_ASSIGNMENT, boost::ref( signals::home_agent_assigned ) );
-    bufread_.error_handler( boost::bind( &manconnection::reconnect, this ) );
+    bufread_.error_handler( boost::bind( &manconnection::disconnect, this ) );
 
     // Write callbacks are implicitly synchronized
     bufwrite_.success_handler( boost::bind( &manconnection::send_success, this, _1, _2 ) );
@@ -56,11 +54,7 @@ void manconnection::connect( bs::error_code const& ec )
     else
     {
         log4.errorStream() << "An error occurred while retry timer was running for connection to Crawler Manager";
-
-        // We don't know why the timer was interrupted, but simply restarting it is probably
-        // not a good idea--we may get into an infinite loop? Let's shut down the process
-        // and the daemon utility will start us up again if necessary.
-        socket_.get_io_service().stop();
+        disconnect();
     }
 }
 
@@ -74,7 +68,7 @@ void manconnection::handle_resolve(bs::error_code const& ec, tcp::resolver::iter
     else
     {
         log4.errorStream() << "Unable to resolve Crawler Manager hostname";
-        reconnect();
+        disconnect();
     }
 }
 
@@ -83,7 +77,6 @@ void manconnection::handle_connect(bs::error_code const& ec)
     if ( !ec )
     {
         log4.infoStream() << "Connected to Crawler Manager process";
-        errwait_ = boost::posix_time::seconds( 0 );
         connected_.store(true, boost::memory_order_relaxed);
         signals::manager_connected( this );
 
@@ -92,11 +85,11 @@ void manconnection::handle_connect(bs::error_code const& ec)
     else
     {
         log4.errorStream() << "An error occurred while connecting to Crawler Manager: " << ec.message();
-        reconnect();
+        disconnect();
     }
 }
 
-void manconnection::reconnect()
+void manconnection::disconnect()
 {
     // It is possible that this method could be called twice simultaneously if
     // a read and write operation fail at the exact same instant
@@ -112,15 +105,12 @@ void manconnection::reconnect()
         bs::error_code close_ec;
         socket_.close(close_ec);
         if ( !close_ec ) log4.errorStream() << "An error occurred while closing connection to Crawler Manager: " << close_ec.message();
-
-        using boost::posix_time::seconds;
-        if (errwait_ < seconds(10)) errwait_ += seconds(2);
-
-        log4.noticeStream() << "Retrying connection to Crawler Manager in " << errwait_;
-
-        retrytimer_.expires_from_now( errwait_ );
-        retrytimer_.async_wait(boost::bind( &manconnection::connect, this, ph::error ));
     }
+
+    // This will case the whole process to shutdown. The daemon utility
+    // will take care of starting us again. (It event implements
+    // a backoff algorithm).
+    socket_.get_io_service().stop();
 }
 
 void manconnection::send_success( crawler_protocol::message_type const type, std::string const& str )
@@ -131,5 +121,5 @@ void manconnection::send_success( crawler_protocol::message_type const type, std
 void manconnection::send_failure( crawler_protocol::message_type const type, std::string const& str )
 {
     log4.errorStream() << "Failed to send a " << type << " message with body '" << str << '\'';
-    reconnect();
+    disconnect();
 }

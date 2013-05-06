@@ -50,6 +50,9 @@
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/signals2.hpp>
 #include <boost/ptr_container/ptr_deque.hpp>
+#include <boost/ptr_container/ptr_vector.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
 
 // Logging
 #include <log4cpp/Category.hh>

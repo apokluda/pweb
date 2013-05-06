@@ -33,7 +33,7 @@ private:
     void handle_resolve( boost::system::error_code const&, boost::asio::ip::tcp::resolver::iterator );
     void handle_connect( boost::system::error_code const& );
 
-    void reconnect();
+    void disconnect();
 
     void send_success( crawler_protocol::message_type const, std::string const& );
     void send_failure( crawler_protocol::message_type const, std::string const& );
@@ -41,10 +41,8 @@ private:
     typedef boost::asio::ip::tcp::socket* socket_ptr;
 
     boost::asio::ip::tcp::resolver resolver_;
-    boost::asio::deadline_timer retrytimer_;
     std::string const mhostname_;
     std::string const mport_;
-    boost::posix_time::time_duration errwait_;
     boost::asio::ip::tcp::socket socket_;
     bufread< socket_ptr > bufread_;
     bufwrite< socket_ptr > bufwrite_;

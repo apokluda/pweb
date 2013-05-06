@@ -9,6 +9,8 @@
 #include "config.h"
 #include "service.hpp"
 #include "manconnection.hpp"
+#include "signals.hpp"
+#include "poller.hpp"
 
 using std::cout;
 using std::cerr;
@@ -43,7 +45,7 @@ int main(int argc, char const* argv[])
                     ("log_level,L",   po::value< string >         ()            ->default_value("WARN"),      "Log level\n"
                                                                                                               "    Only log messages with a level less than or equal to the specified severity will be logged. "
                                                                                                               "The log levels are NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG")
-                    ("manager,M",     po::value< string >         ()            ->required(),                 "The hostname or IP address of the Crawler Manager")
+                    ("manager,M",     po::value< string >         ()                        ,                 "The hostname or IP address of the Crawler Manager")
                     ("manport,P",     po::value< string >         ()            ->default_value("1141"),      "The port number to use when connecting to the Crawler Manager" )
                     ("threads",       po::value< std::size_t >    ()            ->default_value(1),           "Number of application threads\n"
                                                                                                               "    Set to 0 to use one thread per hardware core")
@@ -159,8 +161,21 @@ int main(int argc, char const* argv[])
 //        std::size_t maxconnha = vm["maxconnha"].as< std::size_t >();
 //        register_names(halist.begin(), halist.end(), c, tc, vm["owner"].as< string >(), vm["numnames"].as< std::size_t >(), maxconnha);
 
-        manconnection conn( io_service, vm["manager"].as< string >(), vm["manport"].as< string >() );
-        //scheduler seched;
+        std::string const manager( vm["manager"].as< string >() );
+        std::auto_ptr< manconnection > conn;
+        if ( !manager.empty() )
+        {
+            conn.reset( new manconnection( io_service, vm["manager"].as< string >(), vm["manport"].as< string >() ) );
+            signals::home_agent_discovered.connect( boost::bind( &manconnection::home_agent_discovered, conn.get(), _1 ) );
+        }
+        else
+        {
+            // TODO: Need to seed the system.
+            signals::home_agent_discovered.connect( boost::ref( signals::home_agent_assigned ) );
+        }
+
+        poller::pollercreator pc( io_service, boost::posix_time::seconds( vm["interval"].as< long >() ) );
+        signals::home_agent_assigned.connect( boost::bind( &poller::pollercreator::create_poller, &pc, _1 ) );
 
         run( io_service, vm["num_threads"].as< std::size_t >() );
         exit_code = EXIT_SUCCESS;
