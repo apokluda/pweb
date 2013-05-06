@@ -8,7 +8,7 @@
  */
 
 #include "stdhdr.hpp"
-#include "asiohelper.hpp"
+#include "asynchttprequester.hpp"
 
 namespace curl
 {

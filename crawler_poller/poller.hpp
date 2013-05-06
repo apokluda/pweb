@@ -9,26 +9,33 @@
 #define SCHEDULER_HPP_
 
 #include "stdhdr.hpp"
+#include "asynchttprequester.hpp"
 
 namespace poller
 {
     class poller: private boost::noncopyable
     {
     public:
-        poller( boost::asio::io_service& io_service, std::string const& hostname, boost::posix_time::time_duration const interval );
+        poller( curl::Context& c, std::string const& hostname, boost::posix_time::time_duration const interval );
 
     private:
         void do_poll( boost::system::error_code const& );
+        void handle_poll( CURLcode const code, std::string const& content );
 
+        curl::AsyncHTTPRequester requester_;
         std::string const hostname_;
         boost::asio::deadline_timer timer_;
+        boost::posix_time::time_duration interval_;
+        time_t timestamp_;
+        boost::atomic< bool > poll_in_progress_;
     };
 
     class pollercreator : private boost::noncopyable
     {
     public:
-        pollercreator( boost::asio::io_service& io_service, boost::posix_time::time_duration const interval )
-        : strand_( io_service )
+        pollercreator( curl::Context& c, boost::posix_time::time_duration const interval )
+        : context_( c )
+        , strand_( c.get_io_service() )
         , interval_( interval )
         {
         }
@@ -45,6 +52,7 @@ namespace poller
             pollers_.push_back( new poller( strand_.get_io_service(), hostname, interval_ ) );
         }
 
+        curl::Context context_;
         boost::ptr_vector< poller > pollers_;
         boost::asio::strand strand_;
         boost::posix_time::time_duration interval_;

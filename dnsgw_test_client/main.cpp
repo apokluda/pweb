@@ -9,7 +9,7 @@
 #include "ha_config.hpp"
 #include "ha_register.hpp"
 #include "token_counter.hpp"
-#include "asiohelper.hpp"
+#include "asynchttprequester.hpp"
 
 using std::cout;
 using std::cerr;

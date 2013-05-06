@@ -26,6 +26,16 @@ namespace curl
         Context(boost::asio::io_service& io_service);
         ~Context();
 
+        inline boost::asio::io_service& get_io_service()
+        {
+            return io_service_;
+        }
+
+        inline boost::asio::io_service const& get_io_service() const
+        {
+            return io_service_;
+        }
+
     private:
         boost::asio::deadline_timer timer_;
         boost::asio::io_service& io_service_;
@@ -45,6 +55,16 @@ namespace curl
         , easy_( 0 )
         , c_( c )
         {
+        }
+
+        Context& get_context()
+        {
+            return c_;
+        }
+
+        Context const& get_context() const
+        {
+            return c_;
         }
 
         ~AsyncHTTPRequester();

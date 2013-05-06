@@ -7,7 +7,7 @@
 
 #include "ha_register.hpp"
 #include "token_counter.hpp"
-#include "asiohelper.hpp"
+#include "asynchttprequester.hpp"
 
 extern log4cpp::Category& log4;
 

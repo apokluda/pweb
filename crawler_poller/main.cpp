@@ -11,6 +11,7 @@
 #include "manconnection.hpp"
 #include "signals.hpp"
 #include "poller.hpp"
+#include "asynchttprequester.hpp"
 
 using std::cout;
 using std::cerr;
@@ -185,7 +186,8 @@ int main(int argc, char const* argv[])
             filter.connect( boost::ref( signals::home_agent_assigned ) );
         }
 
-        poller::pollercreator pc( io_service, boost::posix_time::seconds( vm["interval"].as< long >() ) );
+        curl::Context c( io_service );
+        poller::pollercreator pc( c, boost::posix_time::seconds( vm["interval"].as< long >() ) );
         signals::home_agent_assigned.connect( boost::bind( &poller::pollercreator::create_poller, &pc, _1 ) );
 
         // I tried for a looong time to do this with std::for_each and I couldn't get it to work
