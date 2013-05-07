@@ -81,6 +81,10 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
         log4.errorStream() << "An error occurred while polling '" << hostname_ << "', CURLcode " << code;
     }
 
+    // TODO: DON'T CALL ASYNC WAIT UNTIL AFTER POSTING TO SOLR! THIS DOESN'T
+    // WORK AS IT IS. (OVERLAPPING EXECUTION WILL STOP EXECUTION). THEN
+    // REMOVE THE FLAG AS WE WILL HAVE AN IMPLICIT STRAND.
+
     // do_poll is guaranteed not to be executed from within this method
     timer_.async_wait( boost::bind( &poller::do_poll, this, ph::error ) );
     poll_in_progress_.exchange(false, boost::memory_order_release);
