@@ -13,14 +13,14 @@
 /* Sample Text to Parse:
 
 <html><body>
-6
-|planetlab-02.bu.edu
-|planetlab-1.cs.colostate.edu
-|mtuplanetlab2.cs.mtu.edu
-|planetlab1.temple.edu
-|vn5.cse.wustl.edu
-|jupiter.cs.brown.edu
-|7|
+6|
+planetlab-02.bu.edu|
+planetlab-1.cs.colostate.edu|
+mtuplanetlab2.cs.mtu.edu|
+planetlab1.temple.edu|
+vn5.cse.wustl.edu|
+jupiter.cs.brown.edu|
+7|
 alex|1367591509,
 apokluda|1367587699,
 droplet.shihab|1367587810,
@@ -32,22 +32,21 @@ srchowdhury|1367587693
 
 */
 
-// using same namespace name as in Spirit tutorial
 namespace parser
 {
     namespace qi = boost::spirit::qi;
     namespace ascii = boost::spirit::ascii;
 
-    struct deviceinfo
+    struct deviceinfo_t
     {
         std::string name;
-        time_t timestamp;
+        long timestamp;
     };
 
-    struct getall
+    struct getall_t
     {
         std::vector< std::string > homeagents;
-        std::vector< deviceinfo > deviceinfos;
+        std::vector< deviceinfo_t > deviceinfos;
     };
 }
 
@@ -56,21 +55,22 @@ namespace parser
 // be in global scope.
 
 BOOST_FUSION_ADAPT_STRUCT(
-    parser::deviceinfo,
+    parser::deviceinfo_t,
     (std::string, name)
-    (time_t, timestamp)
+    (long, timestamp)
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    parser::getall,
+    parser::getall_t,
     (std::vector< std::string >, homeagents)
-    (std::vector< parser::deviceinfo >, deviceinfos)
+    (std::vector< parser::deviceinfo_t >, deviceinfos)
 )
 
 namespace parser
 {
     template <typename Iterator>
-    struct getall_parser : qi::grammar<Iterator, getall_parser()>
+    struct getall_parser
+            : qi::grammar<Iterator, getall_t()>
     {
         getall_parser() : getall_parser::base_type(getall)
         {
@@ -94,8 +94,26 @@ namespace parser
         qi::rule<Iterator, void(std::string)> start_tag;
         qi::rule<Iterator, void(std::string)> end_tag;
         qi::rule<Iterator, std::string()> homeagent;
-        qi::rule<Iterator, deviceinfo()> deviceinfo;
-        qi::rule<Iterator, getall()> getall;
+        qi::rule<Iterator, deviceinfo_t()> deviceinfo;
+        qi::rule<Iterator, getall_t()> getall;
+    };
+
+    template <typename Iterator>
+    struct deviceinfo_parser
+            : qi::grammar<Iterator, deviceinfo_t()>
+    {
+        deviceinfo_parser() : deviceinfo_parser::base_type(deviceinfo)
+        {
+            using qi::long_;
+            using ascii::char_;
+
+            string_ %= +(char_ - '|');
+
+            deviceinfo %= string_ >> '|' >> long_ >> -',';
+        }
+
+        qi::rule<Iterator, std::string()> string_;
+        qi::rule<Iterator, deviceinfo_t()> deviceinfo;
     };
 
     //template <>

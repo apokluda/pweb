@@ -53,6 +53,7 @@ add_subdirectory( dnsgw dnsgw.bin )
 add_subdirectory( crawler_protocol crawler_protocol.lib )
 include_directories( crawler_protocol )
 
+add_subdirectory( crawler_parser )
 include_directories( crawler_parser )
 
 add_subdirectory( crawler_manager crawler_manager.bin )

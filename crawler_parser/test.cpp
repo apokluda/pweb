@@ -7,7 +7,7 @@
 
 #include "parser.hpp"
 
-char const* str =
+char const* all =
 "<html><body>"
 "6"
 "|planetlab-02.bu.edu"
@@ -26,17 +26,20 @@ char const* str =
 "srchowdhury|1367587693"
 "</body></html>";
 
-int main(int argc, char const* argv)
+char const* devinfo =
+"alex|1367591509,";
+
+int main(int argc, char const* argv[])
 {
-    parser::getall gall;
-    std::string::const_iterator iter = str;
-    std::string::const_iterator end = str + strlen(str) + 1;
-    parser::getall_parser<const char*> g;
-    bool r = phrase_parse(iter, end, g, gall);
+    parser::deviceinfo_t devinfo;
+    parser::deviceinfo_parser< const char* > dinfogram;
+    char const* iter = all;
+    char const* end = all + strlen(all) + 1;
+    bool r = parse(iter, end, dinfogram, devinfo);
     if (r && iter == end)
         std::cout << "success\n";
     else
-        std::cout << "falure\n";
+        std::cout << "failure\n";
 
     return 0;
 }
