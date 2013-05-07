@@ -11,7 +11,7 @@ project (pWeb)
 # 2) The dnsgw_test_client, crawler and manager do not compile on Windows
 #    because cURL is missing on the build machines.
 
-set(pWeb_VERSION_MAJOR 1)
+set(pWeb_VERSION_MAJOR 0)
 set(pWeb_VERSION_MINOR 0)
 set(pWeb_VERSION_BUILD 0)
 
@@ -52,6 +52,8 @@ add_subdirectory( dnsgw dnsgw.bin )
 
 add_subdirectory( crawler_protocol crawler_protocol.lib )
 include_directories( crawler_protocol )
+
+include_directories( crawler_parser )
 
 add_subdirectory( crawler_manager crawler_manager.bin )
 
