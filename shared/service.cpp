@@ -5,6 +5,8 @@
  *      Author: apokluda
  */
 
+#include "stdhdr.hpp"
+
 extern log4cpp::Category& log4;
 
 void checked_io_service_run(boost::asio::io_service& io_service)

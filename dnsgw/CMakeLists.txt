@@ -1,7 +1,6 @@
 
 add_executable(dnsgw main.cpp dnsspeaker.cpp dnsquery.cpp haproxy.cpp haloadbalancer.cpp instrumenter.cpp)
-
-add_precompiled_header(dnsgw ../shared/stdhdr.hpp )
+add_precompiled_header( dnsgw ../shared/stdhdr.hpp .. )
 
 target_link_libraries(dnsgw instrumentation shared log4cpp ${Boost_LIBRARIES})
 

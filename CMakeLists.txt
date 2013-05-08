@@ -17,9 +17,9 @@ set(pWeb_VERSION_BUILD 0)
 
 configure_file(
     "${PROJECT_SOURCE_DIR}/config.h.in"
-    "${PROJECT_BINARY_DIR}/config.h"
+    "${PROJECT_BINARY_DIR}/config/config.h"
 )
-include_directories("${PROJECT_BINARY_DIR}")
+include_directories("${PROJECT_BINARY_DIR}/config")
 
 set(LOG4CPP_INCLUDE_DIR "" CACHE FILEPATH "Path to log4cpp includes")
 include_directories(${LOG4CPP_INCLUDE_DIR})
@@ -42,8 +42,8 @@ find_package( Boost 1.53.0 COMPONENTS program_options thread date_time chrono at
 include_directories( ${Boost_INCLUDE_DIRS} )
 
 # Must come after Boost stuff
-add_subdirectory( shared shared.lib )
 include_directories( shared )
+add_subdirectory( shared shared.lib )
 
 add_subdirectory( dnsgw_instrumentation instrumentation.lib )
 include_directories( dnsgw_instrumentation )

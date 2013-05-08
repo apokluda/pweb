@@ -1,6 +1,5 @@
 add_executable( manager main.cpp signals.cpp pollerconnector.cpp homeagentdb.cpp )
-
-add_precompiled_header( manager ../shared/stdhdr.hpp )
+add_precompiled_header( manager ../shared/stdhdr.hpp .. )
 
 target_link_libraries( manager protocol shared log4cpp ${Boost_LIBRARIES} )
 

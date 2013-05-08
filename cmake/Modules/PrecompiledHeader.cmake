@@ -33,7 +33,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-MACRO(ADD_PRECOMPILED_HEADER _targetName _input)
+MACRO(ADD_PRECOMPILED_HEADER _targetName _input _pchdir)
   GET_FILENAME_COMPONENT(_inputWe ${_input} NAME_WE)
   SET(pch_source ${_inputWe}.cpp)
   FOREACH(arg ${ARGN})
@@ -71,7 +71,7 @@ MACRO(ADD_PRECOMPILED_HEADER _targetName _input)
   IF(CMAKE_COMPILER_IS_GNUCXX)
     GET_FILENAME_COMPONENT(_name ${_input} NAME)
     SET(_source "${CMAKE_CURRENT_SOURCE_DIR}/${_input}")
-    SET(_outdir "${CMAKE_CURRENT_BINARY_DIR}/${_name}.gch")
+    SET(_outdir "${CMAKE_CURRENT_BINARY_DIR}/${_pchdir}/${_name}.gch")
     MAKE_DIRECTORY(${_outdir})
     SET(_output "${_outdir}/.c++")
     
@@ -87,7 +87,7 @@ MACRO(ADD_PRECOMPILED_HEADER _targetName _input)
     LIST(APPEND _compiler_FLAGS ${_directory_flags})
 
     SEPARATE_ARGUMENTS(_compiler_FLAGS)
-    MESSAGE("${CMAKE_CXX_COMPILER} -DPCHCOMPILE ${_compiler_FLAGS} -x c++-header -o {_output} ${_source}")
+#    MESSAGE("${CMAKE_CXX_COMPILER} -DPCHCOMPILE ${_compiler_FLAGS} -x c++-header -o ${_output} ${_source}")
     ADD_CUSTOM_COMMAND(
       OUTPUT ${_output}
       COMMAND ${CMAKE_CXX_COMPILER} ${_compiler_FLAGS} -x c++-header -o ${_output} ${_source}
