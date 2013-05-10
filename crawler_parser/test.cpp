@@ -3,7 +3,6 @@
 
 int main()
 {
-    using boost::spirit::ascii::space;
     typedef std::string::const_iterator iterator_type;
     typedef parser::getall_parser<iterator_type> getall_parser;
 
@@ -24,13 +23,13 @@ int main()
     "rahmed|1367587706,"
     "</body></html>";
 
-    getall_parser g; // Our grammar
+    getall_parser const g; // Our grammar
     std::string str( all );
 
     parser::getall gall;
     std::string::const_iterator iter = str.begin();
     std::string::const_iterator end = str.end();
-    bool r = phrase_parse(iter, end, g, space, gall);
+    bool r = parse(iter, end, g, gall);
 
     if (r && iter == end)
     {

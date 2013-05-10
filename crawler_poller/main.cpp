@@ -51,6 +51,8 @@ int main(int argc, char const* argv[])
                                                                                                               "The log levels are NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG")
                     ("manager,M",     po::value< string >         ()                        ,                 "The hostname or IP address of the Crawler Manager")
                     ("manport,P",     po::value< string >         ()            ->default_value("1141"),      "The port number to use when connecting to the Crawler Manager" )
+                    ("solrurl,S",     po::value< string >         ()            ->required(),                 "The URL of the Solr HTTP interface"
+                                                                                                              "    Device information is POST'ed to Solr at this URL")
                     ("home_agent,H",  po::value< halist_t >       (&home_agents)->required(),                 "List of well-known Home Agent web interface addresses\n"
                                                                                                               "    Any number of Home Agent addresses may be specified, separated by commas. "
                                                                                                               "Each address should have the form '<hostname or IP address>:<port>'. These "
@@ -131,44 +133,6 @@ int main(int argc, char const* argv[])
 
         boost::asio::io_service io_service;
 
-//        std::string filename = vm["halist"].as< string >();
-//        log4.infoStream() << "Reading list of home agents from file '" << filename << '\'';
-//        std::vector< haconfig > halist;
-//        std::ifstream is;
-//        is.open( filename.c_str() );
-//        if ( is.fail() ) throw std::runtime_error("Unable to open file");
-//        load_halist(halist, is);
-//        log4.infoStream() << "Read list of " << halist.size() << " home agents";
-//
-//        std::size_t maxconn = vm["maxconn"].as< std::size_t >();
-//        if ( vm["precheck"].as< bool >() )
-//        {
-//            log4.infoStream() << "Checking home agent state";
-//            ha_checker< halist_t::iterator > hac( halist.begin(), halist.end() );
-//            hac.sync_run( maxconn );
-//
-//            log4.errorStream() << "-- The Following Home Agents are Inaccessible --";
-//            std::size_t inaccessible_count = 0;
-//            for (halist_t::iterator iter = halist.begin(); iter != halist.end(); ++iter)
-//            {
-//                if ( iter->status != GOOD ) { log4.errorStream() << iter->url; ++inaccessible_count; }
-//            }
-//            log4.errorStream() << "-- " << inaccessible_count << " Home Agents are Inaccessible --";
-//        }
-//        else
-//        {
-//            for (halist_t::iterator begin = halist.begin(); begin != halist.end(); ++begin) begin->status = GOOD;
-//        }
-//
-//        boost::asio::io_service io_service;
-//        curl::Context c( io_service );
-//        //boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(c) );
-//        //r->fetch("http://pwebproject.net", &handle_fetch);
-//
-//        token_counter tc(maxconn);
-//        std::size_t maxconnha = vm["maxconnha"].as< std::size_t >();
-//        register_names(halist.begin(), halist.end(), c, tc, vm["owner"].as< string >(), vm["numnames"].as< std::size_t >(), maxconnha);
-
         typedef signals::duplicate_filter< std::string, boost::function< void(std::string const&) > > filter_t;
         filter_t filter;
         signals::home_agent_discovered.connect( boost::ref( filter ) );
@@ -186,8 +150,9 @@ int main(int argc, char const* argv[])
             filter.connect( boost::ref( signals::home_agent_assigned ) );
         }
 
-        curl::Context c( io_service );
-        poller::pollercreator pc( c, boost::posix_time::seconds( vm["interval"].as< long >() ) );
+        poller::Context pollerctx( vm["solrurl"].as< string >(), boost::posix_time::seconds( vm["interval"].as< long >() ) );
+        curl::Context curlctx( io_service );
+        poller::pollercreator pc( pollerctx, curlctx );
         signals::home_agent_assigned.connect( boost::bind( &poller::pollercreator::create_poller, &pc, _1 ) );
 
         // I tried for a looong time to do this with std::for_each and I couldn't get it to work

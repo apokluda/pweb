@@ -50,11 +50,15 @@ namespace curl
         friend void check_multi_info(Context*);
 
     public:
-        AsyncHTTPRequester(Context& c)
+        AsyncHTTPRequester(Context& c, bool const selfmanage = false)
         : rc_( CURLM_OK )
         , easy_( 0 )
         , c_( c )
+        , headers_( 0 )
+        , selfmanage_( selfmanage )
         {
+            headers_ = curl_slist_append(headers_, "Content-type: text/xml");
+            if ( !headers_ ) throw std::runtime_error("liburl error: Unable to set Content-type header");
         }
 
         Context& get_context()
@@ -69,14 +73,10 @@ namespace curl
 
         ~AsyncHTTPRequester();
 
-        void fetch(std::string const& url, boost::function< void(CURLcode, std::string const&) > cb );
+        void fetch(std::string const& url, boost::function< void(CURLcode, std::string const&) > cb, std::string const& = std::string() );
 
     private:
-        void done(CURLcode const rc)
-        {
-            cb_(rc, buf_.str());
-            ptr_to_this_.reset();
-        }
+        void done(CURLcode const rc);
 
         static const std::size_t MAX_BUF_SIZE = 1024*1024; // Max amount of data we are willing to receive/buffer (1 MiB)
 
@@ -85,7 +85,9 @@ namespace curl
         boost::shared_ptr< AsyncHTTPRequester > ptr_to_this_;
         CURLMcode rc_;
         CURL* easy_;
+        curl_slist* headers_;
         Context& c_;
+        bool const selfmanage_;
     };
 }
 

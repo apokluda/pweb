@@ -14,8 +14,11 @@ namespace parser
 
     struct getall
     {
-        std::vector< std::string > homeagents;
-        std::vector< deviceinfo > deviceinfos;
+        typedef std::vector< std::string > halist_t;
+        typedef std::vector< deviceinfo > devinfolist_t;
+
+        halist_t homeagents;
+        devinfolist_t deviceinfos;
     };
 }
 
@@ -27,8 +30,8 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 BOOST_FUSION_ADAPT_STRUCT(
     parser::getall,
-    (std::vector< std::string >, homeagents)
-    (std::vector< parser::deviceinfo >, deviceinfos)
+    (parser::getall::halist_t, homeagents)
+    (parser::getall::devinfolist_t, deviceinfos)
 )
 
 namespace parser

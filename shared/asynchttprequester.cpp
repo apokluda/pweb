@@ -247,9 +247,9 @@ int closesocket(void *clientp, curl_socket_t item)
     return 0;
 }
 
-void AsyncHTTPRequester::fetch(std::string const& url, boost::function< void(CURLcode, std::string const&) > cb )
+void AsyncHTTPRequester::fetch(std::string const& url, boost::function< void(CURLcode, std::string const&) > cb, std::string const& postdata)
 {
-    ptr_to_this_ = shared_from_this();
+    if ( !selfmanage_ ) ptr_to_this_ = shared_from_this();
     cb_ = cb;
     easy_ = curl_easy_init();
 
@@ -259,6 +259,19 @@ void AsyncHTTPRequester::fetch(std::string const& url, boost::function< void(CUR
     curl_easy_setopt(easy_, CURLOPT_PRIVATE, this);
     curl_easy_setopt(easy_, CURLOPT_LOW_SPEED_TIME, 3L);
     curl_easy_setopt(easy_, CURLOPT_LOW_SPEED_LIMIT, 10L);
+
+    if ( !postdata.empty() )
+    {
+        curl_easy_setopt(easy_, CURLOPT_POST, 1);
+        curl_easy_setopt(easy_, CURLOPT_HTTPHEADER, headers_);
+        curl_easy_setopt(easy_, CURLOPT_POSTFIELDSIZE, postdata.length());
+        curl_easy_setopt(easy_, CURLOPT_COPYPOSTFIELDS, postdata.c_str());
+    }
+    else
+    {
+        curl_easy_setopt(easy_, CURLOPT_HTTPGET, 1);
+        curl_easy_setopt(easy_, CURLOPT_HTTPHEADER, 0);
+    }
 
     /* call this function to get a socket */
     curl_easy_setopt(easy_, CURLOPT_OPENSOCKETFUNCTION, opensocket);
@@ -272,12 +285,19 @@ void AsyncHTTPRequester::fetch(std::string const& url, boost::function< void(CUR
     mcode_or_throw("new_conn: curl_multi_add_handle", rc);
 }
 
+void AsyncHTTPRequester::done(CURLcode const rc)
+{
+    cb_(rc, buf_.str());
+    ptr_to_this_.reset();
+}
+
 AsyncHTTPRequester::~AsyncHTTPRequester()
 {
+    curl_slist_free_all(headers_);
     curl_multi_remove_handle(c_.multi_, easy_);
     curl_easy_cleanup(easy_);
 
-    std::cerr << "DEBUG: AsyncHTTPRequester destroyed!" << std::endl;
+    //std::cerr << "DEBUG: AsyncHTTPRequester destroyed!" << sd::endl;
 }
 
 Context::Context( boost::asio::io_service& io_service )
