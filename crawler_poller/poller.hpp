@@ -38,7 +38,7 @@ namespace poller
 
         void do_poll( boost::system::error_code const& );
         void handle_poll( CURLcode const code, std::string const& content );
-        void handle_post( CURLcode const code, std::string const& content );
+        void handle_post( CURLcode const code, std::string const& content, time_t const newtimestamp );
 
         static parser::getall_parser< std::string::const_iterator > const g_;
         curl::AsyncHTTPRequester requester_;
@@ -58,17 +58,10 @@ namespace poller
         {
         }
 
-        void create_poller( std::string const& hostname )
-        {
-            strand_.dispatch( boost::bind( &pollercreator::create_poller_, this, hostname ) );
-        }
+        void create_poller( std::string const& hostname );
 
     private:
-        void create_poller_( std::string const& hostname )
-        {
-            // The pointer must be stored in the container immediately for exception safety
-            pollers_.push_back( new poller( pollerctx_, curlctx_, hostname ) );
-        }
+        void create_poller_( std::string const& hostname );
 
         boost::ptr_vector< poller > pollers_;
         boost::asio::strand strand_;

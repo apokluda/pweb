@@ -10,8 +10,21 @@
 #include "stdhdr.hpp"
 #include "asynchttprequester.hpp"
 
+#define LOGSTREAM if ( debug ) log4.debugStream()
+
+#ifndef NDEBUG
+#define TRACE(func) LOGSTREAM << "Entering: " func
+#define TRACE_MSG(msg) LOGSTREAM << "Trace: " msg
+#else
+#define TRACE(func)
+#define TRACE_MSG(msg)
+#endif
+
+extern log4cpp::Category& log4;
+
 namespace curl
 {
+bool debug = false;
 
 std::map<curl_socket_t, boost::asio::ip::tcp::socket *> socket_map;
 
@@ -20,17 +33,30 @@ void timer_cb(const boost::system::error_code & error, Context *g);
 /* Update the event timer after curl_multi library calls */
 int multi_timer_cb(CURLM *multi, long timeout_ms, Context* c)
 {
+    TRACE("multi_timer_cb");
+
     /* cancel running timer */
     c->timer_.cancel();
 
-    if ( timeout_ms > 0 )
+
+#ifndef NDEBUG
+    // For some reason, libcurl often calls this function with a timeout of 1 millsecond.
+    // When this happes, we set the timer and wait like normal, but every call to the timer
+    // callback gets boost::asio::error::operation_aborted. Shouldn't at least one call
+    // be a sucess?! Is this a bug in asio?
+    if (timeout_ms == 1) TRACE_MSG("*****timount_ms == 1*****");
+#endif
+
+    if ( timeout_ms > 1 )
     {
+        TRACE_MSG("updating timer to expire in " << timeout_ms << " milliseconds");
         /* update timer */
         c->timer_.expires_from_now(boost::posix_time::millisec(timeout_ms));
         c->timer_.async_wait(boost::bind(&timer_cb, _1, c));
     }
     else
     {
+        TRACE_MSG("call timeout");
         /* call timeout function immediately */
         boost::system::error_code error; /*success*/
         timer_cb(error, c);
@@ -42,6 +68,8 @@ int multi_timer_cb(CURLM *multi, long timeout_ms, Context* c)
 /* Throw if we get a bad CURLMcode somewhere */
 void mcode_or_throw(const char *where, CURLMcode code)
 {
+    TRACE("mcode_or_throw");
+
     if ( CURLM_OK != code )
     {
         const char *s;
@@ -66,6 +94,8 @@ void mcode_or_throw(const char *where, CURLMcode code)
 /* Check for completed transfers, and remove their easy handles */
 void check_multi_info(Context* c)
 {
+    TRACE("check_multi_info");
+
     char *eff_url;
     CURLMsg *msg;
     int msgs_left;
@@ -88,6 +118,8 @@ void check_multi_info(Context* c)
 /* Called by asio when there is an action on a socket */
 void event_cb(Context* c, boost::asio::ip::tcp::socket * tcp_socket, int action)
 {
+    TRACE("event_cb");
+
     CURLMcode rc = curl_multi_socket_action(c->multi_, tcp_socket->native_handle(), action, &c->still_running_);
 
     mcode_or_throw("event_cb: curl_multi_socket_action", rc);
@@ -102,23 +134,37 @@ void event_cb(Context* c, boost::asio::ip::tcp::socket * tcp_socket, int action)
 /* Called by asio when our timeout expires */
 void timer_cb(const boost::system::error_code & error, Context* c)
 {
-    if ( !error)
+    TRACE("timer_cb");
+
+    if ( error != boost::asio::error::operation_aborted )
     {
+        TRACE_MSG("no error");
+
         CURLMcode rc = curl_multi_socket_action(c->multi_, CURL_SOCKET_TIMEOUT, 0, &c->still_running_);
 
         mcode_or_throw("timer_cb: curl_multi_socket_action", rc);
         check_multi_info(c);
     }
+#ifndef NDEBUG
+    else
+    {
+        TRACE_MSG("Error: " << error.message());
+    }
+#endif
 }
 
 /* Clean up any data */
 void remsock(int *f, Context* c)
 {
+    TRACE("remsock");
+
     if ( f ) free( f );
 }
 
 void setsock(int *fdp, curl_socket_t s, CURL*e, int act, Context* c)
 {
+    TRACE("setsock");
+
     std::map<curl_socket_t, boost::asio::ip::tcp::socket *>::iterator it = socket_map.find(s);
 
     if ( it == socket_map.end() ) return;
@@ -158,6 +204,8 @@ void setsock(int *fdp, curl_socket_t s, CURL*e, int act, Context* c)
 
 void addsock(curl_socket_t s, CURL *easy, int action, Context *c)
 {
+    TRACE("addsock");
+
     int *fdp = (int *)calloc(sizeof(int), 1); /* fdp is used to store current action */
 
     setsock(fdp, s, easy, action, c);
@@ -167,6 +215,8 @@ void addsock(curl_socket_t s, CURL *easy, int action, Context *c)
 /* CURLMOPT_SOCKETFUNCTION */
 int sock_cb(CURL *e, curl_socket_t s, int what, Context* c, int* actionp)
 {
+    TRACE("sock_cb");
+
     if ( what == CURL_POLL_REMOVE )
     {
         remsock(actionp, c);
@@ -188,6 +238,8 @@ int sock_cb(CURL *e, curl_socket_t s, int what, Context* c, int* actionp)
 /* CURLOPT_WRITEFUNCTION */
 size_t write_cb(char* ptr, size_t size, size_t nmemb, AsyncHTTPRequester* r)
 {
+    TRACE("write_cb");
+
     size_t written = size * nmemb;
     std::size_t oldsize = r->buf_.tellp();
 
@@ -202,7 +254,7 @@ size_t write_cb(char* ptr, size_t size, size_t nmemb, AsyncHTTPRequester* r)
 /* CURLOPT_OPENSOCKETFUNCTION */
 curl_socket_t opensocket(AsyncHTTPRequester* r, curlsocktype purpose, struct curl_sockaddr *address)
 {
-    //fprintf(MSG_OUT, "\nopensocket :");
+    TRACE("opensocket");
 
     curl_socket_t sockfd = CURL_SOCKET_BAD;
 
@@ -236,6 +288,8 @@ curl_socket_t opensocket(AsyncHTTPRequester* r, curlsocktype purpose, struct cur
 /* CURLOPT_CLOSESOCKETFUNCTION */
 int closesocket(void *clientp, curl_socket_t item)
 {
+    TRACE("closesocket");
+
     std::map<curl_socket_t, boost::asio::ip::tcp::socket *>::iterator it = socket_map.find(item);
 
     if ( it != socket_map.end() )
@@ -247,11 +301,24 @@ int closesocket(void *clientp, curl_socket_t item)
     return 0;
 }
 
+AsyncHTTPRequester::AsyncHTTPRequester(Context& c, bool const selfmanage)
+: rc_( CURLM_OK )
+, easy_( curl_easy_init() )
+, c_( c )
+, headers_( curl_slist_append(0, "Content-type: text/xml") )
+, selfmanage_( selfmanage )
+{
+    if ( !easy_ || !headers_ ) throw std::runtime_error("liburl initialization error");
+}
+
 void AsyncHTTPRequester::fetch(std::string const& url, boost::function< void(CURLcode, std::string const&) > cb, std::string const& postdata)
 {
-    if ( !selfmanage_ ) ptr_to_this_ = shared_from_this();
+    TRACE("AsyncHTTPRequester::fetch");
+
+    if ( selfmanage_ ) ptr_to_this_ = shared_from_this();
     cb_ = cb;
-    easy_ = curl_easy_init();
+    // Clear the buffer of any data from a previous request
+    buf_.str( std::string() );
 
     curl_easy_setopt(easy_, CURLOPT_URL, url.c_str());
     curl_easy_setopt(easy_, CURLOPT_WRITEFUNCTION, write_cb);
@@ -287,21 +354,29 @@ void AsyncHTTPRequester::fetch(std::string const& url, boost::function< void(CUR
 
 void AsyncHTTPRequester::done(CURLcode const rc)
 {
+    TRACE("AsyncHTTPRequester::done");
+
+    CURLMcode mc = curl_multi_remove_handle(c_.multi_, easy_);
+    mcode_or_throw("new_conn: curl_multi_add_handle", mc);
+
     cb_(rc, buf_.str());
     ptr_to_this_.reset();
+
+    // Note: We keep the contents of the buffer until the next fetch call
+    // or this object is destroyed.
 }
 
 AsyncHTTPRequester::~AsyncHTTPRequester()
 {
-    curl_slist_free_all(headers_);
-    curl_multi_remove_handle(c_.multi_, easy_);
-    curl_easy_cleanup(easy_);
+    TRACE("AsyncHTTPRequester::~AsyncHTTPRequester");
 
-    //std::cerr << "DEBUG: AsyncHTTPRequester destroyed!" << sd::endl;
+    curl_slist_free_all(headers_);
+    curl_easy_cleanup(easy_);
 }
 
 Context::Context( boost::asio::io_service& io_service )
 : timer_( io_service )
+, strand_( io_service )
 , io_service_( io_service )
 , still_running_( 0 )
 {

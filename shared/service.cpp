@@ -11,18 +11,16 @@ extern log4cpp::Category& log4;
 
 void checked_io_service_run(boost::asio::io_service& io_service)
 {
-    for (;;)
+    try
     {
-        try
-        {
-            // Is it a good idea to re-run the service after an uncaught exception?
-            io_service.run();
-            break;
-        }
-        catch ( std::exception const& e )
-        {
-            log4.alertStream() << "UNCAUGHT EXCEPTION: " << e.what();
-        }
+        // Is it a good idea to re-run the service after an uncaught exception?
+        io_service.run();
+    }
+    catch ( std::exception const& e )
+    {
+        log4.fatalStream() << "UNCAUGHT EXCEPTION: " << e.what();
+        log4.alertStream() << "System will now shutdown";
+        io_service.stop();
     }
 }
 

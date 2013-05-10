@@ -10,6 +10,20 @@
 
 namespace curl
 {
+    // BIG FAT WARNING!!! BIG FAT WARNING!!! BIG FAT WARNING!!!
+    //
+    // The implementation of Context and AsyncHTTPRequester does not
+    // have all the necessary synchronization necessary to support
+    // multiple boost.asio application threads.
+    //
+    // All operations
+    // involving the multi handle and each easy handle associated with it
+    // should be synchronized. This means that the Context should be
+    // responsible for this.
+    //
+    // BIG FAT WARNING!!! BIG FAT WARNING!!! BIG FAT WARNING!!!
+
+
     class AsyncHTTPRequester;
 
     class Context : boost::noncopyable
@@ -37,7 +51,14 @@ namespace curl
         }
 
     private:
+        // This is only a start, we need a lot more synchronization!  The following methods are a start but by no
+        // means sufficient.
+        void add_handle_( CURL* easy );
+        void perform_();
+
+
         boost::asio::deadline_timer timer_;
+        boost::asio::strand strand_;
         boost::asio::io_service& io_service_;
         CURLM* multi_;
         int still_running_;
@@ -50,16 +71,7 @@ namespace curl
         friend void check_multi_info(Context*);
 
     public:
-        AsyncHTTPRequester(Context& c, bool const selfmanage = false)
-        : rc_( CURLM_OK )
-        , easy_( 0 )
-        , c_( c )
-        , headers_( 0 )
-        , selfmanage_( selfmanage )
-        {
-            headers_ = curl_slist_append(headers_, "Content-type: text/xml");
-            if ( !headers_ ) throw std::runtime_error("liburl error: Unable to set Content-type header");
-        }
+        AsyncHTTPRequester(Context& c, bool const selfmanage = true);
 
         Context& get_context()
         {
