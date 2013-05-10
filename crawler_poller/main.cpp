@@ -31,6 +31,8 @@ int main(int argc, char const* argv[])
     {
         typedef std::vector< string > halist_t;
         halist_t home_agents;
+        std::string log_file;
+        std::string log_level;
 
         // Declare a group of options that will be available only
         // on the command line
@@ -45,15 +47,15 @@ int main(int argc, char const* argv[])
         // on the command line and in the config file
         po::options_description config("Configuration");
         config.add_options()
-                    ("log_file,l",    po::value< string >         ()            ->default_value("dnsgw.log"), "Log file path")
-                    ("log_level,L",   po::value< string >         ()            ->default_value("WARN"),      "Log level\n"
+                    ("log_file,l",    po::value< string >         (&log_file)->default_value("poller.log"),   "Log file path")
+                    ("log_level,L",   po::value< string >         (&log_level)->default_value("WARN"),        "Log level\n"
                                                                                                               "    Only log messages with a level less than or equal to the specified severity will be logged. "
                                                                                                               "The log levels are NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG")
-                    ("manager,M",     po::value< string >         ()                        ,                 "The hostname or IP address of the Crawler Manager")
-                    ("manport,P",     po::value< string >         ()            ->default_value("1141"),      "The port number to use when connecting to the Crawler Manager" )
+                    ("manager,M",     po::value< string >         (),                                         "The hostname or IP address of the Crawler Manager")
+                    ("manport,P",     po::value< string >         ()    ->default_value(string("1141")),      "The port number to use when connecting to the Crawler Manager" )
                     ("solrurl,S",     po::value< string >         ()            ->required(),                 "The URL of the Solr HTTP interface"
                                                                                                               "    Device information is POST'ed to Solr at this URL")
-                    ("home_agent,H",  po::value< halist_t >       (&home_agents)->required(),                 "List of well-known Home Agent web interface addresses\n"
+                    ("home_agent,H",  po::value< halist_t >       (&home_agents),                             "List of well-known Home Agent web interface addresses\n"
                                                                                                               "    Any number of Home Agent addresses may be specified, separated by commas. "
                                                                                                               "Each address should have the form '<hostname or IP address>:<port>'. These "
                                                                                                               "addresses are used to 'seed' the crawler.")
@@ -109,10 +111,9 @@ int main(int argc, char const* argv[])
         }
 
         po::notify(vm);
-
         // Initialize logging
         {
-            log4cpp::Appender* app = new log4cpp::FileAppender("file", vm["log_file"].as< string >().c_str());
+            log4cpp::Appender* app = new log4cpp::FileAppender("file", log_file.c_str());
             log4.addAppender(app); // ownership of appender passed to category
             log4cpp::PatternLayout* lay = new log4cpp::PatternLayout();
             lay->setConversionPattern("%d [%p] %m%n");
@@ -129,7 +130,8 @@ int main(int argc, char const* argv[])
             capp->setLayout(clay);
         }
 
-        log4.setPriority(log4cpp::Priority::getPriorityValue(vm["log_level"].as< string >()));
+        log4.setPriority(log4cpp::Priority::getPriorityValue(log_level));
+
 
         boost::asio::io_service io_service;
 
@@ -137,10 +139,8 @@ int main(int argc, char const* argv[])
         filter_t filter;
         signals::home_agent_discovered.connect( boost::ref( filter ) );
 
-        std::string const manager( vm["manager"].as< string >() );
         std::auto_ptr< manconnection > conn;
-
-        if ( !manager.empty() )
+        if ( vm.count("manager") )
         {
             conn.reset( new manconnection( io_service, vm["manager"].as< string >(), vm["manport"].as< string >() ) );
             filter.connect( boost::bind( &manconnection::home_agent_discovered, conn.get(), _1 ) );
