@@ -41,6 +41,9 @@ set( Boost_USE_STATIC_RUNTIME   OFF )
 find_package( Boost 1.53.0 COMPONENTS program_options thread date_time chrono atomic serialization system REQUIRED )
 include_directories( ${Boost_INCLUDE_DIRS} )
 
+# Temporary... can be removed
+add_subdirectory( crash_test crash_test.bin )
+
 # Must come after Boost stuff
 include_directories( shared )
 add_subdirectory( shared shared.lib )
