@@ -109,7 +109,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
     }
     else
     {
-        log4.errorStream() << "An error occurred while polling '" << hostname_ << "', CURLcode " << code;
+        log4.errorStream() << "An error occurred while polling '" << hostname_ << "', CURLcode " << code << ": " << curl_easy_strerror(code) ;
         start();
     }
 }
@@ -134,7 +134,7 @@ void poller::handle_post( CURLcode const code, std::string const& content, time_
     }
     else
     {
-        log4.errorStream() << "An error occurred while POST'ing data to Solr, CURLcode " << code;
+        log4.errorStream() << "An error occurred while POST'ing data to Solr, CURLcode " << code << ": " << curl_easy_strerror(code);
     }
     start();
 }
