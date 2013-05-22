@@ -438,12 +438,11 @@ private:
             log4.debugStream() << "Trace: received " << bytes_transferred << ", looking at bytes " << beg - buf_.data() << " to " << end - buf_.data();
             read_abs_int< absint_t >(devicenamelen, beg, end);
             log4.debugStream() << "Trace: devicenamelen = " << devicenamelen;
-
             query_ptr query( queries.remove( sequence_ ) );
-            std::string const& name = query->questions_begin()->name;
-            log4.debugStream() << "Trace: found query";
+            log4.debugStream() << "Trace: removed query from map";
             if ( query )
             {
+                std::string const& name = query->questions_begin()->name;
                 if (hostlen_ == 0)
                 {
                     // Device name not found
