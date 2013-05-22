@@ -13,7 +13,6 @@ void checked_io_service_run(boost::asio::io_service& io_service)
 {
     try
     {
-        // Is it a good idea to re-run the service after an uncaught exception?
         io_service.run();
     }
     catch ( std::exception const& e )

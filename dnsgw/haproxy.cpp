@@ -378,6 +378,8 @@ private:
     {
         if ( !ec )
         {
+            log4.debugStream() << "Trace: handle_read_to_srchostlen()";
+
             absint_t srchostlen;
             read_abs_int< absint_t >(srchostlen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
             async_read( socket_, buffer(buf_, srchostlen + sizeof(absint_t) + unused_abs_header_len),
@@ -393,6 +395,8 @@ private:
     {
         if ( !ec )
         {
+            log4.debugStream() << "Trace: handle_absheader_read()";
+
             async_read( socket_, buffer( buf_, abs_reply_len_before_hostname ),
                     boost::bind( &harecvconnection::handle_read_to_replyhostlen, shared_from_this(), ph::error, ph::bytes_transferred ) );
         }
@@ -406,6 +410,8 @@ private:
     {
         if ( !ec )
         {
+            log4.debugStream() << "Trace: handle_read_to_replyhostlen()";
+
             absint_t hostlen;
             read_abs_int< absint_t >(hostlen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
             hostlen_ = hostlen;
@@ -423,6 +429,8 @@ private:
     {
         if ( !ec )
         {
+            log4.debugStream() << "Trace: handle_read_to_devicenamelen()";
+
             absint_t devicenamelen;
             read_abs_int< absint_t >(devicenamelen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
 
