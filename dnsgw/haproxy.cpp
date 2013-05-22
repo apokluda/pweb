@@ -451,9 +451,12 @@ private:
                 }
                 else if ( buf_.size() > hostlen_ )
                 {
+                    log4.debugStream() << "Trace: about to parse IP address";
                     buf_[hostlen_] = '\0'; // overwrites device name length in buffer
+                    log4.debugStream() << "Trace: instered nul character";
                     bs::error_code ec;
                     ip::address addr = ip::address::from_string(reinterpret_cast< char* >( buf_.data() ), ec);
+                    log4.debugStream() << "Trace: parsed IP address";
                     if ( !ec )
                     {
                         dnsrr rr;
