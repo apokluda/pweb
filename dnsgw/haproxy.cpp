@@ -61,7 +61,7 @@ namespace
     typedef double absdbl_t; // IEEE 754 Double Precision Floating Point format (always 64 bits)
 
     template < typename IntType >
-    boost::uint8_t* read_abs_int(IntType& val, boost::uint8_t* buf, boost::uint8_t const* const end)
+    boost::uint8_t* read_abs_int(IntType& val, boost::uint8_t* const buf, boost::uint8_t const* const end)
     {
         check_end( sizeof( IntType), buf, end );
         memcpy(&val, buf, sizeof(  IntType ));
@@ -432,7 +432,12 @@ private:
             log4.debugStream() << "Trace: handle_read_to_devicenamelen()";
 
             absint_t devicenamelen;
-            read_abs_int< absint_t >(devicenamelen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
+
+            boost::uint8_t* const beg = buf_.data() + bytes_transferred - sizeof(absint_t);
+            boost::uint8_t const* const end = buf_.data() + bytes_transferred;
+            log4.debugStream() << "Trace: received " << bytes_transferred << ", looking at bytes " << beg - buf_.data() << " to " << end - buf_.data();
+            read_abs_int< absint_t >(devicenamelen, beg, end);
+            log4.debugStream() << "Trace: devicenamelen = " << devicenamelen;
 
             query_ptr query( queries.remove( sequence_ ) );
             std::string const& name = query->questions_begin()->name;
