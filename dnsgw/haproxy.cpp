@@ -451,7 +451,7 @@ private:
                 }
                 else if ( buf_.size() > hostlen_ )
                 {
-                    log4.debugStream() << "Trace: about to parse IP address";
+                    log4.debugStream() << "Trace: about to parse IP address; buf_.size() = " << buf_.size() << ", hostlen_ = " << hostlen_;
                     buf_[hostlen_] = '\0'; // overwrites device name length in buffer
                     log4.debugStream() << "Trace: instered nul character";
                     bs::error_code ec;
