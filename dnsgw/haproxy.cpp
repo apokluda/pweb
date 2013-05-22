@@ -378,7 +378,7 @@ private:
     {
         if ( !ec )
         {
-            log4.debugStream() << "Trace: handle_read_to_srchostlen()";
+            //log4.debugStream() << "Trace: handle_read_to_srchostlen()";
 
             absint_t srchostlen;
             read_abs_int< absint_t >(srchostlen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
@@ -395,7 +395,7 @@ private:
     {
         if ( !ec )
         {
-            log4.debugStream() << "Trace: handle_absheader_read()";
+            //log4.debugStream() << "Trace: handle_absheader_read()";
 
             async_read( socket_, buffer( buf_, abs_reply_len_before_hostname ),
                     boost::bind( &harecvconnection::handle_read_to_replyhostlen, shared_from_this(), ph::error, ph::bytes_transferred ) );
@@ -410,7 +410,7 @@ private:
     {
         if ( !ec )
         {
-            log4.debugStream() << "Trace: handle_read_to_replyhostlen()";
+            //log4.debugStream() << "Trace: handle_read_to_replyhostlen()";
 
             absint_t hostlen;
             read_abs_int< absint_t >(hostlen, buf_.data() + bytes_transferred - sizeof(absint_t), buf_.data() + bytes_transferred );
@@ -429,17 +429,20 @@ private:
     {
         if ( !ec )
         {
-            log4.debugStream() << "Trace: handle_read_to_devicenamelen()";
+            //log4.debugStream() << "Trace: handle_read_to_devicenamelen()";
 
             absint_t devicenamelen;
 
             boost::uint8_t* const beg = buf_.data() + bytes_transferred - sizeof(absint_t);
             boost::uint8_t const* const end = buf_.data() + bytes_transferred;
-            log4.debugStream() << "Trace: received " << bytes_transferred << ", looking at bytes " << beg - buf_.data() << " to " << end - buf_.data();
+            //log4.debugStream() << "Trace: received " << bytes_transferred << ", looking at bytes " << beg - buf_.data() << " to " << end - buf_.data();
+
             read_abs_int< absint_t >(devicenamelen, beg, end);
-            log4.debugStream() << "Trace: devicenamelen = " << devicenamelen;
+            //log4.debugStream() << "Trace: devicenamelen = " << devicenamelen;
+
             query_ptr query( queries.remove( sequence_ ) );
-            log4.debugStream() << "Trace: removed query from map";
+            //log4.debugStream() << "Trace: removed query from map";
+
             if ( query )
             {
                 std::string const& name = query->questions_begin()->name;
@@ -451,12 +454,12 @@ private:
                 }
                 else if ( buf_.size() > hostlen_ )
                 {
-                    log4.debugStream() << "Trace: about to parse IP address; buf_.size() = " << buf_.size() << ", hostlen_ = " << hostlen_;
+                    //log4.debugStream() << "Trace: about to parse IP address; buf_.size() = " << buf_.size() << ", hostlen_ = " << hostlen_;
                     buf_[hostlen_] = '\0'; // overwrites device name length in buffer
-                    log4.debugStream() << "Trace: instered nul character";
+                    //log4.debugStream() << "Trace: instered nul character";
                     bs::error_code ec;
                     ip::address addr = ip::address::from_string(reinterpret_cast< char* >( buf_.data() ), ec);
-                    log4.debugStream() << "Trace: parsed IP address";
+                    //log4.debugStream() << "Trace: parsed IP address";
                     if ( !ec )
                     {
                         dnsrr rr;
