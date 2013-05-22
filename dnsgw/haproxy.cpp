@@ -441,6 +441,7 @@ private:
 
             query_ptr query( queries.remove( sequence_ ) );
             std::string const& name = query->questions_begin()->name;
+            log4.debugStream() << "Trace: found query";
             if ( query )
             {
                 if (hostlen_ == 0)
