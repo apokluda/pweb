@@ -74,10 +74,10 @@ namespace parser
                           "</neighbours>";
 
             // need '>>' between tags so that whitespace formatting will be skipped
-            homeagent_  %= lit("<home agent>") >>
+            homeagent_  %= lit("<home_agent>") >>
                               "<hostname>" >> str_ >> "</hostname>" >>
                               "<port>"     >> str_ >> "</port>" >>
-                          "</home agent>";
+                          "</home_agent>";
 
             devices_    %= "<devices>" >>
                               *device_ >>
