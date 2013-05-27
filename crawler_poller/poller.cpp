@@ -68,12 +68,13 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
     if ( code == CURLE_OK )
     {
         log4.infoStream() << "Successfully polled '" << hostname_ << '\'';
-        log4.debugStream() << "Content received: " << content;
+        log4.debugStream() << "Content received:\n" << content;
 
         parser::getall gall;
         std::string::const_iterator iter = content.begin();
         std::string::const_iterator end = content.end();
-        bool const r = boost::spirit::qi::parse(iter, end, g_, gall);
+        using boost::spirit::ascii::space;
+        bool const r = boost::spirit::qi::phrase_parse(iter, end, g_, space, gall);
 
         if ( !r || iter != end)
         {
@@ -82,24 +83,32 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
         }
 
         parser::getall::halist_t& homeagents = gall.homeagents;
-        parser::getall::devinfolist_t& deviceinfos = gall.deviceinfos;
+        parser::getall::devlist_t& devices = gall.devices;
 
-        log4.noticeStream() << "Home Agent '" << hostname_ << "' returned list of " << homeagents.size() << " neighbours and " << deviceinfos.size() << " updated devices";
+        log4.noticeStream() << "Home Agent '" << hostname_ << "' returned list of " << homeagents.size() << " neighbours and " << devices.size() << " updated devices";
 
         typedef parser::getall::halist_t::const_iterator hiter_t;
-        for ( hiter_t i = homeagents.begin(); i != homeagents.end(); ++i ) signals::home_agent_discovered( *i );
+        for ( hiter_t i = homeagents.begin(); i != homeagents.end(); ++i ) signals::home_agent_discovered( i->hostname );
 
-        if ( deviceinfos.empty() ) { start(); return; }
+        if ( devices.empty() ) { start(); return; }
 
         // We could use the Spirit Karma library here, but this is sufficient for now
         std::ostringstream out;
         out << "<add overwrite=\"true\">";
-        typedef parser::getall::devinfolist_t::const_iterator diter_t;
+        typedef parser::getall::devlist_t::const_iterator diter_t;
         time_t newtimestamp = 0;
-        for ( diter_t i = deviceinfos.begin(); i != deviceinfos.end(); ++i )
+        for ( diter_t i = devices.begin(); i != devices.end(); ++i )
         {
-            out << "<doc><field name=\"name\">" << i->name << "</field>";
-            out << "<field name=\"timestamp\">" << i->timestamp << "</field></doc>";
+            out << "<doc>"
+                   "<field name=\"owner\">"       << i->owner       << "</field>"
+                   "<field name=\"name\">"        << i->name        << "</field>"
+                   "<field name=\"home\">"        << gall.haname    << "</field>"
+                   "<field name=\"port\">"        << i->port        << "</field>"
+                   "<field name=\"timestamp\">"   << i->timestamp   << "</field>"
+                   "<field name=\"location\">"    << i->location    << "</field>"
+                   "<field name=\"description\">" << i->description << "</field>"
+                   "</doc>";
+
             if (i->timestamp > newtimestamp) newtimestamp = i->timestamp;
         }
         out << "</add>";
@@ -124,7 +133,7 @@ void poller::handle_post( CURLcode const code, std::string const& content, time_
             // We update the timestamp used for polling only if the update was sucessfully commited
             // to the Solr database. This ensures that we don't loose any device updates if
             // the update fails.
-            timestamp_ = newtimestamp;
+            timestamp_ = newtimestamp + 1;
             log4.debugStream() << "New timestamp is " << timestamp_;
         }
         else

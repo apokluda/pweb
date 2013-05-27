@@ -6,30 +6,98 @@ int main()
     typedef std::string::const_iterator iterator_type;
     typedef parser::getall_parser<iterator_type> getall_parser;
 
-    char const* all =
-    "<html><body>"
-    "6|"
-    "planetlab-02.bu.edu|"
-    "planetlab-1.cs.colostate.edu|"
-    "mtuplanetlab2.cs.mtu.edu|"
-    "planetlab1.temple.edu|"
-    "vn5.cse.wustl.edu|"
-    "jupiter.cs.brown.edu|"
-    "5|"
-    "alex|1367591509,"
-    "apokluda|1367587699,"
-    "droplet.shihab|1367587810,"
-    "nexus.alex|1367591383,"
-    "rahmed|1367587706,"
-    "</body></html>";
+    char const* all1 =
+            "<getall>\
+            <name>mypc0</name>\
+            <neighbours>\
+                <home agent>\
+                    <hostname>localhost</hostname>\
+                    <port>20005</port>\
+                </home agent>\
+            </neighbours>\
+            <devices>\
+                <device>\
+                    <owner>Faizul Bari</owner>\
+                    <name>nexus2</name>\
+                    <home>mypc0</home>\
+                    <port>12345</port>\
+                    <timestamp>1368462463</timestamp>\
+                    <location>Waterloo, ON, Canada</location>\
+                    <description>my first android phone...</description>\
+                </device>\
+                <device>\
+                    <owner>Faizul Bari</owner>\
+                    <name>asdasd</name>\
+                    <home>mypc0</home>\
+                    <port>12345</port>\
+                    <timestamp>1369087107</timestamp>\
+                    <location>Waterloo, ON, Canada</location>\
+                    <description>asd</description>\
+                </device>\
+                <device>\
+                    <owner>Faizul Bari</owner>\
+                    <name>asdasd34234</name>\
+                    <home>mypc0</home>\
+                    <port>12345</port>\
+                    <timestamp>1369142462</timestamp>\
+                    <location>Waterloo, ON, Canada</location>\
+                    <description>asdasd</description>\
+                </device>\
+            </devices>\
+            </getall>";
+
+    char const* all2 =
+            "<getall>\
+            <name>mypc0</name>\
+            <neighbours>\
+            </neighbours>\
+            <devices>\
+            </devices>\
+            </getall>";
+
+    char const* all3 =
+            "<getall>\
+            <name>mypc0</name>\
+            <neighbours>\
+                <home agent>\
+                    <hostname>localhost</hostname>\
+                    <port>20005</port>\
+                </home agent>\
+            </neighbours>\
+            <devices>\
+            </devices>\
+            </getall>";
+
+    char const* all4 =
+            "<getall>\
+            <name>mypc0</name>\
+            <neighbours>\
+                <home agent>\
+                    <hostname>localhost</hostname>\
+                    <port>20005</port>\
+                </home agent>\
+            </neighbours>\
+            <devices>\
+                <device>\
+                    <owner>Faizul Bari</owner>\
+                    <name>nexus2</name>\
+                    <home>mypc0</home>\
+                    <port>12345</port>\
+                    <timestamp>1368462463</timestamp>\
+                    <location>Waterloo, ON, Canada</location>\
+                    <description>my first android phone...</description>\
+                </device>\
+            </devices>\
+            </getall>";
 
     getall_parser const g; // Our grammar
-    std::string str( all );
+    std::string str( all1 );
 
     parser::getall gall;
     std::string::const_iterator iter = str.begin();
     std::string::const_iterator end = str.end();
-    bool r = parse(iter, end, g, gall);
+    using boost::spirit::ascii::space;
+    bool r = phrase_parse(iter, end, g, space, gall);
 
     if (r && iter == end)
     {
@@ -38,14 +106,14 @@ int main()
         std::cout << "\n-------------------------\n";
 
         std::cout << "Home Agents:\n";
-        BOOST_FOREACH(std::string const& str, gall.homeagents)
+        BOOST_FOREACH(parser::homeagent const& ha, gall.homeagents)
         {
-            std::cout << str << '\n';
+            std::cout << ha.hostname << '\n';
         }
         std::cout << "Devices:\n";
-        BOOST_FOREACH(parser::deviceinfo const& devinfo, gall.deviceinfos)
+        BOOST_FOREACH(parser::device const& dev, gall.devices)
         {
-            std::cout << devinfo.name << ", " << devinfo.timestamp << '\n';
+            std::cout << dev.name << ", " << dev.timestamp << '\n';
         }
     }
     else

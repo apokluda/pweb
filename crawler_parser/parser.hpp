@@ -6,74 +6,105 @@ namespace parser
     namespace qi = boost::spirit::qi;
     namespace ascii = boost::spirit::ascii;
 
-    struct deviceinfo
+    struct homeagent
     {
+        std::string hostname;
+        std::string port;
+    };
+
+    struct device
+    {
+        std::string owner;
         std::string name;
-        time_t timestamp;
+        std::string port;
+        time_t      timestamp;
+        std::string location;
+        std::string description;
     };
 
     struct getall
     {
-        typedef std::vector< std::string > halist_t;
-        typedef std::vector< deviceinfo > devinfolist_t;
+        typedef std::vector< homeagent > halist_t;
+        typedef std::vector< device >    devlist_t;
 
-        halist_t homeagents;
-        devinfolist_t deviceinfos;
+        std::string   haname;
+        halist_t      homeagents;
+        devlist_t     devices;
     };
 }
 
-BOOST_FUSION_ADAPT_STRUCT(
-    parser::deviceinfo,
-    (std::string, name)
-    (time_t, timestamp)
+BOOST_FUSION_ADAPT_STRUCT( parser::homeagent,
+    (std::string, hostname)
+    (std::string, port)
 )
 
-BOOST_FUSION_ADAPT_STRUCT(
-    parser::getall,
-    (parser::getall::halist_t, homeagents)
-    (parser::getall::devinfolist_t, deviceinfos)
+BOOST_FUSION_ADAPT_STRUCT( parser::device,
+    (std::string, owner)
+    (std::string, name)
+    (std::string, port)
+    (time_t,      timestamp)
+    (std::string, location)
+    (std::string, description)
+)
+
+BOOST_FUSION_ADAPT_STRUCT( parser::getall,
+    (std::string,               haname)
+    (parser::getall::halist_t,  homeagents)
+    (parser::getall::devlist_t, devices)
 )
 
 namespace parser
 {
     template <typename Iterator>
-    struct getall_parser : qi::grammar<Iterator, getall(), qi::locals<int> >
+    struct getall_parser : qi::grammar<Iterator, getall(), ascii::space_type>
     {
-        getall_parser() : getall_parser::base_type(start)
+        getall_parser() : getall_parser::base_type(getall_)
         {
             using qi::lit;
-            using qi::int_;
             using qi::long_;
-            using qi::_1;
-            using qi::_a;
-            using qi::_r1;
-            using boost::spirit::omit;
-            using boost::spirit::repeat;
+            using qi::lexeme;
             using ascii::char_;
 
-            start_tag %= lit("<html><body>");
+            str_        %= lexeme[+(char_ - '<')];
 
-            num %= int_ >> '|';
+            haname_     %= "<name>" >> str_ >> "</name>";
 
-            homeagents %= repeat(_r1)[ +(char_ - '|' ) >> '|' ];
+            neighbours_ %= "<neighbours>" >>
+                             *homeagent_ >>
+                          "</neighbours>";
 
-            devices %= repeat(_r1)[ +(char_ - '|') >> '|' >> long_ >> -lit(',') ];
+            // need '>>' between tags so that whitespace formatting will be skipped
+            homeagent_  %= lit("<home agent>") >>
+                              "<hostname>" >> str_ >> "</hostname>" >>
+                              "<port>"     >> str_ >> "</port>" >>
+                          "</home agent>";
 
-            end_tag   %= lit("</body></html>");
+            devices_    %= "<devices>" >>
+                              *device_ >>
+                          "</devices>";
 
-            start %= start_tag
-                  >> omit[num[_a = _1]]
-                  >> homeagents(_a)
-                  >> omit[num[_a = _1]]
-                  >> devices(_a)
-                  >> end_tag;
+            device_     %= lit("<device>") >>
+                              "<owner>"       >> str_  >> "</owner>" >>
+                              "<name>"        >> str_  >> "</name>" >>
+                              "<port>"        >> str_  >> "</port>" >>
+                              "<timestamp>"   >> long_ >> "</timestamp>" >>
+                              "<location>"    >> str_  >> "</location>" >>
+                              "<description>" >> str_  >> "</description>" >>
+                          "</device>";
+
+            getall_    %= "<getall>"
+                          >> haname_
+                          >> neighbours_
+                          >> devices_
+                          >> "</getall>";
         }
 
-        qi::rule<Iterator> start_tag;
-        qi::rule<Iterator> end_tag;
-        qi::rule<Iterator, int()> num;
-        qi::rule<Iterator, std::vector<std::string>(int) > homeagents;
-        qi::rule<Iterator, std::vector<deviceinfo>(int) > devices;
-        qi::rule<Iterator, getall(), qi::locals<int> > start;
+        qi::rule<Iterator, std::string(),            ascii::space_type> str_;
+        qi::rule<Iterator, std::string(),            ascii::space_type> haname_;
+        qi::rule<Iterator, homeagent(),              ascii::space_type> homeagent_;
+        qi::rule<Iterator, device(),                 ascii::space_type> device_;
+        qi::rule<Iterator, std::vector<homeagent>(), ascii::space_type> neighbours_;
+        qi::rule<Iterator, std::vector<device>(),    ascii::space_type> devices_;
+        qi::rule<Iterator, getall(),                 ascii::space_type> getall_;
     };
 }
