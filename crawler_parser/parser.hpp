@@ -65,7 +65,7 @@ namespace parser
             using qi::lexeme;
             using ascii::char_;
 
-            str_        %= lexeme[+(char_ - '<')];
+            str_        %= lexeme[*(char_ - '<')];
 
             haname_     %= "<name>" >> str_ >> "</name>";
 

@@ -101,10 +101,6 @@ int main()
             "<hostname>cn104.cs.uwaterloo.ca</hostname>"
             "<port>20000</port>"
             "</home_agent>"
-            "<home_agent>"
-            "<hostname>cn105.cs.uwaterloo.ca</hostname>"
-            "<port>20000</port>"
-            "</home_agent>"
             "</neighbours>"
             "<devices>"
             "<device>"
@@ -115,10 +111,19 @@ int main()
             "<location>Waterloo, ON, Canada</location>"
             "<description>my first android phone...</description>"
             "</device>"
-            "<device><owner>Faizul Bari</owner><name>nexus 4</name><port>9876</port><timestamp>1369087766</timestamp><location>Waterloo, ON, Canada</location><description>a;lhjsd;laskd;</description></device><device><owner>Faizul Bari</owner><name>nexus 4</name><port>9876</port><timestamp>1369087766</timestamp><location>Waterloo, ON, Canada</location><description>a;lhjsd;laskd;</description></device><device><owner>Faizul Bari</owner><name>asdasd</name><port>asda</port><timestamp>1369087107</timestamp><location>Waterloo, ON, Canada</location><description>asd</description></device><device><owner>Faizul Bari</owner><name>asdasd</name><port>asda</port><timestamp>1369087107</timestamp><location>Waterloo, ON, Canada</location><description>asd</description></device><device><owner>Faizul Bari</owner><name>asdasd34234</name><port>asdasd</port><timestamp>1369142462</timestamp><location>Waterloo, ON, Canada</location><description>asdasd</description></device><device><owner>Faizul Bari</owner><name>asdasd34234</name><port>asdasd</port><timestamp>1369142462</timestamp><location>Waterloo, ON, Canada</location><description>asdasd</description></device></devices></getall>";
+            "<device>"
+            "<owner>Faizul Bari</owner>"
+            "<name>nexus 4</name>"
+            "<port>9876</port>"
+            "<timestamp>1369087766</timestamp>"
+            "<location>Waterloo, ON, Canada</location>"
+            "<description>a;lhjsd;laskd;</description>"
+            "</device>"
+            "</devices>"
+            "</getall>";
 
     getall_parser const g; // Our grammar
-    std::string str( all1 );
+    std::string str( all5 );
 
     parser::getall gall;
     std::string::const_iterator iter = str.begin();
