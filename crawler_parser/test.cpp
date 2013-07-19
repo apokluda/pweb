@@ -122,8 +122,29 @@ int main()
             "</devices>"
             "</getall>";
 
+    char const* all6 =
+            "<getall>"
+            "<name>uw01</name>"
+            "<neighbours>"
+            "<home_agent><hostname>cn102.cs.uwaterloo.ca</hostname><port>20000</port></home_agent>"
+            "<home_agent><hostname>cn103.cs.uwaterloo.ca</hostname><port>20000</port></home_agent>"
+            "</neighbours>"
+            "<devices>"
+            "<device>"
+            "<owner>faiz</owner>"
+            "<name>nexus.faiz</name>"
+            "<port>1111</port>"
+            "<timestamp>1373903603</timestamp>"
+            "<location>bd</location>"
+            "<description>111</description>"
+            "<content_meta>1</content_meta>"
+            "</device>"
+            "</devices>"
+            "<content updates>nexus.faiz</content updates>"
+            "</getall>";
+
     getall_parser const g; // Our grammar
-    std::string str( all5 );
+    std::string str( all6 );
 
     parser::getall gall;
     std::string::const_iterator iter = str.begin();
