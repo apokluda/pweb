@@ -1,0 +1,173 @@
+This document describes how to install the pWeb DNS Gateway and
+Crawler on Ubuntu 13.04 (Raring Ringtail). The DNS Gateway
+and Crawler have been tested on Ubuntu 12.04 LTS, 12.10,
+and 13.04. The DNS Gateway and Crawler/Poller have a number
+of dependencies that can be easily installed using a few simple
+commands.
+
+Earlier versions of the DNS Gateway and Poller/Crawer have also
+been tested on Windows Server 2008 (equivalent to Windows XP/Vista
+for desktops) and Windows Server 2008 R2 (equivalent to Windows 7
+for desktops). However, installing the dependencies and compiling
+on Windows is much more complicated, and isn't described here.
+Additionally, the software has not been tested on Windows in
+quite some time and will likely need some source code modifications
+to compile successfully.
+
+------------------------------------------------------------
+Installation Instructions for Ubuntu
+------------------------------------------------------------
+
+If you are installing the software on Ubuntu 12.04 or 12.10
+you need to install the Boost libraries from Alexander Pokluda's
+PPA, because the official repositories for Ubuntu 12.04 and 12.10
+provide only older versions of Boost. (The software has been
+developed and tested with Boost 1.53. Newer versions of Boost
+should work, but haven't been tested, because they don't exist yet!).
+Follow the instructions on the PPA archive page to install
+the Boost 1.53 PPA: https://launchpad.net/~apokluda/+archive/boost1.53.
+
+Now install the dependencies:
+
+$ sudo apt-get install cmake libboost1.53-all-dev \
+  libcurl4-openssl-dev liblog4cpp5-dev build-essential
+
+We will use CMake to generate GNU Makefiles that are used to 
+complie the DNS Gateway and Crawler/Poller. The recommended way
+to use CMake is to do "out of source builds". This means that
+we will leave the source directory untouched and use a
+separate directory to compile the software. The following
+commands assume that you have extracted the DNS Gateway/Crawler
+source archive to <src>:
+
+$ mkdir pweb
+$ cd pweb
+$ cmake <src>
+
+The compilation process uses a precompiled header to reduce the compile
+time. Due to a bug in the build system, we need to link the
+precompiled header source file to the build directory:
+
+$ ln <src>/shared/stdhdr.hpp .
+
+Now we can continue with the compilation:
+
+$ make
+$ sudo make install
+
+In order to run the DNS Gateway and Crawler as a daemon,
+first install the daemon package:
+
+$ sudo apt-get install daemon
+
+Now the DNS Gateway and Crawler can be launched on system
+startup and controlled as a system service using Upstart.
+Create the following two files in /etc/init:
+
+--- /etc/init/dnsgw.conf ---
+
+description "pWeb DNS Gateway Server"
+author "Alexander Pokluda <apokluda@uwaterloo.ca>"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+exec daemon --user=daemon:daemon --name=dnsgw --respawn -- /usr/local/bin/dnsgw -c /etc/dnsgw.conf
+
+--- end of file---
+
+--- /etc/init/crawler.conf ---
+
+description "pWeb Device Crawler - Poller Process"
+author "Alexander Pokluda <apokluda@uwaterloo.ca>"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+exec daemon -c --user=daemon:daemon --name=poller --respawn -- /home/apokluda/bin/poller_with_dump.sh -c /etc/poller.conf
+
+--- end of file ---
+
+Note that the crawler init script starts only one poller without a manager process.
+
+The above scripts use DNS Gateway and Crawler configuration files /etc.
+The following configuration files can be used as a starting point for your own:
+
+--- /etc/dnsgw.conf ---
+# pWeb DNS Gateway Configuration File
+#
+# The option names and values are the same on the command line and in
+# this configuration file. More information about each option can
+# be see by running
+#
+# $ dnsgw -h
+#
+# on the command line.
+
+# The verbosity of messages printed to the log file
+# Valid options are: DEBUG, INFO, NOTICE, WARN, ERROR, CRIT, ALERT, FATAL = EMERG
+log_level=DEBUG
+
+# Path to the log file
+log_file=/var/log/dnsgw.log
+
+# The hostname of the dnsgw
+nshostname=dnsgw1.pwebproject.net.
+
+# The interface to use for listening for DNS requests
+iface=129.97.119.185
+
+# The port to use to receive responses from the Home Agent
+nsport=56142
+
+# The suffix that must be removed from DNS queires to get
+# a device name. (This device name will be sent to the Home Agent).
+suffix=dht.pwebproject.net.
+
+# The TTL value to insert into DNS responses
+ttl=0
+
+# Home Agents that can respond to queries for device name lookups.
+# Any number of home agents can be specified by listing the 'home_agent'
+# parameter multiple times. The value has the format '<host name>:<port>'
+# where <port> is the port number of the TCP interface.
+# If the Home Agents are not able to answer a query locally, they 
+# will lookup the device's IP address in the Plexus network on behalf
+# of the DNS Gateway.
+home_agent=cn101.cs.uwaterloo.ca:20000
+home_agent=cn102.cs.uwaterloo.ca:20000
+
+--- end of file ---
+
+--- /etc/poller.conf ---
+# pWeb Crawler - Poller Process Configuration File
+#
+# The option names and values are the same on the command line and in
+# this configuration file. More information about each option can
+# be seen by running
+#
+# $ poller -h
+#
+# on the command line.
+
+# The verbosity of messages printed to the log file
+# Valid options are: DEBUG, INFO, NOTICE, WARN, ERROR, CRIT, ALERT, FATAL = EMERG
+log_level=DEBUG
+
+# Path to the log file
+log_file=/var/log/poller.log
+
+# The polling interval for each Home Agent. A value of x means
+# that each Home Agent will be polled once every x seconds.                                 
+interval=5
+
+# The URL of the Apache Solr server to send updates to
+solrurl=http://localhost:8081/solr/pweb_devices/update
+
+# Home Agents to seed the crawling process. Any number of Home Agents
+# can be specified. The poller process will use the default HTTP port
+# for the home agents.
+home_agent=cn101.cs.uwaterloo.ca
+home_agent=cn102.cs.uwaterloo.ca
+--- end of file ---
+
