@@ -38,7 +38,6 @@ int multi_timer_cb(CURLM *multi, long timeout_ms, Context* c)
     /* cancel running timer */
     c->timer_.cancel();
 
-
 #ifndef NDEBUG
     // For some reason, libcurl often calls this function with a timeout of 1 millsecond.
     // When this happes, we set the timer and wait like normal, but every call to the timer

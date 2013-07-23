@@ -26,12 +26,29 @@ namespace parser
     {
         typedef std::vector< homeagent >   halist_t;
         typedef std::vector< device >      devlist_t;
-        typedef std::vector< std::string > content_t;
+        typedef std::vector< std::string > contlist_t;
 
         std::string   haname;
         halist_t      homeagents;
         devlist_t     devices;
-        content_t     updates;
+        contlist_t    updates;
+    };
+
+    struct video
+    {
+        int id;
+        std::string title;
+        long filesize;
+        std::string mimetype;
+        std::string description;
+        bool pub;
+    };
+
+    struct contmeta
+    {
+        typedef std::vector< video >        videolist_t;
+
+        videolist_t   videos;
     };
 }
 
@@ -50,10 +67,23 @@ BOOST_FUSION_ADAPT_STRUCT( parser::device,
 )
 
 BOOST_FUSION_ADAPT_STRUCT( parser::getall,
-    (std::string,               haname)
-    (parser::getall::halist_t,  homeagents)
-    (parser::getall::devlist_t, devices)
-    (parser::getall::content_t, updates)
+    (std::string,                haname)
+    (parser::getall::halist_t,   homeagents)
+    (parser::getall::devlist_t,  devices)
+    (parser::getall::contlist_t, updates)
+)
+
+BOOST_FUSION_ADAPT_STRUCT( parser::video,
+    (int,         id)
+    (std::string, title)
+    (long,        filesize)
+    (std::string, mimetype)
+    (std::string, description)
+    (bool,        pub)
+)
+
+BOOST_FUSION_ADAPT_STRUCT( parser::contmeta,
+    (parser::contmeta::videolist_t, videos)
 )
 
 namespace parser
@@ -115,5 +145,43 @@ namespace parser
         qi::rule<Iterator, std::vector<device>(),      ascii::space_type> devices_;
         qi::rule<Iterator, std::vector<std::string>(), ascii::space_type> content_;
         qi::rule<Iterator, getall(),                   ascii::space_type> getall_;
+    };
+
+    template <typename Iterator>
+    struct contmeta_parser : qi::grammar<Iterator, contmeta(), ascii::space_type>
+    {
+        contmeta_parser() : contmeta_parser::base_type(contmeta_)
+        {
+            using qi::lit;
+            using qi::int_;
+            using qi::long_;
+            using qi::lexeme;
+            using qi::matches;
+            using ascii::char_;
+
+            str_        %= lexeme[*(char_ - '<')];
+
+            videos_    %= "<videos>" >>
+                            *video_ >>
+                          "</videos>";
+
+            video_     %= lit("<video>") >>
+                              "<id>"          >> int_              >> "</id>" >>
+                              "<title>"       >> str_              >> "</title>" >>
+                              "<filesize>"    >> long_             >> "</filesize>" >>
+                              "<mimetype>"    >> str_              >> "</mimetype>" >>
+                              "<description>" >> str_              >> "</description>" >>
+                              "<shared>"      >> matches["Public"] >> "</shared>" >>
+                          "</video>";
+
+            contmeta_     %= "<multimedia>"
+                          >> videos_
+                          >> "</multimedia>";
+        }
+
+        qi::rule<Iterator, std::string(),              ascii::space_type> str_;
+        qi::rule<Iterator, video(),                    ascii::space_type> video_;
+        qi::rule<Iterator, std::vector<video>(),       ascii::space_type> videos_;
+        qi::rule<Iterator, contmeta(),                 ascii::space_type> contmeta_;
     };
 }

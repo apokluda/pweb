@@ -17,6 +17,14 @@ static boost::random::mt19937 gen;
 
 extern log4cpp::Category& log4;
 
+
+namespace
+{
+    typedef boost::shared_ptr< curl::AsyncHTTPRequester > reqptr_t;
+    void handle_getcontentlist(poller::Context const&, reqptr_t const&, std::string const& device, CURLcode const&, std::string const& body);
+    void handle_postcontentlist(reqptr_t const&, std::string const& device, CURLcode const&, std::string const& body);
+}
+
 namespace poller
 {
 
@@ -113,8 +121,21 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
         }
         out << "</add>";
 
-        log4.debugStream() << "Sending update to Solr";
+        log4.debugStream() << "Sending device list update to Solr";
         requester_.fetch(pollerctx_.solrurl + "?commit=true", boost::bind(&poller::handle_post, this, _1, _2, newtimestamp), out.str());
+
+        // Poll for content updates
+        for (parser::getall::contlist_t::const_iterator i = gall.updates.begin(); i != gall.updates.end(); ++i)
+        {
+            std::ostringstream url;
+            //url << "http://" << hostname_ << "20005:/?method=getcontentlist&name=" << *i;
+            url << "http://localhost/contentmetadata.txt";
+            std::ostringstream device;
+            device << *i << '.' << gall.haname;
+
+            boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(requester_.get_context(), false) );
+            r->fetch(url.str(), boost::bind(&handle_getcontentlist, pollerctx_, r, device.str(), _1, _2) );
+        }
     }
     else
     {
@@ -147,6 +168,69 @@ void poller::handle_post( CURLcode const code, std::string const& content, time_
     }
     start();
 }
+
+}
+
+namespace
+{
+
+static parser::contmeta_parser< std::string::const_iterator > const cmparser;
+
+void handle_getcontentlist(poller::Context const& pollerctx, reqptr_t const& requester, std::string const& device, CURLcode const& code, std::string const& body)
+{
+    // Note: This method may be called multiple times simultaneously. It must be thread-safe.
+
+    if ( code == CURLE_OK )
+    {
+        // parse content metadata and send update to solr
+        log4.infoStream() << "Successfully retrieved content metadata for " << device;
+        log4.debugStream() << "Content received:\n" << body;
+
+        parser::contmeta contmeta;
+        std::string::const_iterator iter = body.begin();
+        std::string::const_iterator end = body.end();
+        using boost::spirit::ascii::space;
+        bool const r = boost::spirit::qi::phrase_parse(iter, end, cmparser, space, contmeta);
+
+        if ( !r || iter != end)
+        {
+            log4.errorStream() << "Failed to parse content metadata for " << device;
+            return;
+        }
+
+        log4.noticeStream() << "Received content metadata for " << device << " containing " << contmeta.videos.size() << " videos";
+
+        parser::contmeta::videolist_t& videos = contmeta.videos;
+
+        std::ostringstream out;
+        out << ""; // TRANSFORM CONTENT METADATA HERE!
+        // Need a new URL below!!
+
+        log4.debugStream() << "Sending content metadata update to Solr";
+        requester->fetch(pollerctx.solrurl + "?commit=true", boost::bind(&handle_postcontentlist, requester, device, _1, _2), out.str());
+    }
+    else
+    {
+        log4.errorStream() << "An error occurred while retrieving content metadata from home agent for " << device << ": " << curl_easy_strerror(code);
+    }
+}
+
+void handle_postcontentlist(reqptr_t const&, std::string const& device, CURLcode const& code, std::string const&)
+{
+    if ( code == CURLE_OK )
+    {
+        log4.infoStream() << "Successfully sent content metadata update to Solr for " << device;
+    }
+    else
+    {
+        log4.errorStream() << "An error occurred while sending content metadata update to Solr for " << device;
+    }
+}
+
+}
+
+namespace poller
+{
 
 void pollercreator::create_poller( std::string const& hostname )
 {

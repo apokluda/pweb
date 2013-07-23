@@ -143,6 +143,28 @@ int main()
             "<content updates>nexus.faiz</content updates>"
             "</getall>";
 
+    char const* meta1 =
+            "<multimedia>"
+            " <videos>"
+            "  <video>"
+            "   <id>1</id>"
+            "   <title>Ed Sheeran - The A Team Lyrics (On Screen).mp4</title>"
+            "   <filesize>40258480</filesize>"
+            "   <mimetype>video/mp4</mimetype>"
+            "   <description>nice melodic song</description>"
+            "   <shared>Public</shared>"
+            "  </video>"
+            "  <video>"
+            "   <id>2</id>"
+            "   <title>Fireworks.mp4</title>"
+            "   <filesize>44378752</filesize>"
+            "   <mimetype>video/mp4</mimetype>"
+            "   <description>fireworks event on the 1st of july</description>"
+            "   <shared>Public</shared>"
+            "  </video>"
+            " </videos>"
+            "</multimedia>";
+
     getall_parser const g; // Our grammar
     std::string str( all6 );
 

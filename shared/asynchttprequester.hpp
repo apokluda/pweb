@@ -23,7 +23,6 @@ namespace curl
     //
     // BIG FAT WARNING!!! BIG FAT WARNING!!! BIG FAT WARNING!!!
 
-
     class AsyncHTTPRequester;
 
     class Context : boost::noncopyable
