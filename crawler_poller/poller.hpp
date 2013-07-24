@@ -16,12 +16,14 @@ namespace poller
 {
     struct Context
     {
-        Context(std::string const& solrurl, boost::posix_time::time_duration const interval)
-        : solrurl( solrurl )
+        Context(std::string const& deviceurl, std::string const& contenturl, boost::posix_time::time_duration const interval)
+        : solr_deviceurl( deviceurl )
+        , solr_contenturl( contenturl )
         , interval( interval )
         {}
 
-        std::string const solrurl;
+        std::string const solr_deviceurl;
+        std::string const solr_contenturl;
         boost::posix_time::time_duration const interval;
     };
 

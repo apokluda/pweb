@@ -36,7 +36,8 @@ int main(int argc, char const* argv[])
         std::string log_level;
         std::string manager;
         std::string manport;
-        std::string solrurl;
+        std::string solr_deviceurl;
+        std::string solr_contenturl;
         std::size_t threads;
         long interval;
         bool debug = false;
@@ -60,8 +61,8 @@ int main(int argc, char const* argv[])
                                                                                                               "Log levels are NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG")
                     ("manager,M",     po::value< string >         (&manager),                                 "Hostname or IP address of the Crawler Manager")
                     ("manport,P",     po::value< string >         (&manport)->default_value(string("1141")),  "Port number to use when connecting to the Crawler Manager" )
-                    ("solrurl,S",     po::value< string >         (&solrurl)->required(),                     "URL of the Solr HTTP interface"
-                                                                                                              "    Device information is POST'ed to Solr at this URL")
+                    ("solrdevurl,D",  po::value< string >         (&solr_deviceurl)->required(),              "URL of the HTTP interface for the pweb_devices Solr core")
+              		("solrconurl,C",  po::value< string >         (&solr_contenturl)->required(),             "URL of the HTTP interface for the pweb_content Solr core")
                     ("interval,I",    po::value< long >           (&interval)->default_value(60),             "Number of seconds between polls to individual Home Agents")
                     ("home_agent,H",  po::value< halist_t >       (&home_agents),                             "List of well-known Home Agent web interface addresses\n"
                                                                                                               "    Any number of Home Agent addresses may be specified, separated by commas. "
@@ -165,7 +166,7 @@ int main(int argc, char const* argv[])
         }
 
         using boost::posix_time::seconds;
-        poller::Context pollerctx( solrurl, seconds(interval) );
+        poller::Context pollerctx( solr_deviceurl, solr_contenturl, seconds(interval) );
         curl::Context curlctx( io_service );
         poller::pollercreator pc( pollerctx, curlctx );
         signals::home_agent_assigned.connect( boost::bind( &poller::pollercreator::create_poller, &pc, _1 ) );

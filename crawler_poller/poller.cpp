@@ -122,7 +122,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
         out << "</add>";
 
         log4.debugStream() << "Sending device list update to Solr";
-        requester_.fetch(pollerctx_.solrurl + "?commit=true", boost::bind(&poller::handle_post, this, _1, _2, newtimestamp), out.str());
+        requester_.fetch(pollerctx_.solr_deviceurl + "?commit=true", boost::bind(&poller::handle_post, this, _1, _2, newtimestamp), out.str());
 
         // Poll for content updates
         for (parser::getall::contlist_t::const_iterator i = gall.updates.begin(); i != gall.updates.end(); ++i)
@@ -203,11 +203,24 @@ void handle_getcontentlist(poller::Context const& pollerctx, reqptr_t const& req
         parser::contmeta::videolist_t& videos = contmeta.videos;
 
         std::ostringstream out;
-        out << ""; // TRANSFORM CONTENT METADATA HERE!
-        // Need a new URL below!!
+        out << "<add overwrite=\"true\">";
+        typedef parser::contmeta::videolist_t::const_iterator viter_t;
+        for ( viter_t i = videos.begin(); i != videos.end(); ++i )
+        {
+            out << "<doc>"
+                   "<field name=\"ctid\">"        << device << "-vid" << i->id << "</field>"
+                   "<field name=\"id\">"          << i->id                     << "</field>"
+                   "<field name=\"device_name\">" << device                    << "</field>"
+                   "<field name=\"title\">"       << i->title                  << "</field>"
+                   "<field name=\"filesize\">"    << i->filesize               << "</field>"
+                   "<field name=\"mimetype\">"    << i->mimetype               << "</field>"
+                   "<field name=\"description\">" << i->description            << "</field>"
+                   "</doc>";
+        }
+        out << "</add>";
 
         log4.debugStream() << "Sending content metadata update to Solr";
-        requester->fetch(pollerctx.solrurl + "?commit=true", boost::bind(&handle_postcontentlist, requester, device, _1, _2), out.str());
+        requester->fetch(pollerctx.solr_contenturl + "?commit=true", boost::bind(&handle_postcontentlist, requester, device, _1, _2), out.str());
     }
     else
     {
