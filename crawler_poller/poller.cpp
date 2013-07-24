@@ -150,7 +150,7 @@ void poller::handle_post( CURLcode const code, std::string const& content, time_
     {
         if ( content.find("<int name=\"status\">0</int>") != std::string::npos )
         {
-            log4.infoStream() << "Successfully sent update to Solr";
+            log4.infoStream() << "Successfully sent device info update to Solr";
             // We update the timestamp used for polling only if the update was sucessfully commited
             // to the Solr database. This ensures that we don't loose any device updates if
             // the update fails.
@@ -159,7 +159,7 @@ void poller::handle_post( CURLcode const code, std::string const& content, time_
         }
         else
         {
-            log4.errorStream() << "Unable to find success status in Solr output:\n" << content;
+            log4.errorStream() << "Unable to find success status for device info update in Solr output:\n" << content;
         }
     }
     else
@@ -220,7 +220,7 @@ void handle_getcontentlist(poller::Context const& pollerctx, reqptr_t const& req
         out << "</add>";
 
         log4.debugStream() << "Sending content metadata update to Solr";
-        requester->fetch(pollerctx.solr_contenturl + "?commit=true", boost::bind(&handle_postcontentlist, requester, device, _1, _2), out.str());
+        requester->fetch(pollerctx.solr_contenturl + "?softCommit=true", boost::bind(&handle_postcontentlist, requester, device, _1, _2), out.str());
     }
     else
     {
@@ -228,11 +228,18 @@ void handle_getcontentlist(poller::Context const& pollerctx, reqptr_t const& req
     }
 }
 
-void handle_postcontentlist(reqptr_t const&, std::string const& device, CURLcode const& code, std::string const&)
+void handle_postcontentlist(reqptr_t const&, std::string const& device, CURLcode const& code, std::string const& body)
 {
     if ( code == CURLE_OK )
     {
-        log4.infoStream() << "Successfully sent content metadata update to Solr for " << device;
+        if ( body.find("<int name=\"status\">0</int>") != std::string::npos )
+        {
+            log4.infoStream() << "Successfully sent content metadata update to Solr for " << device;
+        }
+        else
+        {
+            log4.errorStream() << "Unable to find success status for content metadata update for " << device << " in Solr output:\n" << body;
+        }
     }
     else
     {
