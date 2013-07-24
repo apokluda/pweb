@@ -108,13 +108,13 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
         for ( diter_t i = devices.begin(); i != devices.end(); ++i )
         {
             out << "<doc>"
-                   "<field name=\"owner\">"       << i->owner       << "</field>"
-                   "<field name=\"name\">"        << i->name        << "</field>"
-                   "<field name=\"home\">"        << gall.haname    << "</field>"
-                   "<field name=\"port\">"        << i->port        << "</field>"
-                   "<field name=\"timestamp\">"   << i->timestamp   << "</field>"
-                   "<field name=\"location\">"    << i->location    << "</field>"
-                   "<field name=\"description\">" << i->description << "</field>"
+                   "<field name=\"owner\">"       << i->owner                      << "</field>"
+                   "<field name=\"name\">"        << i->name << '.' << gall.haname << "</field>"
+                   "<field name=\"home\">"        << gall.haname                   << "</field>"
+                   "<field name=\"port\">"        << i->port                       << "</field>"
+                   "<field name=\"timestamp\">"   << i->timestamp                  << "</field>"
+                   "<field name=\"location\">"    << i->location                   << "</field>"
+                   "<field name=\"description\">" << i->description                << "</field>"
                    "</doc>";
 
             if (i->timestamp > newtimestamp) newtimestamp = i->timestamp;
