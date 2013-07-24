@@ -128,8 +128,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
         for (parser::getall::contlist_t::const_iterator i = gall.updates.begin(); i != gall.updates.end(); ++i)
         {
             std::ostringstream url;
-            //url << "http://" << hostname_ << "20005:/?method=getcontentlist&name=" << *i;
-            url << "http://localhost/contentmetadata.txt";
+            url << "http://" << hostname_ << ":20005/?method=getcontentlist&name=" << *i;
             std::ostringstream device;
             device << *i << '.' << gall.haname;
 
