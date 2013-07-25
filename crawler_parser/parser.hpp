@@ -168,7 +168,7 @@ namespace parser
 
     };
 
-    extern access_level_<char, ACCESS_LEVEL> access_level;
+    extern access_level_ access_level;
 
     template <typename Iterator>
     struct contmeta_parser : qi::grammar<Iterator, contmeta(), ascii::space_type>
