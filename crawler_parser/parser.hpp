@@ -47,7 +47,7 @@ namespace parser
         long         filesize;
         std::string  mimetype;
         std::string  description;
-        ACCESS_LEVEL pub;
+        ACCESS_LEVEL access;
     };
 
     struct contmeta
