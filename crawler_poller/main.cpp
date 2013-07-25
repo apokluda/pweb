@@ -148,6 +148,8 @@ int main(int argc, char const* argv[])
 
         log4.setPriority(log4cpp::Priority::getPriorityValue(log_level));
 
+        log4.infoStream() << "--- pWeb Crawler Poller Process " << PWEB_VERSION_STR << " started ---" ;
+
         boost::asio::io_service io_service;
 
         typedef signals::duplicate_filter< std::string, boost::function< void(std::string const&) > > filter_t;
