@@ -1,4 +1,5 @@
 #pragma once
+
 #include "stdhdr.hpp"
 
 namespace parser
@@ -153,9 +154,9 @@ namespace parser
         qi::rule<Iterator, getall(),                   ascii::space_type> getall_;
     };
 
-    struct access_ : qi::symbols<char, ACCESS_LEVEL>
+    struct access_level_ : qi::symbols<char, ACCESS_LEVEL>
     {
-        access_()
+    	access_level_()
         {
             add
                 ("Public" ,    PUBLIC)
@@ -164,7 +165,7 @@ namespace parser
             ;
         }
 
-    } access;
+    } access_level;
 
     template <typename Iterator>
     struct contmeta_parser : qi::grammar<Iterator, contmeta(), ascii::space_type>
@@ -185,12 +186,12 @@ namespace parser
                           "</videos>";
 
             video_     %= lit("<video>") >>
-                              "<id>"          >> int_   >> "</id>" >>
-                              "<title>"       >> str_   >> "</title>" >>
-                              "<filesize>"    >> long_  >> "</filesize>" >>
-                              "<mimetype>"    >> str_   >> "</mimetype>" >>
-                              "<description>" >> str_   >> "</description>" >>
-                              "<shared>"      >> access >> "</shared>" >>
+                              "<id>"          >> int_         >> "</id>" >>
+                              "<title>"       >> str_         >> "</title>" >>
+                              "<filesize>"    >> long_        >> "</filesize>" >>
+                              "<mimetype>"    >> str_         >> "</mimetype>" >>
+                              "<description>" >> str_         >> "</description>" >>
+                              "<shared>"      >> access_level >> "</shared>" >>
                           "</video>";
 
             contmeta_     %= "<multimedia>"
