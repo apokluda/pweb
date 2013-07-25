@@ -5,6 +5,7 @@ int main()
 {
     typedef std::string::const_iterator iterator_type;
     typedef parser::getall_parser<iterator_type> getall_parser;
+    typedef parser::contmeta_parser<iterator_type> contmeta_parser;
 
     char const* all1 =
             "<getall>\
@@ -165,14 +166,44 @@ int main()
             " </videos>"
             "</multimedia>";
 
-    getall_parser const g; // Our grammar
-    std::string str( all6 );
+    char const* meta2 =
+    		"<multimedia>"
+    		"<videos>"
+    		" <video>"
+    		"  <id>1</id>"
+    		"  <title>Ed Sheeran - The A Team Lyrics (On Screen)</title>"
+    		"  <filesize>40258480</filesize>"
+    		"  <mimetype>video/mp4</mimetype>"
+    		"  <description>nice song</description>"
+    		"  <shared>Public</shared>"
+    		" </video>"
+/*    		" <video>"
+    		"  <id>2</id>"
+    		"  <title>Mirror's Edge Theme Song - Still Alive</title>"
+    		"  <filesize>87816808</filesize>"
+    		"  <mimetype>video/mp4</mimetype>"
+    		"  <description>great</description>"
+    		"  <shared>Private</shared>"
+    		" </video>"
+    		" <video>"
+    		"  <id>3</id>"
+    		"  <title>Dragonette - Easy (Fabian Remix)</title>"
+    		"  <filesize>31674093</filesize>"
+    		"  <mimetype>video/mp4</mimetype>"
+    		"  <description>great</description>"
+    		"  <shared>Public</shared>"
+    		" </video>"*/
+    		"</videos>"
+    		"</multimedia>" ;
 
-    parser::getall gall;
+    contmeta_parser const g; // Our grammar
+    std::string str( meta2 );
+
+    parser::contmeta contmeta;
     std::string::const_iterator iter = str.begin();
     std::string::const_iterator end = str.end();
     using boost::spirit::ascii::space;
-    bool r = phrase_parse(iter, end, g, space, gall);
+    bool r = phrase_parse(iter, end, g, space, contmeta);
 
     if (r && iter == end)
     {
@@ -180,16 +211,16 @@ int main()
         std::cout << "Parsing succeeded\n";
         std::cout << "\n-------------------------\n";
 
-        std::cout << "Home Agents:\n";
-        BOOST_FOREACH(parser::homeagent const& ha, gall.homeagents)
-        {
-            std::cout << ha.hostname << '\n';
-        }
-        std::cout << "Devices:\n";
-        BOOST_FOREACH(parser::device const& dev, gall.devices)
-        {
-            std::cout << dev.name << ", " << dev.timestamp << '\n';
-        }
+        //std::cout << "Home Agents:\n";
+        //BOOST_FOREACH(parser::homeagent const& ha, gall.homeagents)
+        //{
+        //    std::cout << ha.hostname << '\n';
+        //}
+        //std::cout << "Devices:\n";
+        //BOOST_FOREACH(parser::device const& dev, gall.devices)
+        //{
+        //    std::cout << dev.name << ", " << dev.timestamp << '\n';
+        //}
     }
     else
     {
