@@ -177,7 +177,7 @@ int main()
     		"  <description>nice song</description>"
     		"  <shared>Public</shared>"
     		" </video>"
-/*    		" <video>"
+    		" <video>"
     		"  <id>2</id>"
     		"  <title>Mirror's Edge Theme Song - Still Alive</title>"
     		"  <filesize>87816808</filesize>"
@@ -192,7 +192,7 @@ int main()
     		"  <mimetype>video/mp4</mimetype>"
     		"  <description>great</description>"
     		"  <shared>Public</shared>"
-    		" </video>"*/
+    		" </video>"
     		"</videos>"
     		"</multimedia>" ;
 

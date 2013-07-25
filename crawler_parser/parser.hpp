@@ -33,15 +33,21 @@ namespace parser
         devlist_t     devices;
         contlist_t    updates;
     };
+    enum ACCESS_LEVEL
+    {
+    	PUBLIC,
+    	PRIVATE,
+    	NOT_SHARED
+    };
 
     struct video
     {
-        int id;
-        std::string title;
-        long filesize;
-        std::string mimetype;
-        std::string description;
-        bool pub;
+        int          id;
+        std::string  title;
+        long         filesize;
+        std::string  mimetype;
+        std::string  description;
+        ACCESS_LEVEL pub;
     };
 
     struct contmeta
@@ -74,12 +80,12 @@ BOOST_FUSION_ADAPT_STRUCT( parser::getall,
 )
 
 BOOST_FUSION_ADAPT_STRUCT( parser::video,
-    (int,         id)
-    (std::string, title)
-    (long,        filesize)
-    (std::string, mimetype)
-    (std::string, description)
-    (bool,        pub)
+    (int,                  id)
+    (std::string,          title)
+    (long,                 filesize)
+    (std::string,          mimetype)
+    (std::string,          description)
+    (parser::ACCESS_LEVEL, access)
 )
 
 BOOST_FUSION_ADAPT_STRUCT( parser::contmeta,
@@ -147,6 +153,19 @@ namespace parser
         qi::rule<Iterator, getall(),                   ascii::space_type> getall_;
     };
 
+    struct access_ : qi::symbols<char, ACCESS_LEVEL>
+    {
+        access_()
+        {
+            add
+                ("Public" ,    PUBLIC)
+                ("Private",    PRIVATE)
+                ("Not Shared", NOT_SHARED)
+            ;
+        }
+
+    } access;
+
     template <typename Iterator>
     struct contmeta_parser : qi::grammar<Iterator, contmeta(), ascii::space_type>
     {
@@ -166,12 +185,12 @@ namespace parser
                           "</videos>";
 
             video_     %= lit("<video>") >>
-                              "<id>"          >> int_              >> "</id>" >>
-                              "<title>"       >> str_              >> "</title>" >>
-                              "<filesize>"    >> long_             >> "</filesize>" >>
-                              "<mimetype>"    >> str_              >> "</mimetype>" >>
-                              "<description>" >> str_              >> "</description>" >>
-                              "<shared>"      >> matches["Public"] >> "</shared>" >>
+                              "<id>"          >> int_   >> "</id>" >>
+                              "<title>"       >> str_   >> "</title>" >>
+                              "<filesize>"    >> long_  >> "</filesize>" >>
+                              "<mimetype>"    >> str_   >> "</mimetype>" >>
+                              "<description>" >> str_   >> "</description>" >>
+                              "<shared>"      >> access >> "</shared>" >>
                           "</video>";
 
             contmeta_     %= "<multimedia>"
