@@ -1,6 +1,8 @@
 
 #include "parser.hpp"
 
+parser::access_level_<char, parser::ACCESS_LEVEL> access_level;
+
 int main()
 {
     typedef std::string::const_iterator iterator_type;

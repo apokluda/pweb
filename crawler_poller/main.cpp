@@ -24,6 +24,9 @@ namespace po = boost::program_options;
 log4cpp::Category& log4 = log4cpp::Category::getRoot();
 namespace curl { extern bool debug; }
 
+// This needs to go somewhere, and right now it's going here!
+parser::access_level_<char, parser::ACCESS_LEVEL> access_level;
+
 int main(int argc, char const* argv[])
 {
     int exit_code = 0;
