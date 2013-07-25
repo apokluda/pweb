@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PARSER_HPP
+#define PARSER_HPP
 
 #include "stdhdr.hpp"
 
@@ -205,3 +206,5 @@ namespace parser
         qi::rule<Iterator, contmeta(),                 ascii::space_type> contmeta_;
     };
 }
+
+#endif
