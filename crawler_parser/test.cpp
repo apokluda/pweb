@@ -1,7 +1,7 @@
 
 #include "parser.hpp"
 
-parser::access_level_ access_level;
+parser::access_level_ parser::access_level;
 
 int main()
 {
