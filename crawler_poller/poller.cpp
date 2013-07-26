@@ -178,9 +178,10 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 			device << *i << '.' << gall.haname;
 
 			boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(requester_.get_context(), false) );
-			r->fetch(url.str(), boost::bind(&handle_getcontentlist, pollerctx_, r, device.str(), _1, _2) );
+			std::string const& urlstr = url.str();
+			r->fetch(urlstr, boost::bind(&handle_getcontentlist, pollerctx_, r, device.str(), _1, _2) );
 
-			log4.debugStream() << "Retrieving content metadata for " << device.str() << " with URL " << url;
+			log4.debugStream() << "Retrieving content metadata for " << device.str() << " with URL " << urlstr;
 		}
 	}
 	else
