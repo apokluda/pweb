@@ -224,7 +224,7 @@ void handle_getcontentlist(poller::Context const& pollerctx, reqptr_t const& req
 
         if ( !r || iter != end)
         {
-            log4.errorStream() << "Failed to parse content metadata for " << device " here: \"" << outputparsefail(body, iter) << '\"';
+            log4.errorStream() << "Failed to parse content metadata for " << device << " here: \"" << outputparsefail(body, iter) << '\"';
             return;
         }
 
