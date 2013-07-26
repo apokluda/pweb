@@ -19,6 +19,7 @@ namespace parser
         std::string owner;
         std::string name;
         std::string port;
+        std::string type;
         time_t      timestamp;
         std::string location;
         std::string description;
@@ -69,6 +70,7 @@ BOOST_FUSION_ADAPT_STRUCT( parser::device,
     (std::string, owner)
     (std::string, name)
     (std::string, port)
+    (std::string, type)
     (time_t,      timestamp)
     (std::string, location)
     (std::string, description)
@@ -129,6 +131,7 @@ namespace parser
                               "<owner>"       >> str_        >> "</owner>" >>
                               "<name>"        >> str_        >> "</name>" >>
                               "<port>"        >> str_        >> "</port>" >>
+                              "<type>"        >> str_        >> "</type>" >>
                               "<timestamp>"   >> long_       >> "</timestamp>" >>
                               "<location>"    >> str_        >> "</location>" >>
                               "<description>" >> str_        >> "</description>" >>
