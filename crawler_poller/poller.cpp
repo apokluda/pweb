@@ -172,11 +172,12 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 		// Poll for content updates
 		for (parser::getall::contlist_t::const_iterator i = gall.updates.begin(); i != gall.updates.end(); ++i)
 		{
+			if ( i->empty() ) continue;
+
 			std::ostringstream url;
 			url << "http://" << hostname_ << ":20005/?method=getcontentlist&name=" << *i;
 			std::ostringstream device;
 			device << *i << '.' << gall.haname;
-			log4.debugStream() << "GETTING CONTENT META FOR DEVICE \"" << *i << "\"; empty? " << i->empty();
 
 			boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(requester_.get_context(), false) );
 			std::string const& urlstr = url.str();
