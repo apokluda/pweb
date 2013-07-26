@@ -70,6 +70,32 @@ void poller::do_poll( bs::error_code const& ec )
     }
 }
 
+class outputparsefail
+{
+public:
+	outputparsefail(std::string const& str, std::string::const_iterator const iter)
+	: str_(str), iter_(iter) {}
+
+	void operator()(std::ostream& out)
+	{
+		// Find position where fail occurred and back up a few characters
+		std::string::size_type const goodchars = std::min(iter_ - str_.begin(), std::string::difference_type( 5 ) );
+		std::ostream_iterator oiter(out);
+		std::copy(iter_ - goodchars, iter_, oiter);
+
+		// Print marker
+		out << '|';
+
+		// Print some more output after the fail
+		std::string::size_type const badchars = std::min(str_.end() - iter_, std::string::difference_type( 9 ) );
+		std::copy(iter_, iter_ + badchars, oiter);
+	}
+
+private:
+	std::string::const_iterator const iter_;
+	std::string const& str_;
+};
+
 void poller::handle_poll( CURLcode const code, std::string const& content )
 {
     // check that code is CURLE_OK, log result, and start a new request
@@ -86,7 +112,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 
         if ( !r || iter != end)
         {
-            log4.errorStream() << "Failed to parse content returned from '" << hostname_ << '\'';
+            log4.errorStream() << "Failed to parse device update from " << hostname_ << " here: \"" << outputparsefail(content, iter) << '\"';
             start(); return;
         }
 
@@ -198,7 +224,7 @@ void handle_getcontentlist(poller::Context const& pollerctx, reqptr_t const& req
 
         if ( !r || iter != end)
         {
-            log4.errorStream() << "Failed to parse content metadata for " << device;
+            log4.errorStream() << "Failed to parse content metadata for " << device " here: \"" << outputparsefail(body, iter) << '\"';
             return;
         }
 
