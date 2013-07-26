@@ -136,32 +136,38 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 		typedef parser::getall::halist_t::const_iterator hiter_t;
 		for ( hiter_t i = homeagents.begin(); i != homeagents.end(); ++i ) signals::home_agent_discovered( i->hostname );
 
-		if ( devices.empty() ) { start(); return; }
-
-		// We could use the Spirit Karma library here, but this is sufficient for now
-		std::ostringstream out;
-		out << "<add overwrite=\"true\">";
-		typedef parser::getall::devlist_t::const_iterator diter_t;
 		time_t newtimestamp = 0;
-		for ( diter_t i = devices.begin(); i != devices.end(); ++i )
+		if ( !devices.empty() )
 		{
-			out << "<doc>"
-					"<field name=\"owner\">"       << i->owner                      << "</field>"
-					"<field name=\"name\">"        << i->name << '.' << gall.haname << "</field>"
-					"<field name=\"home\">"        << gall.haname                   << "</field>"
-					"<field name=\"port\">"        << i->port                       << "</field>"
-					"<field name=\"type\">"        << i->type                       << "</field>"
-					"<field name=\"timestamp\">"   << i->timestamp                  << "</field>"
-					"<field name=\"location\">"    << i->location                   << "</field>"
-					"<field name=\"description\">" << i->description                << "</field>"
-					"</doc>";
+			// We could use the Spirit Karma library here, but this is sufficient for now
+			std::ostringstream out;
+			out << "<add overwrite=\"true\">";
+			typedef parser::getall::devlist_t::const_iterator diter_t;
+			for ( diter_t i = devices.begin(); i != devices.end(); ++i )
+			{
+				out << "<doc>"
+						"<field name=\"owner\">"       << i->owner                      << "</field>"
+						"<field name=\"name\">"        << i->name << '.' << gall.haname << "</field>"
+						"<field name=\"home\">"        << gall.haname                   << "</field>"
+						"<field name=\"port\">"        << i->port                       << "</field>"
+						"<field name=\"type\">"        << i->type                       << "</field>"
+						"<field name=\"timestamp\">"   << i->timestamp                  << "</field>"
+						"<field name=\"location\">"    << i->location                   << "</field>"
+						"<field name=\"description\">" << i->description                << "</field>"
+						"</doc>";
 
-			if (i->timestamp > newtimestamp) newtimestamp = i->timestamp;
+				if (i->timestamp > newtimestamp) newtimestamp = i->timestamp;
+			}
+			out << "</add>";
+
+			log4.debugStream() << "Sending device list update to Solr for " << gall.haname;
+			requester_.fetch(pollerctx_.solr_deviceurl + "?commit=true", boost::bind(&poller::handle_post, this, _1, _2, newtimestamp), out.str());
 		}
-		out << "</add>";
-
-		log4.debugStream() << "Sending device list update to Solr for " << gall.haname;
-		requester_.fetch(pollerctx_.solr_deviceurl + "?commit=true", boost::bind(&poller::handle_post, this, _1, _2, newtimestamp), out.str());
+		else
+		{
+			// NOTE!!!! We need to update the timestamp here!!!!!!!! How is the question.
+			start();
+		}
 
 		// Poll for content updates
 		for (parser::getall::contlist_t::const_iterator i = gall.updates.begin(); i != gall.updates.end(); ++i)
