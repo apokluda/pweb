@@ -80,7 +80,7 @@ public:
 	{
 		// Find position where fail occurred and back up a few characters
 		std::string::size_type const goodchars = std::min(iter_ - str_.begin(), std::string::difference_type( 5 ) );
-		std::ostream_iterator oiter(out);
+		std::ostream_iterator<std::string::value_type> oiter(out);
 		std::copy(iter_ - goodchars, iter_, oiter);
 
 		// Print marker
