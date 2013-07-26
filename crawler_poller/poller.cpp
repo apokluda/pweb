@@ -20,6 +20,32 @@ extern log4cpp::Category& log4;
 
 namespace
 {
+	class outputparsefail
+	{
+	public:
+		outputparsefail(std::string const& str, std::string::const_iterator const iter)
+		: str_(str), iter_(iter) {}
+
+		void operator()(std::ostream& out)
+		{
+			// Find position where fail occurred and back up a few characters
+			std::string::size_type const goodchars = std::min(iter_ - str_.begin(), std::string::difference_type( 5 ) );
+			std::ostream_iterator<std::string::value_type> oiter(out);
+			std::copy(iter_ - goodchars, iter_, oiter);
+
+			// Print marker
+			out << '|';
+
+			// Print some more output after the fail
+			std::string::size_type const badchars = std::min(str_.end() - iter_, std::string::difference_type( 9 ) );
+			std::copy(iter_, iter_ + badchars, oiter);
+		}
+
+	private:
+		std::string::const_iterator const iter_;
+		std::string const& str_;
+	};
+
     typedef boost::shared_ptr< curl::AsyncHTTPRequester > reqptr_t;
     void handle_getcontentlist(poller::Context const&, reqptr_t const&, std::string const& device, CURLcode const&, std::string const& body);
     void handle_postcontentlist(reqptr_t const&, std::string const& device, CURLcode const&, std::string const& body);
@@ -69,32 +95,6 @@ void poller::do_poll( bs::error_code const& ec )
         if ( ec != error::operation_aborted ) log4.errorStream() << "An error occurred while waiting for timer: " << ec.message();
     }
 }
-
-class outputparsefail
-{
-public:
-	outputparsefail(std::string const& str, std::string::const_iterator const iter)
-	: str_(str), iter_(iter) {}
-
-	void operator()(std::ostream& out)
-	{
-		// Find position where fail occurred and back up a few characters
-		std::string::size_type const goodchars = std::min(iter_ - str_.begin(), std::string::difference_type( 5 ) );
-		std::ostream_iterator<std::string::value_type> oiter(out);
-		std::copy(iter_ - goodchars, iter_, oiter);
-
-		// Print marker
-		out << '|';
-
-		// Print some more output after the fail
-		std::string::size_type const badchars = std::min(str_.end() - iter_, std::string::difference_type( 9 ) );
-		std::copy(iter_, iter_ + badchars, oiter);
-	}
-
-private:
-	std::string::const_iterator const iter_;
-	std::string const& str_;
-};
 
 void poller::handle_poll( CURLcode const code, std::string const& content )
 {
