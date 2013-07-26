@@ -200,9 +200,11 @@ namespace parser
                               "<shared>"      >> access_level >> "</shared>" >>
                           "</video>";
 
-            contmeta_     %= "<multimedia>"
-                          >> videos_
-                          >> "</multimedia>";
+            contmeta_     %= lit("<html>") >>
+                            "<multimedia>" >>
+                            videos_ >>
+                            "</multimedia>" >>
+                            "</html>";
         }
 
         qi::rule<Iterator, std::string(),              ascii::space_type> str_;
