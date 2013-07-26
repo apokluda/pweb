@@ -121,7 +121,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
         }
         out << "</add>";
 
-        log4.debugStream() << "Sending device list update to Solr";
+        log4.debugStream() << "Sending device list update to Solr for " << gall.haname;
         requester_.fetch(pollerctx_.solr_deviceurl + "?commit=true", boost::bind(&poller::handle_post, this, _1, _2, newtimestamp), out.str());
 
         // Poll for content updates
@@ -134,6 +134,8 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 
             boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(requester_.get_context(), false) );
             r->fetch(url.str(), boost::bind(&handle_getcontentlist, pollerctx_, r, device.str(), _1, _2) );
+
+            log4.debugStream() << "Retrieving content metadata for " << device.str();
         }
     }
     else
@@ -150,16 +152,19 @@ void poller::handle_post( CURLcode const code, std::string const& content, time_
         if ( content.find("<int name=\"status\">0</int>") != std::string::npos )
         {
             log4.infoStream() << "Successfully sent device info update to Solr";
-            // We update the timestamp used for polling only if the update was sucessfully commited
-            // to the Solr database. This ensures that we don't loose any device updates if
-            // the update fails.
-            timestamp_ = newtimestamp + 1;
-            log4.debugStream() << "New timestamp is " << timestamp_;
         }
         else
         {
             log4.errorStream() << "Unable to find success status for device info update in Solr output:\n" << content;
         }
+        // We update the timestamp used for polling only if we successfully contacted Solr
+        // This ensures that we don't loose any device updates if the update fails.
+        // (Previously, this was only if the results were successfully committed to the Solr database,
+        // but if some bozo puts garbage in their device info, we will try to commit it
+        // over and over and over and over again! So we update the timestamp even if
+        // the update fails, so that we can forget about the junk).
+        timestamp_ = newtimestamp + 1;
+        log4.debugStream() << "New timestamp is " << timestamp_;
     }
     else
     {
@@ -203,23 +208,28 @@ void handle_getcontentlist(poller::Context const& pollerctx, reqptr_t const& req
 
         std::ostringstream out;
         out << "<add overwrite=\"true\">";
+        int pubcount = 0;
         typedef parser::contmeta::videolist_t::const_iterator viter_t;
         for ( viter_t i = videos.begin(); i != videos.end(); ++i )
         {
-            out << "<doc>"
-                   "<field name=\"ctid\">"        << device << "-vid" << i->id << "</field>"
-                   "<field name=\"id\">"          << i->id                     << "</field>"
-                   "<field name=\"device_name\">" << device                    << "</field>"
-                   "<field name=\"title\">"       << i->title                  << "</field>"
-                   "<field name=\"filesize\">"    << i->filesize               << "</field>"
-                   "<field name=\"mimetype\">"    << i->mimetype               << "</field>"
-                   "<field name=\"description\">" << i->description            << "</field>"
-                   "</doc>";
+            if ( i->access == parser::PUBLIC )
+            {
+                ++pubcount;
+                out << "<doc>"
+                       "<field name=\"ctid\">"        << device << "-vid" << i->id << "</field>"
+                       "<field name=\"id\">"          << i->id                     << "</field>"
+                       "<field name=\"device_name\">" << device                    << "</field>"
+                       "<field name=\"title\">"       << i->title                  << "</field>"
+                       "<field name=\"filesize\">"    << i->filesize               << "</field>"
+                       "<field name=\"mimetype\">"    << i->mimetype               << "</field>"
+                       "<field name=\"description\">" << i->description            << "</field>"
+                       "</doc>";
+            }
         }
         out << "</add>";
 
-        log4.debugStream() << "Sending content metadata update to Solr";
-        requester->fetch(pollerctx.solr_contenturl + "?softCommit=true", boost::bind(&handle_postcontentlist, requester, device, _1, _2), out.str());
+        log4.debugStream() << "Sending content metadata update to Solr for " << device << " with " << pubcount << " public videos";
+        if ( pubcount > 0 ) requester->fetch(pollerctx.solr_contenturl + "?softCommit=true", boost::bind(&handle_postcontentlist, requester, device, _1, _2), out.str());
     }
     else
     {
