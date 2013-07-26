@@ -124,7 +124,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 
 		if ( !r || iter != end)
 		{
-			log4.errorStream() << "Failed to parse device update from " << hostname_ << " here: \"" << OutputParseFail(content, iter) << '\"';
+			log4.errorStream() << "Failed to parse device update from " << hostname_ << " here: \"" << outputparsefail(content, iter) << '\"';
 			start(); return;
 		}
 
@@ -236,7 +236,7 @@ void handle_getcontentlist(poller::Context const& pollerctx, reqptr_t const& req
 
 		if ( !r || iter != end)
 		{
-			log4.errorStream() << "Failed to parse content metadata for " << device << " here: \"" << OutputParseFail(body, iter) << '\"';
+			log4.errorStream() << "Failed to parse content metadata for " << device << " here: \"" << outputparsefail(body, iter) << '\"';
 			return;
 		}
 
