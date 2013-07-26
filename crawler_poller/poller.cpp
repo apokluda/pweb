@@ -54,7 +54,7 @@ OutputParseFail outputparsefail(std::string const& str, std::string::const_itera
 
 std::ostream& operator<<(std::ostream& os, OutputParseFail const& opf)
 {
-	os(opf);
+	opf(os);
 	return os;
 }
 
