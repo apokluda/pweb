@@ -43,15 +43,10 @@ namespace poller
         void handle_post( CURLcode const code, std::string const& content, time_t const newtimestamp );
 
         static parser::getall_parser< std::string::const_iterator > const g_;
+        curl::AsyncHTTPRequester requester_;
         std::string const hostname_;
         boost::asio::deadline_timer timer_;
-        // NOTE: requester_ was changed from an object to an auto_ptr so that we can destroy and
-        // recreate it for each request!! Without doing this, curl will reuse connections for
-        // efficiency, but the Home Agents/mongoose can't handle it.
-        std::auto_ptr< curl::AsyncHTTPRequester > requester_;
         time_t timestamp_;
-        curl::Context& curlctx_;
-        // Needed now that we recreate the AsyncHTTPRequester object
         Context const& pollerctx_;
     };
 
