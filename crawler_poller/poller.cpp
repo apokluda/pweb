@@ -181,7 +181,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 			device << *i << '.' << gall.haname;
 
 			// can use requester_.get_context() instead of pollerctx_
-			boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(pollerctx_, false) );
+			boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(curlctx_, false) );
 			std::string const& urlstr = url.str();
 			r->fetch(urlstr, boost::bind(&handle_getcontentlist, pollerctx_, r, device.str(), _1, _2) );
 
