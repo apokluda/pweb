@@ -69,10 +69,10 @@ namespace poller
 parser::getall_parser< std::string::const_iterator > const poller::g_;
 
 poller::poller(Context const& pollerctx, curl::Context& curlctx, std::string const& hostname )
-: requester_( curlctx, false )
-, hostname_( hostname )
+: hostname_( hostname )
 , timer_( curlctx.get_io_service() )
 , timestamp_( 1 ) // For some bizarre reason, the Home Agents can't handle a request with timestamp 0
+, curlctx_( curlctx )
 , pollerctx_( pollerctx )
 {
 	using namespace boost::posix_time;
@@ -99,7 +99,8 @@ void poller::do_poll( bs::error_code const& ec )
 
 		log4.infoStream() << "Polling Home Agent at '" << hostname_ << "' with URL: " << urlstr;
 
-		requester_.fetch(urlstr, boost::bind(&poller::handle_poll, this, _1, _2));
+		requester_.reset( new curl::AsyncHTTPRequester( curlctx_, false ) );
+		requester_->fetch(urlstr, boost::bind(&poller::handle_poll, this, _1, _2));
 	}
 	else
 	{
@@ -161,7 +162,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 			out << "</add>";
 
 			log4.debugStream() << "Sending device list update to Solr for " << gall.haname;
-			requester_.fetch(pollerctx_.solr_deviceurl + "?commit=true", boost::bind(&poller::handle_post, this, _1, _2, newtimestamp), out.str());
+			requester_->fetch(pollerctx_.solr_deviceurl + "?commit=true", boost::bind(&poller::handle_post, this, _1, _2, newtimestamp), out.str());
 		}
 		else
 		{
@@ -179,7 +180,8 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 			std::ostringstream device;
 			device << *i << '.' << gall.haname;
 
-			boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(requester_.get_context(), false) );
+			// can use requester_.get_context() instead of pollerctx_
+			boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(pollerctx_, false) );
 			std::string const& urlstr = url.str();
 			r->fetch(urlstr, boost::bind(&handle_getcontentlist, pollerctx_, r, device.str(), _1, _2) );
 
