@@ -145,12 +145,13 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 			typedef parser::getall::devlist_t::const_iterator diter_t;
 			for ( diter_t i = devices.begin(); i != devices.end(); ++i )
 			{
-				out << "<doc>"
+				out <<  "<doc>"
 						"<field name=\"owner\">"       << i->owner                      << "</field>"
 						"<field name=\"name\">"        << i->name << '.' << gall.haname << "</field>"
-						"<field name=\"home\">"        << gall.haname                   << "</field>"
-						"<field name=\"port\">"        << i->port                       << "</field>"
-						"<field name=\"type\">"        << i->type                       << "</field>"
+						"<field name=\"home\">"        << gall.haname                   << "</field>";
+				if ( !i->port.empty() )
+				doc <<  "<field name=\"port\">"        << i->port                       << "</field>";
+				doc <<  "<field name=\"type\">"        << i->type                       << "</field>"
 						"<field name=\"timestamp\">"   << i->timestamp                  << "</field>"
 						"<field name=\"location\">"    << i->location                   << "</field>"
 						"<field name=\"description\">" << i->description                << "</field>"
