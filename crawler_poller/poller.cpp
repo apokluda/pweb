@@ -150,8 +150,8 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 						"<field name=\"name\">"        << i->name << '.' << gall.haname << "</field>"
 						"<field name=\"home\">"        << gall.haname                   << "</field>";
 				if ( !i->port.empty() )
-				doc <<  "<field name=\"port\">"        << i->port                       << "</field>";
-				doc <<  "<field name=\"type\">"        << i->type                       << "</field>"
+				out <<  "<field name=\"port\">"        << i->port                       << "</field>";
+				out <<  "<field name=\"type\">"        << i->type                       << "</field>"
 						"<field name=\"timestamp\">"   << i->timestamp                  << "</field>"
 						"<field name=\"location\">"    << i->location                   << "</field>"
 						"<field name=\"description\">" << i->description                << "</field>"
