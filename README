@@ -1,11 +1,11 @@
 This document describes how to install the pWeb DNS Gateway and
-Crawler on Ubuntu 13.04 (Raring Ringtail). The DNS Gateway
-and Crawler have been tested on Ubuntu 12.04 LTS, 12.10,
-and 13.04. The DNS Gateway and Crawler/Poller have a number
-of dependencies that can be easily installed using a few simple
-commands.
+Crawler on Ubuntu 13.04 (Raring Ringtail) and other versions of
+Ubuntu. The DNS Gateway and Crawler have been tested on 
+Ubuntu 12.04 LTS, 12.10, and 13.04. The DNS Gateway and
+Crawler/Poller have a number of dependencies that can be easily
+installed using a few simple commands.
 
-Earlier versions of the DNS Gateway and Poller/Crawer have also
+Earlier versions of the DNS Gateway and Poller/Crawler have also
 been tested on Windows Server 2008 (equivalent to Windows XP/Vista
 for desktops) and Windows Server 2008 R2 (equivalent to Windows 7
 for desktops). However, installing the dependencies and compiling
@@ -14,9 +14,42 @@ Additionally, the software has not been tested on Windows in
 quite some time and will likely need some source code modifications
 to compile successfully.
 
-------------------------------------------------------------
-Installation Instructions for Ubuntu
-------------------------------------------------------------
+You should have received a source distribution of the DNS Gateway
+and Crawler well as a binary distribution. (You probably opened
+this file from the source distribution). The binary distribution
+is the simplest way to install the DNS Gateway and Crawler on
+Ubuntu 13.04.
+
+----------------------------------------------------------------------
+Installation Instructions for Ubuntu 13.04 from BINARY
+----------------------------------------------------------------------
+Note: These instructions are for Ubuntu 13.04 (raring) only. For
+installation on other versions of Ubuntu, see the following section.
+
+First install the dependencies:
+
+$ sudo apt-get install libboost-program-options1.53.0 \
+  libboost-thread1.53.0 \
+  libboost-date-time1.53.0 \
+  libboost-chrono1.53.0 \
+  libboost-serialization1.53.0 \
+  libcurl3 \
+  liblog4cpp5
+
+Now install the DNS Gateway and poller binaries. The following
+commands assume that you have extracted the DNS Gateway/Crawler
+binary archive to <pweb>:
+
+$ cd <pweb>
+$ sudo install dnsgw.bin/dnsgw /usr/local/bin
+$ sudo install crawler_poller.bin/poller /usr/local/bin
+
+Now you are ready to proceed to the section "Configuring
+the DNS Gateway and Crawler."
+
+----------------------------------------------------------------------
+Installation Instructions for Ubuntu 12.04, 12.10 or 13.04 from SOURCE
+----------------------------------------------------------------------
 
 If you are installing the software on Ubuntu 12.04 or 12.10
 you need to install the Boost libraries from Alexander Pokluda's
@@ -33,7 +66,7 @@ $ sudo apt-get install cmake libboost1.53-all-dev \
   libcurl4-openssl-dev liblog4cpp5-dev build-essential
 
 We will use CMake to generate GNU Makefiles that are used to 
-complie the DNS Gateway and Crawler/Poller. The recommended way
+compile the DNS Gateway and Crawler/Poller. The recommended way
 to use CMake is to do "out of source builds". This means that
 we will leave the source directory untouched and use a
 separate directory to compile the software. The following
@@ -53,9 +86,18 @@ $ ln <src>/shared/stdhdr.hpp .
 Now we can continue with the compilation:
 
 $ make
-$ sudo make install
+$ make install
 
-In order to run the DNS Gateway and Crawler as a daemon,
+Now continue with the next section.
+
+----------------------------------------------------------------------
+Configuring the DNS Gateway and Crawler
+----------------------------------------------------------------------
+
+This section assumes that you have completed either the section about
+installing from BINARY or SOURCE above.
+
+In order to run the DNS Gateway and Crawler as a daemon, 
 first install the daemon package:
 
 $ sudo apt-get install daemon
@@ -84,14 +126,20 @@ author "Alexander Pokluda <apokluda@uwaterloo.ca>"
 start on runlevel [2345]
 stop on runlevel [!2345]
 
-exec daemon -c --user=daemon:daemon --name=poller --respawn -- /home/apokluda/bin/poller_with_dump.sh -c /etc/poller.conf
+exec daemon -c --user=daemon:daemon --name=poller --respawn -- /usr/local/bin/poller -c /etc/poller.conf
 
 --- end of file ---
 
 Note that the crawler init script starts only one poller without a manager process.
 
 The above scripts use DNS Gateway and Crawler configuration files /etc.
-The following configuration files can be used as a starting point for your own:
+The following configuration files can be used as a starting point for your own.
+Note that dnsgw.conf tells the DNS Gateway to listen for DNS queries on
+127.0.0.1:5533. The next section explains how to run all the pWeb components on a
+single machine with the DNS Gateway listening on the loopback interface.
+When running the DNS Gateway in a production environment, you must tell the
+DNS Gateway to listen on a public interface and on port 53 and point both
+the DNS Gateway and poller to your Home Agents.
 
 --- /etc/dnsgw.conf ---
 # pWeb DNS Gateway Configuration File
@@ -106,7 +154,7 @@ The following configuration files can be used as a starting point for your own:
 
 # The verbosity of messages printed to the log file
 # Valid options are: DEBUG, INFO, NOTICE, WARN, ERROR, CRIT, ALERT, FATAL = EMERG
-log_level=DEBUG
+log_level=INFO
 
 # Path to the log file
 log_file=/var/log/dnsgw.log
@@ -115,12 +163,15 @@ log_file=/var/log/dnsgw.log
 nshostname=dnsgw1.pwebproject.net.
 
 # The interface to use for listening for DNS requests
-iface=129.97.119.185
+iface=127.0.0.1
+
+# The port to use for listing for DNS requests
+port=5533
 
 # The port to use to receive responses from the Home Agent
 nsport=56142
 
-# The suffix that must be removed from DNS queires to get
+# The suffix that must be removed from DNS queries to get
 # a device name. (This device name will be sent to the Home Agent).
 suffix=dht.pwebproject.net.
 
@@ -133,9 +184,12 @@ ttl=0
 # where <port> is the port number of the TCP interface.
 # If the Home Agents are not able to answer a query locally, they 
 # will lookup the device's IP address in the Plexus network on behalf
-# of the DNS Gateway.
-home_agent=cn101.cs.uwaterloo.ca:20000
-home_agent=cn102.cs.uwaterloo.ca:20000
+# of the DNS Gateway. 
+#
+# Example:
+#home_agent=cn101.cs.uwaterloo.ca:20000
+#home_agent=cn102.cs.uwaterloo.ca:20000
+home_agent=localhost:20000
 
 --- end of file ---
 
@@ -152,22 +206,112 @@ home_agent=cn102.cs.uwaterloo.ca:20000
 
 # The verbosity of messages printed to the log file
 # Valid options are: DEBUG, INFO, NOTICE, WARN, ERROR, CRIT, ALERT, FATAL = EMERG
-log_level=DEBUG
+log_level=INFO
 
 # Path to the log file
 log_file=/var/log/poller.log
 
 # The polling interval for each Home Agent. A value of x means
-# that each Home Agent will be polled once every x seconds.                                 
+# that each Home Agent will be polled once every x seconds.
 interval=5
 
-# The URL of the Apache Solr server to send updates to
-solrurl=http://localhost:8081/solr/pweb_devices/update
+# The URLs of the Apache Solr server to send updates to for the
+# devices and content cores (databases)
+soldevrurl=http://localhost:8081/solr/pweb_devices/update
+solconrurl=http://localhost:8081/solr/pweb_content/update
 
 # Home Agents to seed the crawling process. Any number of Home Agents
 # can be specified. The poller process will use the default HTTP port
-# for the home agents.
-home_agent=cn101.cs.uwaterloo.ca
-home_agent=cn102.cs.uwaterloo.ca
+# for the home agents. If you are running your own Home Agent(s),
+# you need to put there addresses here!
+#
+# Example:
+#home_agent=cn101.cs.uwaterloo.ca
+#home_agent=cn102.cs.uwaterloo.ca
+home_agent=localhost
+
 --- end of file ---
+
+If you want the DNS Gateway to accept DNS queries on the default
+port of 53 (eg, for a production server), you need to give it permission 
+to bind to privileged ports. This can be done with the command
+
+$ sudo setcap 'cap_net_bind_service=+ep' /usr/local/bin/dnsgw
+
+When run as a daemon, the DNS Gateway and poller will not
+have permission to create their log files in the /var/log
+directory. In order to allow the to write to this directory,
+we have to create their log files manually:
+
+$ sudo touch /var/log/dnsgw.log && sudo chown daemon:daemon /var/log/dnsgw.log
+$ sudo touch /var/log/poller.log && sudo chown daemon:daemon /var/log/poller.log
+
+Once the above configuration files are in place and you have run
+the above commands, you should be able to start the DNS Gateway
+and poller manually with the commands
+
+$ sudo service dnsgw start
+$ sudo service crawler start
+
+You can monitor the DNS Gateway and poller log files in real-time
+with the command
+
+$ tail -f /var/log/dnsgw.log
+
+or
+
+$ tail -f /var/log/poller.log
+
+If the DNS Gateway and Poller started successfully, you should
+see the following output in each log file:
+
+--- dnsgw.log ---
+2013-08-08 17:43:38,069 [INFO] Listening on all interfaces port 56142 for home agent connections
+2013-08-08 17:43:38,069 [INFO] Listening on 127.0.0.1 port 5533 for UDP connections
+2013-08-08 17:43:38,069 [INFO] Listening on 127.0.0.1 port 5533 for TCP connections
+
+--- poller.log ---
+2013-08-08 18:05:07,750 [INFO] --- pWeb Crawler Poller Process v0.0.0 started ---
+2013-08-08 18:05:07,750 [INFO] Home Agent 'localhost' has been assigned for monitoring
+2013-08-08 18:05:07,753 [NOTICE] Now monitoring 1 Home Agents
+
+------------------------------------------------------------
+Configuring Delegation to the DNS Gateway
+------------------------------------------------------------
+
+In order for the DNS Gateway to be useful, you need to
+configure some sort of delegation to the DNS Gateway. For
+example, the pWeb Project Team has registered pwebproject.net
+and have multiple BIND DNS Servers configured to handle
+queries for that domain. The bind servers are configured to
+delegate queries for *.dht.pwebproject.net to a pool of
+DNS Gateway instances. This setup is beyond the scope of this
+README, but the following shows how you can set up DNSmasq
+on your local machine to forward queries to *.dht.pwebproject.net
+to a DNS Gateway also running on your local machine. This
+section assumes that you have already followed the instructions
+above and that you are installing and running/demonstrating
+everything on a single machine that is running Ubuntu 13.04
+with the Unity desktop environment installed and using
+the Network Manager GUI.
+
+Use you favourite text editor to create the file
+
+/etc/NetworkManager/dnsmasq.d/dnsgw.conf
+
+Add the following two lines to that file:
+
+server=/dht.pwebproject.net/127.0.0.1#5533
+host-record=dnsgw1.pwebproject.net,127.0.0.1
+
+You should now have a fully functioning DNS Gateway and Crawler
+setup. Next you will need to install the Solr and Django. Instructions
+and configuration files for setting up these services are provided
+in separate archives. You will also need to install and set up
+your Home Agent(s) and registration web server if you haven't done so
+already.
+
+If you need help, please feel free to contact me at apokluda@uwaterloo.ca.
+
+Good luck!
 
