@@ -32,7 +32,7 @@ void bufwrite< socket_ptr >::sendmsg( crawler_protocol::message_type const type,
     // Note: calls to this function are not serialized!
     bufitem_ptr bufitem( new bufitem_t );
     bufitem->first.type( type );
-    std::size_t const length = str.length() + 1; // +1 for null character
+    std::size_t const length = str.length();
     bufitem->first.length( length );
     bufitem->second = str;
     strand_.dispatch( boost::bind( &bufwrite::send_bufitem, this->get_this(), bufitem.release() ) );
@@ -43,14 +43,15 @@ void bufwrite< socket_ptr >::send_bufitem( bufitem_t* raw_bufitem )
 {
     // Calls to this function are serialized using the strand
     bufitem_ptr bufitem( raw_bufitem );
-    if ( !send_in_progress_ )
+    if ( connected_ && !send_in_progress_ )
     {
         log4.debugStream() << "Sending bufitem to " << remote_endpoint();
 
         send_in_progress_ = true;
         boost::array< const_buffer, 2 > bufs;
-        bufs[0] = buffer( bufitem->first.buffer() );
+        bufs[0] = bufitem->first.buffer();
         bufs[1] = buffer( bufitem->second );
+
         async_write( *socket_, bufs,
                 strand_.wrap( boost::bind( &bufwrite::handle_bufitem_sent, this->get_this(), ph::error, ph::bytes_transferred, bufitem.release() ) ) );
     }
@@ -81,14 +82,7 @@ void bufwrite< socket_ptr >::handle_bufitem_sent( bs::error_code const& ec, std:
         log4.debugStream() << "Successfully sent bufitem to " << remote_endpoint();
         if ( succb_ ) succb_( bufitem->first.type(), bufitem->second );
 
-        if ( !send_queue_.empty() )
-        {
-            // The documentation for the pointer containers is horrible.
-            // I think this is okay, but I'm not really sure why queue_t::auto_type
-            // is not compatible with std::auto_ptr??
-            bufitem_t* nextbufitem = send_queue_.pop_front().release();
-            send_bufitem( nextbufitem );
-        }
+        send_next_bufitem();
     }
     else
     {
@@ -103,10 +97,23 @@ void bufwrite< socket_ptr >::handle_bufitem_sent( bs::error_code const& ec, std:
 
 }
 
+template< typename socket_ptr >
+void bufwrite< socket_ptr >::send_next_bufitem()
+{
+    if ( !send_queue_.empty() )
+    {
+        // The documentation for the pointer containers is horrible.
+        // I think this is okay, but I'm not really sure why queue_t::auto_type
+        // is not compatible with std::auto_ptr??
+        bufitem_t* nextbufitem = send_queue_.pop_front().release();
+        send_bufitem( nextbufitem );
+    }
+}
+
 template < typename socket_ptr >
 void bufread< socket_ptr >::read_header()
 {
-    async_read( *socket_, buffer( header_.buffer() ),
+    async_read( *socket_, header_.buffer(),
             boost::bind( &bufread::handle_header_read, this->get_this(), ph::error, ph::bytes_transferred ) );
 }
 
@@ -115,14 +122,15 @@ void bufread< socket_ptr >::handle_header_read( bs::error_code const& ec, std::s
 {
     if ( !ec )
     {
-        if ( header_.length() > (sizeof buf_ - 1) ) // -1 because we insert a null character into the buffer in handle_msg_read
+    	boost::uint16_t const length( header_.length() );
+        if ( length > (sizeof buf_ - 1) ) // -1 because we insert a null character into the buffer in handle_msg_read
         {
-            log4.errorStream() << "Message with size " << header_.length() << " is too big for buffer!";
+            log4.errorStream() << "Message with size " << length << " is too big for buffer!";
             if ( errcb_ ) errcb_();
         }
         else if ( cbmap_.find( header_.type() ) != cbmap_.end() )
         {
-            async_read( *socket_, buffer( buf_, header_.length() ),
+            async_read( *socket_, buffer( buf_, length ),
                     boost::bind( &bufread::handle_body_read, this->get_this(), ph::error, ph::bytes_transferred ) );
         }
         else

@@ -39,18 +39,20 @@ pollerconnection::pollerconnection( boost::asio::io_service& io_service )
 , bufwrite_( new bufwrite< socket_ptr >( socket_ ) )
 , connected_( true )
 {
+}
+
+void pollerconnection::start()
+{
     bufread_->add_handler( crawler_protocol::HOME_AGENT_DISCOVERED, boost::ref( signals::home_agent_discovered ) );
     bufread_->error_handler( boost::bind( &pollerconnection::disconnect, shared_from_this() ) );
 
     bufwrite_->success_handler( boost::bind( &pollerconnection::send_success, shared_from_this(), _1, _2 ) );
     bufwrite_->error_handler( boost::bind( &pollerconnection::send_failure, shared_from_this(), _1, _2 ) );
-}
 
-void pollerconnection::start()
-{
-    log4.noticeStream() << "Received a new poller connection from " << *this;
-    signals::poller_connected( shared_from_this() );
+    //log4.noticeStream() << "Received a new poller connection from " << *this;
     bufread_->start();
+    bufwrite_->connected();
+    signals::poller_connected( shared_from_this() );
 }
 
 void pollerconnection::disconnect()

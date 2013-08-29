@@ -57,7 +57,7 @@ void manconnection::connect( bs::error_code const& ec )
 {
     if ( !ec )
     {
-        log4.infoStream() << "Connecting to Crawler Manager at '" << mhostname_ << "' port " << mport_;
+        log4.debugStream() << "Resolving Crawler Manager hostname '" << mhostname_ << '\'';
 
         tcp::resolver::query q(mhostname_, mport_);
         resolver_.async_resolve(q,
@@ -74,6 +74,8 @@ void manconnection::handle_resolve(bs::error_code const& ec, tcp::resolver::iter
 {
     if ( !ec )
     {
+    	log4.infoStream() << "Connecting to Crawler Manager";
+
         async_connect(socket_, iter,
                 boost::bind( &manconnection::handle_connect, this, ph::error ) );
     }
@@ -90,8 +92,9 @@ void manconnection::handle_connect(bs::error_code const& ec)
     {
         log4.infoStream() << "Connected to Crawler Manager process";
         connected_.store(true, boost::memory_order_relaxed);
-        signals::manager_connected( this );
+        //signals::manager_connected( this );
 
+        bufwrite_.connected();
         bufread_.start();
     }
     else
@@ -108,7 +111,9 @@ void manconnection::disconnect()
 
     if ( connected_.exchange(false, boost::memory_order_acquire) )
     {
-        signals::manager_disconnected( this );
+    	// We don't stop the bufread and bufwrite objects. They will
+    	// detect the disconnection when the IO operations fail.
+    	//signals::manager_disconnected( this );
 
         bs::error_code shutdown_ec;
         socket_.shutdown(ip::tcp::socket::shutdown_both, shutdown_ec);

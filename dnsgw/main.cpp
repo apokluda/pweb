@@ -201,6 +201,7 @@ int main(int argc, char const* argv[])
         // Initialize logging
         {
             log4cpp::Appender* app = new log4cpp::FileAppender("file", log_file.c_str());
+            std::cerr << "Log file is: " << log_file << std::endl; // FOR DEBUGGING ONLY
             log4.addAppender(app); // ownership of appender passed to category
             log4cpp::PatternLayout* lay = new log4cpp::PatternLayout();
             lay->setConversionPattern("%d [%p] %m%n");

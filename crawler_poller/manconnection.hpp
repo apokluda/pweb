@@ -35,8 +35,9 @@ public:
 
     void home_agent_discovered( std::string const& hostname )
     {
-        if ( connected_.load(boost::memory_order_acquire) ) bufwrite_.sendmsg( crawler_protocol::HOME_AGENT_DISCOVERED, hostname );
-        else send_failure( crawler_protocol::HOME_AGENT_ASSIGNMENT, hostname );
+        //if ( connected_.load(boost::memory_order_acquire) ) bufwrite_.sendmsg( crawler_protocol::HOME_AGENT_DISCOVERED, hostname );
+        //else send_failure( crawler_protocol::HOME_AGENT_ASSIGNMENT, hostname );
+    	bufwrite_.sendmsg( crawler_protocol::HOME_AGENT_DISCOVERED, hostname );
     }
 
 private:

@@ -66,14 +66,15 @@ namespace crawler_protocol
         void length(boost::uint16_t length)
         {
             length = htons(length);
-            memcpy(&buf_[0], &length, sizeof(boost::uint16_t) );
+            memcpy(&buf_[1], &length, sizeof(boost::uint16_t) );
         }
 
         boost::uint16_t length() const
         {
             boost::uint16_t length;
             memcpy(&length, &buf_[1], sizeof(boost::uint16_t) );
-            return ntohs(length);
+            length = ntohs(length);
+            return length;
         }
 
     private:

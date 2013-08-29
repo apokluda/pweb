@@ -58,7 +58,8 @@ public:
     typedef boost::function< void (crawler_protocol::message_type const type, std::string const&) > cb_t;
 
     bufwrite( socket_ptr socket )
-    : strand_( socket->get_io_service() )
+    : connected_( false )
+    , strand_( socket->get_io_service() )
     , socket_( socket )
     , send_in_progress_( false )
     {
@@ -66,7 +67,7 @@ public:
 
     void sendmsg( crawler_protocol::message_type const type, std::string const& str );
 
-    void reset();
+    void connected() { connected_ = true; send_next_bufitem(); }
 
     void error_handler(cb_t cb) { errcb_ = cb; }
     void success_handler(cb_t cb) { succb_ = cb; }
@@ -79,8 +80,10 @@ private:
     }
 
     void send_bufitem(bufitem_t* bufitem);
+    void send_next_bufitem();
     void handle_bufitem_sent( boost::system::error_code const& ec, std::size_t const bytes_transferred, bufitem_t* );
 
+    bool connected_;
     queue_t send_queue_;
     boost::asio::strand strand_;
     cb_t errcb_;

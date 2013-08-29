@@ -43,6 +43,8 @@ int main(int argc, char const* argv[] )
 
     try
     {
+    	boost::uint16_t port;
+    	string iface;
         typedef std::vector< string > halist_t;
         halist_t home_agents;
 
@@ -59,18 +61,18 @@ int main(int argc, char const* argv[] )
         // on the command line and in the config file
         po::options_description config("Configuration");
         config.add_options()
-                    ("log_file,l",    po::value< string >         ()            ->default_value("dnsgw.log"), "Log file path")
-                    ("log_level,L",   po::value< string >         ()            ->default_value("WARN"),      "Log level\n"
-                                                                                                              "    Only log messages with a level less than or equal to the specified severity will be logged. "
-                                                                                                              "The log levels are NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG")
-                    ("iface,i",       po::value< string >         (),                                         "IP v4 or v6 address of interface to listen on for connections from poller processes")
-                    ("port,p",        po::value< boost::uint16_t >()            ->default_value(1141),        "TCP port to listen on for poller processes queries")
-                    ("home_agent,H",  po::value< halist_t >       (&home_agents)->required(),                 "List of well-known Home Agent web interface addresses\n"
-                                                                                                              "    Any number of Home Agent addresses may be specified, separated by commas. "
-                                                                                                              "Each address should have the form '<hostname or IP address>:<port>'. These "
-                                                                                                              "addresses are used to 'seed' the crawlers.")
-                    ("threads",       po::value< std::size_t >    ()            ->default_value(1),           "Number of application threads\n"
-                                                                                                              "    Set to 0 to use one thread per hardware core")
+                    ("log_file,l",    po::value< string >         ()            ->default_value("manager.log"), "Log file path")
+                    ("log_level,L",   po::value< string >         ()            ->default_value("WARN"),        "Log level\n"
+                                                                                                                "    Only log messages with a level less than or equal to the specified severity will be logged. "
+                                                                                                                "The log levels are NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG")
+                    ("iface,i",       po::value< string >         (&iface),                                     "IP v4 or v6 address of interface to listen on for connections from poller processes")
+                    ("port,p",        po::value< boost::uint16_t >(&port)       ->default_value(1141),          "TCP port to listen on for poller processes queries")
+                    ("home_agent,H",  po::value< halist_t >       (&home_agents),                               "List of well-known Home Agent web interface addresses\n"
+                                                                                                                "    Any number of Home Agent addresses may be specified, separated by commas. "
+                                                                                                                "Each address should have the form '<hostname or IP address>:<port>'. These "
+                                                                                                                "addresses are used to 'seed' the crawlers.")
+                    ("num_threads",   po::value< std::size_t >    ()            ->default_value(1),             "Number of application threads\n"
+                                                                                                                "    Set to 0 to use one thread per hardware core")
                     ;
 
         // Hidden options, will be allowed both on command line
@@ -91,7 +93,7 @@ int main(int argc, char const* argv[] )
         visible_options.add(generic).add(config);
 
         po::variables_map vm;
-        po::store(po::command_line_parser(argc, argv).options(generic).run(), vm);
+        po::store(po::command_line_parser(argc, argv).options(cmdline_options).run(), vm);
 
         cout << "pWeb Crawler Manager Process " PWEB_VERSION_STR << endl;
         if ( vm.count("version") ) return EXIT_SUCCESS; // Exit after printing version
@@ -143,15 +145,19 @@ int main(int argc, char const* argv[] )
 
         log4.setPriority(log4cpp::Priority::getPriorityValue( vm["log_level"].as< string >()) );
 
+        log4.infoStream() << "--- pWeb Crawler Manager Process " << PWEB_VERSION_STR << " started ---" ;
+
         boost::asio::io_service io_service;
 
-        pollerconnector pconn( io_service, vm["iface"].as< string >(), vm["port"].as< boost::uint16_t >() );
+        pollerconnector pconn( io_service, iface, port );
         homeagentdb hadb( io_service );
         signals::poller_connected.connect( boost::bind( &homeagentdb::poller_connected, &hadb, _1 ) );
         signals::poller_disconnected.connect( boost::bind( &homeagentdb::poller_disconnected, &hadb, _1 ) );
         signals::home_agent_discovered.connect( boost::bind( &homeagentdb::add_home_agent, &hadb, _1 ) );
 
         for ( halist_t::const_iterator i = home_agents.begin(); i != home_agents.end(); ++i ) hadb.add_home_agent( *i );
+
+        pconn.start();
 
         run( io_service, vm["num_threads"].as< std::size_t >() );
 

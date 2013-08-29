@@ -63,8 +63,8 @@ namespace signals
         F f_;
     };
 
-    extern boost::signals2::signal<void (manconnection_ptr)> manager_connected;
-    extern boost::signals2::signal<void (manconnection_ptr)> manager_disconnected;
+    //extern boost::signals2::signal<void (manconnection_ptr)> manager_connected;
+    //extern boost::signals2::signal<void (manconnection_ptr)> manager_disconnected;
 
     typedef boost::signals2::signal<void (std::string const&)> home_agent_discovered_sigt;
     extern boost::signals2::signal<void (std::string const&)> home_agent_discovered;
