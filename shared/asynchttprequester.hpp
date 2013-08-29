@@ -22,25 +22,14 @@
 
 namespace curl
 {
-    // BIG FAT WARNING!!! BIG FAT WARNING!!! BIG FAT WARNING!!!
-    //
-    // The implementation of Context and AsyncHTTPRequester does not
-    // have all the necessary synchronization necessary to support
-    // multiple boost.asio application threads.
-    //
-    // All operations
-    // involving the multi handle and each easy handle associated with it
-    // should be synchronized. This means that the Context should be
-    // responsible for this.
-    //
-    // BIG FAT WARNING!!! BIG FAT WARNING!!! BIG FAT WARNING!!!
-
     class AsyncHTTPRequester;
 
     class Context : boost::noncopyable
     {
         friend class AsyncHTTPRequester;
-        friend curl_socket_t opensocket(AsyncHTTPRequester*, curlsocktype, struct curl_sockaddr*);
+        friend curl_socket_t opensocket(Context*, curlsocktype, struct curl_sockaddr*);
+        friend int closesocket(Context*c, curl_socket_t);
+        friend void setsock(int*, curl_socket_t, CURL*, int, Context*);
         friend void addsock(curl_socket_t, CURL*, int, Context*);
         friend void timer_cb(const boost::system::error_code&, Context*);
         friend void event_cb(Context*, boost::asio::ip::tcp::socket*, int);
@@ -62,13 +51,11 @@ namespace curl
         }
 
     private:
-        // This is only a start, we need a lot more synchronization!  The following methods are a start but by no
-        // means sufficient.
-        void add_handle_( CURL* easy );
-        void perform_();
-
+        typedef boost::lock_guard< boost::mutex > guard_t;
+        typedef boost::unique_lock< boost::mutex > lock_t;
 
         boost::asio::deadline_timer timer_;
+        //boost::mutex mutex_;
         boost::asio::strand strand_;
         boost::asio::io_service& io_service_;
         CURLM* multi_;
@@ -77,7 +64,6 @@ namespace curl
 
     class AsyncHTTPRequester : public boost::enable_shared_from_this< AsyncHTTPRequester >
     {
-        friend curl_socket_t opensocket(AsyncHTTPRequester*, curlsocktype, struct curl_sockaddr*);
         friend size_t write_cb(char*, size_t, size_t, AsyncHTTPRequester*);
         friend void check_multi_info(Context*);
 
