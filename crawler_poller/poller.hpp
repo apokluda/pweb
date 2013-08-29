@@ -28,12 +28,14 @@ namespace poller
 {
     struct Context
     {
-        Context(std::string const& deviceurl, std::string const& contenturl, boost::posix_time::time_duration const interval)
-        : solr_deviceurl( deviceurl )
+        Context(boost::asio::io_service& io_service, std::string const& deviceurl, std::string const& contenturl, boost::posix_time::time_duration const interval)
+        : io_service( io_service )
+        , solr_deviceurl( deviceurl )
         , solr_contenturl( contenturl )
         , interval( interval )
         {}
 
+        boost::asio::io_service& io_service;
         std::string const solr_deviceurl;
         std::string const solr_contenturl;
         boost::posix_time::time_duration const interval;
@@ -42,7 +44,7 @@ namespace poller
     class poller: private boost::noncopyable
     {
     public:
-        poller(Context const& pollerctx, curl::Context& curlctx, std::string const& hostname );
+        poller(Context const& pollerctx, std::string const& hostname );
 
     private:
         void start()
@@ -54,7 +56,15 @@ namespace poller
         void handle_poll( CURLcode const code, std::string const& content );
         void handle_post( CURLcode const code, std::string const& content, time_t const newtimestamp );
 
+        // Originally there was one curlctx for the whole program, but
+        // all curl library operations are synchronized by a strand in
+        // the curlctx. This program does almost nothing but HTTP requests,
+        // thus, this could be a real limit to scalability! Thus, there
+        // is now one curlctx for every poller.
+
         static parser::getall_parser< std::string::const_iterator > const g_;
+        // curlctx_ must precede requester_
+        curl::Context curlctx_;
         curl::AsyncHTTPRequester requester_;
         std::string const hostname_;
         boost::asio::deadline_timer timer_;
@@ -65,10 +75,9 @@ namespace poller
     class pollercreator : private boost::noncopyable
     {
     public:
-        pollercreator( Context const& pollerctx, curl::Context& curlctx )
-        : strand_( curlctx.get_io_service() )
+        pollercreator( Context const& pollerctx )
+        : strand_( pollerctx.io_service )
         , pollerctx_( pollerctx )
-        , curlctx_( curlctx )
         {
         }
 
@@ -80,7 +89,6 @@ namespace poller
         boost::ptr_vector< poller > pollers_;
         boost::asio::strand strand_;
         Context const& pollerctx_;
-        curl::Context& curlctx_;
     };
 }
 

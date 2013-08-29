@@ -34,7 +34,7 @@ extern log4cpp::Category& log4;
 
 namespace curl
 {
-bool debug = true;
+bool debug = false;
 
 std::map<curl_socket_t, boost::asio::ip::tcp::socket *> socket_map;
 

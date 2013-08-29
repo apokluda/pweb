@@ -80,10 +80,11 @@ namespace poller
 
 parser::getall_parser< std::string::const_iterator > const poller::g_;
 
-poller::poller(Context const& pollerctx, curl::Context& curlctx, std::string const& hostname )
-: requester_( curlctx, false )
+poller::poller(Context const& pollerctx, std::string const& hostname )
+: curlctx_( pollerctx.io_service )
+, requester_( curlctx_, false )
 , hostname_( hostname )
-, timer_( curlctx.get_io_service() )
+, timer_( pollerctx.io_service )
 , timestamp_( 1 ) // For some bizarre reason, the Home Agents can't handle a request with timestamp 0
 , pollerctx_( pollerctx )
 {
@@ -330,9 +331,8 @@ void pollercreator::create_poller( std::string const& hostname )
 
 void pollercreator::create_poller_( std::string const& hostname )
 {
-
 	// The pointer must be stored in the container immediately for exception safety
-	pollers_.push_back( new poller( pollerctx_, curlctx_, hostname ) );
+	pollers_.push_back( new poller( pollerctx_, hostname ) );
 	log4.noticeStream() << "Now monitoring " << pollers_.size() << " Home Agents";
 }
 
