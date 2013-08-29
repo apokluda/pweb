@@ -23,8 +23,8 @@
 #define LOGSTREAM if ( debug ) log4.debugStream()
 
 #ifndef NDEBUG
-#define TRACE(func) LOGSTREAM << "Entering: " func << std::endl
-#define TRACE_MSG(msg) LOGSTREAM << "Trace: " msg << std::endl
+#define TRACE(func) LOGSTREAM << "Entering: " func
+#define TRACE_MSG(msg) LOGSTREAM << "Trace: " msg
 #else
 #define TRACE(func)
 #define TRACE_MSG(msg)
@@ -45,11 +45,6 @@ int multi_timer_cb(CURLM *multi, long timeout_ms, Context* c)
 {
 	TRACE("multi_timer_cb");
 
-	//if ( c->mutex_.try_lock() ) c->mutex_.unlock();
-	//else std::cerr << "multi_timer_cb - MUTEX IS ALREADY LOCKED!!" << std::endl;
-	//Context::guard_t l( c->mutex_ );
-
-
     /* cancel running timer */
     c->timer_.cancel();
 
@@ -66,7 +61,7 @@ int multi_timer_cb(CURLM *multi, long timeout_ms, Context* c)
         TRACE_MSG("updating timer to expire in " << timeout_ms << " milliseconds");
         /* update timer */
         c->timer_.expires_from_now(boost::posix_time::millisec(timeout_ms));
-        c->timer_.async_wait(boost::bind(&timer_cb, _1, c));
+        c->timer_.async_wait(c->strand_.wrap(boost::bind(&timer_cb, _1, c)));
     }
     else
     {
@@ -110,10 +105,6 @@ void check_multi_info(Context* c)
 {
 	TRACE("check_multi_info");
 
-	//if ( c->mutex_.try_lock() ) c->mutex_.unlock();
-	//else std::cerr << "check_multi_info - MUTEX IS ALREADY LOCKED!!" << std::endl;
-	//Context::lock_t l( c->mutex_ );
-
 	//char *eff_url;
     CURLMsg *msg;
     int msgs_left;
@@ -127,16 +118,6 @@ void check_multi_info(Context* c)
             CURLcode res = msg->data.result;
             curl_easy_getinfo(easy, CURLINFO_PRIVATE, &conn);
             //curl_easy_getinfo(easy, CURLINFO_EFFECTIVE_URL, &eff_url);
-
-            // Note: We unlock the mutex before calling conn->done() because
-            // done() will execute the callback to the user code that may start
-            // another AsyncHTTRequest operation. This would cause a deadlock
-            // if we were still holding the lock. (In reality, done() is going
-            // will reacquire the lock for a brief period. Releasing and
-            // reacquiring the lock is the cleanest solution without an elegant
-            // way to transfer the ownership of the lock from one function
-            // to another)
-            //l.unlock();
             conn->done(res);
         }
     }
@@ -166,10 +147,6 @@ void event_cb(Context* c, boost::asio::ip::tcp::socket * tcp_socket, int action)
 void timer_cb(const boost::system::error_code & error, Context* c)
 {
 	TRACE("timer_cb");
-
-	//if ( c->mutex_.try_lock() ) c->mutex_.unlock();
-	//else std::cerr << "timer_cb - MUTEX IS ALREADY LOCKED!!" << std::endl;
-	//Context::guard_t l( c->mutex_ );
 
     if ( error != boost::asio::error::operation_aborted )
     {
@@ -202,43 +179,41 @@ void setsock(int *fdp, curl_socket_t s, CURL*e, int act, Context* c)
 
     boost::asio::ip::tcp::socket* tcp_socket;
     {
-    	//if ( c->mutex_.try_lock() ) c->mutex_.unlock();
-    	//else std::cerr << "setsock - MUTEX IS ALREADY LOCKED!!" << std::endl;
-    	//Context::guard_t l( c->mutex_ );
-
         std::map<curl_socket_t, boost::asio::ip::tcp::socket *>::iterator it = socket_map.find(s);
         if ( it == socket_map.end() ) return;
         tcp_socket = it->second;
     }
 
-    // Note: The following is not protected by the context mutex!
-
     *fdp = act;
     if ( act == CURL_POLL_IN )
     {
         tcp_socket->async_read_some(boost::asio::null_buffers(),
-                boost::bind(&event_cb, c,
+                c->strand_.wrap(boost::bind(
+                		&event_cb, c,
                         tcp_socket,
-                        act));
+                        act)));
     }
     else if ( act == CURL_POLL_OUT )
     {
         tcp_socket->async_write_some(boost::asio::null_buffers(),
-                boost::bind(&event_cb, c,
+                c->strand_.wrap(boost::bind(
+                		&event_cb, c,
                         tcp_socket,
-                        act));
+                        act)));
     }
     else if ( act == CURL_POLL_INOUT )
     {
         tcp_socket->async_read_some(boost::asio::null_buffers(),
-                boost::bind(&event_cb, c,
+                c->strand_.wrap(boost::bind(
+                		&event_cb, c,
                         tcp_socket,
-                        act));
+                        act)));
 
         tcp_socket->async_write_some(boost::asio::null_buffers(),
-                boost::bind(&event_cb, c,
+                c->strand_.wrap(boost::bind(
+                		&event_cb, c,
                         tcp_socket,
-                        act));
+                        act)));
     }
 }
 
@@ -246,10 +221,6 @@ void setsock(int *fdp, curl_socket_t s, CURL*e, int act, Context* c)
 void addsock(curl_socket_t s, CURL *easy, int action, Context *c)
 {
 	TRACE("addsock");
-
-	//if ( c->mutex_.try_lock() ) c->mutex_.unlock();
-	//else std::cerr << "addsock - MUTEX IS ALREADY LOCKED!!" << std::endl;
-	//Context::guard_t l( c->mutex_ );
 
 	int *fdp = (int *)calloc(sizeof(int), 1); /* fdp is used to store current action */
 
@@ -260,10 +231,6 @@ void addsock(curl_socket_t s, CURL *easy, int action, Context *c)
 /* CURLMOPT_SOCKETFUNCTION */
 int sock_cb(CURL *e, curl_socket_t s, int what, Context* c, int* actionp)
 {
-	// Note: We don't synchronize access to the context here!
-	// Synchronization is implemented in the remsock, addsock and setsock
-	// functions.
-
 	TRACE("sock_cb");
 
     if ( what == CURL_POLL_REMOVE )
@@ -287,8 +254,6 @@ int sock_cb(CURL *e, curl_socket_t s, int what, Context* c, int* actionp)
 /* CURLOPT_WRITEFUNCTION */
 size_t write_cb(char* ptr, size_t size, size_t nmemb, AsyncHTTPRequester* r)
 {
-	// I think that we can trust curl not to call our write_cb concurrently...
-
     TRACE("write_cb");
 
     size_t written = size * nmemb;
@@ -306,10 +271,6 @@ size_t write_cb(char* ptr, size_t size, size_t nmemb, AsyncHTTPRequester* r)
 curl_socket_t opensocket(Context* c, curlsocktype purpose, struct curl_sockaddr *address)
 {
 	TRACE("opensocket");
-
-	//if ( c->mutex_.try_lock() ) c->mutex_.unlock();
-	//else std::cerr << "opensocket - MUTEX IS ALREADY LOCKED!!" << std::endl;
-	//Context::guard_t l( c->mutex_ ); // protects socket map
 
     curl_socket_t sockfd = CURL_SOCKET_BAD;
 
@@ -345,10 +306,6 @@ int closesocket(Context* c, curl_socket_t item)
 {
 	TRACE("closesocket");
 
-	//if ( c->mutex_.try_lock() ) c->mutex_.unlock();
-	//else std::cerr << "closesocket - MUTEX IS ALREADY LOCKED!!" << std::endl;
-	//Context::guard_t l( c->mutex_ ); // protects map
-
     std::map<curl_socket_t, boost::asio::ip::tcp::socket *>::iterator it = socket_map.find(item);
 
     if ( it != socket_map.end() )
@@ -372,14 +329,7 @@ AsyncHTTPRequester::AsyncHTTPRequester(Context& c, bool const selfmanage)
 
 void context_multi_add_handle(Context& c, CURL* easy)
 {
-	CURLMcode rc;
-	{
-		//if ( c_.mutex_.try_lock() ) c_.mutex_.unlock();
-		//else std::cerr << "fetch - MUTEX IS ALREADY LOCKED!!" << std::endl;
-		//Context::guard_t l( c_.mutex_ );
-
-		rc = curl_multi_add_handle(c_.multi_, easy_);
-	}
+	CURLMcode rc = curl_multi_add_handle(c.multi_, easy);
 	// Throwing an exception here will cause the program to terminate, but
 	// there is no easy way to recover from an error here
 	mcode_or_throw("new_conn: curl_multi_add_handle", rc);
@@ -422,21 +372,14 @@ void AsyncHTTPRequester::fetch(std::string const& url, boost::function< void(CUR
     curl_easy_setopt(easy_, CURLOPT_CLOSESOCKETFUNCTION, closesocket);
     curl_easy_setopt(easy_, CURLOPT_CLOSESOCKETDATA, &c_);
 
-    c_.strand_.dispatch(boost::bind(context_multi_add_handle, c_, easy_));
+    c_.strand_.dispatch(boost::bind(context_multi_add_handle, boost::ref(c_), easy_));
 }
 
 void AsyncHTTPRequester::done(CURLcode const rc)
 {
     TRACE("AsyncHTTPRequester::done");
 
-    CURLMcode mc;
-    {
-    	//if ( c_.mutex_.try_lock() ) c_.mutex_.unlock();
-    	//else std::cerr << "done - MUTEX IS ALREADY LOCKED!!" << std::endl;
-    	//Context::guard_t l( c_.mutex_ );
-
-    	mc = curl_multi_remove_handle(c_.multi_, easy_);
-    }
+    CURLMcode mc = curl_multi_remove_handle(c_.multi_, easy_);
     mcode_or_throw("new_conn: curl_multi_add_handle", mc);
 
     cb_(rc, buf_.str());
@@ -456,6 +399,7 @@ AsyncHTTPRequester::~AsyncHTTPRequester()
 
 Context::Context( boost::asio::io_service& io_service )
 : timer_( io_service )
+, strand_( io_service )
 , io_service_( io_service )
 , still_running_( 0 )
 {

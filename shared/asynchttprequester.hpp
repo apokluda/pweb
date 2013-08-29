@@ -35,6 +35,7 @@ namespace curl
         friend void event_cb(Context*, boost::asio::ip::tcp::socket*, int);
         friend void check_multi_info(Context*);
         friend int multi_timer_cb(CURLM*, long, Context*);
+        friend void context_multi_add_handle(Context&, CURL*);
 
     public:
         Context(boost::asio::io_service& io_service);
