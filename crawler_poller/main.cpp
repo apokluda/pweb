@@ -183,25 +183,16 @@ int main(int argc, char const* argv[])
         }
 
         using boost::posix_time::seconds;
-        poller::Context pollerctx( solr_deviceurl, solr_contenturl, seconds(interval) );
-        curl::Context curlctx( io_service );
-        poller::pollercreator pc( pollerctx, curlctx );
+        poller::Context pollerctx( io_service, solr_deviceurl, solr_contenturl, seconds(interval) );
+        poller::pollercreator pc( pollerctx );
         signals::home_agent_assigned.connect( boost::bind( &poller::pollercreator::create_poller, &pc, _1 ) );
 
         // I tried for a looong time to do this with std::for_each and I couldn't get it to work
         for ( halist_t::iterator i = home_agents.begin(); i != home_agents.end(); ++i) signals::home_agent_discovered(*i);
 
-        if ( threads != 1 )
-        {
-            std::cerr << "AsyncHTTPRequester does not contain all necessary synchronization at the moment.\n"
-            "Running with more than one application thread is not a good idea right now. Sorry.\n";
-            exit_code = EXIT_FAILURE;
-        }
-        else
-        {
-            run( io_service, threads );
-            exit_code = EXIT_SUCCESS;
-        }
+        run( io_service, threads );
+        exit_code = EXIT_SUCCESS;
+
         // Fall through to shutdown logging
     }
     catch ( std::exception const& e )
