@@ -353,7 +353,9 @@ udp_dnsspeaker::udp_dnsspeaker(io_service& io_service, b::function<void (query_p
     send_buf_arr_[0] = buffer(send_header_.buffer());
     try
     {
-        ip::udp::endpoint endpoint(ip::udp::v6(), port);
+    	// Note: changed from ip::udp::v6() to ip::udp::v4()
+    	// for deployment on PlanetLab
+        ip::udp::endpoint endpoint(ip::udp::v4(), port);
         if ( !iface.empty() )
         {
             ip::address bind_addr(ip::address::from_string(iface));
@@ -510,7 +512,9 @@ tcp_dnsspeaker::tcp_dnsspeaker(io_service& io_service, b::function<void (query_p
 {
     try
     {
-        ip::tcp::endpoint endpoint(ip::tcp::v6(), port);
+    	// Changed from ip::tcp::v6() to ip::tcp::v4()
+    	// in order to support PlanetLab
+        ip::tcp::endpoint endpoint(ip::tcp::v4(), port);
         if ( !iface.empty() )
         {
             ip::address bind_addr(ip::address::from_string(iface));

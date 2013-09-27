@@ -622,7 +622,9 @@ harecvproxy::harecvproxy(io_service& io_service, string const& nshostname, boost
 {
     try
     {
-        ip::tcp::endpoint endpoint(ip::tcp::v6(), port);
+    	// Changed from ip::tcp::v6() to ip::tcp::v4()
+    	// in order to support PlanetLab
+        ip::tcp::endpoint endpoint(ip::tcp::v4(), port);
 
         acceptor_.open(endpoint.protocol());
         acceptor_.set_option( ip::tcp::acceptor::reuse_address( true ) );
