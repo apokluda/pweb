@@ -54,7 +54,7 @@ void session(socket_ptr sock, bool fail, bool verbose)
             if ( !fail )
             {
                 MessageGET_REPLY replymsg("alex.laptop.uw", 9999, "dnsgw.pwebproject.net", 8888, OverlayID(),
-                        OverlayID(), 0, OverlayID(), HostAddress("6.6.6.6", 7777), getmsg.getDeviceName());
+                        OverlayID(), 0, OverlayID(), HostAddress("123.45.6.78", 7777), getmsg.getDeviceName());
                 //replymsg.setOriginSeqNo(getmsg.getSequenceNo());
                 replymsg.setSequenceNo(getmsg.getSequenceNo());
                 replybuf = replymsg.serialize(&buflen);
@@ -108,7 +108,7 @@ int main(int argc, char const* argv[])
     {
         std::cerr << "Usage: dnsgw_test <port> [-f][-v]\n"
                 "-f    reply with failure\n"
-                "-v    verbose output";
+                "-v    verbose output\n";
         return 1;
     }
 
@@ -117,8 +117,8 @@ int main(int argc, char const* argv[])
 
     for (--argc; argc > 1; --argc)
     {
-        if (strcmp(argv[argc], "-f")) fail = true;
-        else if (strcmp(argv[argc], "-v")) verbose = true;
+        if (strcmp(argv[argc], "-f") == 0) fail = true;
+        else if (strcmp(argv[argc], "-v") == 0) verbose = true;
     }
 
     try

@@ -35,10 +35,12 @@ class hasendproxy :
         public boost::enable_shared_from_this<hasendproxy>
 {
 public:
+    typedef std::vector< std::string > suffix_list_t;
+
     hasendproxy(boost::asio::io_service& io_service,
             std::string const& hahostname, boost::uint16_t const haport,
             std::string const& nshostname, boost::uint16_t const nsport,
-            std::string const& suffix);
+            suffix_list_t const& suffixes);
 
     bool enabled() const
     {
@@ -57,11 +59,11 @@ private:
     void handle_resolve(boost::system::error_code const& ec, boost::asio::ip::tcp::resolver::iterator iter);
     void handle_query_sent(boost::system::error_code const& ec, std::size_t const bytes_tranferred);
 
+    suffix_list_t const suffixes_;
     boost::asio::ip::tcp::resolver resolver_;
     boost::asio::ip::tcp::resolver::iterator iter_;
     std::string const hahostname_;
     std::string const nshostname_;
-    std::string const suffix_;
     boost::uint16_t const haport_;
     boost::uint16_t const nsport_;
     boost::atomic< bool > enabled_;

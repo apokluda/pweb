@@ -96,14 +96,15 @@ int main(int argc, char const* argv[])
     try
     {
         typedef std::vector< string > haaddr_list_t;
+        typedef std::vector< string > suffix_list_t;
 
         string log_file;
         string log_level;
         string interface;
         string nshostname;
-        string suffix;
         string instsrv;
         haaddr_list_t home_agents;
+        suffix_list_t suffixes;
         std::size_t num_threads;
         unsigned timeout;
         boost::uint16_t ttl;
@@ -139,7 +140,7 @@ int main(int argc, char const* argv[])
                                                                                                               "    This hostname is included in DNS replies and in messages sent to to Home Agents."
                                                                                                               "Home Agents will send repiles to this hostname using separate TCP connections." )
                     ("nsport,P",      po::value< boost::uint16_t >(&nsport)     ->required(),                 "TCP port used to receive replies from Home Agents")
-                    ("suffix,s",      po::value< string >         (&suffix)     ->default_value(".dht."),     "Suffix to be removed from domain names in order to obtain pWeb device names")
+                    ("suffix,s",      po::value< suffix_list_t >  (&suffixes)   ->required(),                 "Suffix to be removed from domain names in order to obtain pWeb device names")
                     ("threads",       po::value< std::size_t >    (&num_threads)->default_value(1),           "Number of application threads\n"
                                                                                                               "    Set to 0 to use one thread per hardware core")
                     ("instsrv",       po::value< string >         (&instsrv),                                 "Address of instrumentation server\n"
@@ -238,7 +239,8 @@ int main(int argc, char const* argv[])
         typedef boost::shared_ptr< hasendproxy > hasendproxy_ptr;
         typedef std::vector< hasendproxy_ptr > haproxies_t;
 
-        std::transform( suffix.begin(), suffix.end(), suffix.begin(), ::tolower );
+        for (suffix_list_t::iterator i = suffixes.begin(); i != suffixes.end(); ++i)
+            std::transform( i->begin(), i->end(), i->begin(), ::tolower );
 
         haproxies_t haproxies;
         haproxies.reserve( home_agents.size() );
@@ -247,7 +249,7 @@ int main(int argc, char const* argv[])
             string hostname, port;
             split_hostname(hostname, port, *i);
             boost::uint16_t iport = boost::lexical_cast<boost::uint16_t>(port);
-            hasendproxy_ptr hptr(new hasendproxy(io_service, hostname, iport, nshostname, nsport, suffix) );
+            hasendproxy_ptr hptr(new hasendproxy(io_service, hostname, iport, nshostname, nsport, suffixes) );
             hptr->start();
             haproxies.push_back(hptr);
         }

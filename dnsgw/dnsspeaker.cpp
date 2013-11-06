@@ -119,10 +119,11 @@ namespace dns_query_parser
             throw parse_error(ss.str());
         }
 
-        using boost::tokenizer;
+        typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
 
-        tokenizer<> tok(name);
-        for( tokenizer<>::iterator beg = tok.begin(); beg != tok.end(); ++beg )
+        boost::char_separator<char> sep(".");
+        tokenizer tok(name, sep);
+        for( tokenizer::iterator beg = tok.begin(); beg != tok.end(); ++beg )
         {
             buf = write_label(*beg, buf, end);
         }

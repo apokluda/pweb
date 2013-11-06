@@ -46,18 +46,22 @@ namespace haproxy
 namespace
 {
     using namespace boost::asio::ip;
+    typedef hasendproxy::suffix_list_t suffix_list_t;
 
-    std::string remove_suffix(std::string const& name, std::string const& suffix)
+    std::string remove_suffix(std::string const& name, suffix_list_t const& suffixes)
     {
-        std::string name_suffix = name.substr(name.length() - suffix.length());
-        std::transform( name_suffix.begin(), name_suffix.end(), name_suffix.begin(), ::tolower );
-        if ( name_suffix != suffix)
+        // As an an alternative approach, we could have the user pass in a regular
+        // expression to match the suffix instead of a list of strings.
+        for (suffix_list_t::const_iterator i = suffixes.begin(); i != suffixes.end(); ++i)
         {
-            sstream ss;
-            ss << "Name '" << name  << "' contains an invalid suffix: " << name_suffix;
-            throw std::runtime_error(ss.str());
+            std::string name_suffix = name.substr(name.length() - i->length());
+            std::transform( name_suffix.begin(), name_suffix.end(), name_suffix.begin(), ::tolower );
+            if ( name_suffix == *i )
+                return name.substr(0, name.length() - i->length());
         }
-        return name.substr(0, name.length() - suffix.length());
+        sstream ss;
+        ss << "Name '" << name  << "' does not contain a valid suffix.";
+        throw std::runtime_error(ss.str());
     }
 
     enum absmsgid_t
@@ -152,7 +156,7 @@ namespace
         return buf;
     }
 
-    boost::uint8_t* write_abs_get(dnsquery& query, string const& suffix, boost::uint8_t* buf, boost::uint8_t const* const end)
+    boost::uint8_t* write_abs_get(dnsquery& query, suffix_list_t const& suffixes, boost::uint8_t* buf, boost::uint8_t const* const end)
     {
         if (query.num_questions() < 1) return buf;
 
@@ -160,7 +164,7 @@ namespace
         // (In the current implementation, we expect only one)
 
         dnsquestion const& question = *query.questions_begin();
-        string const devicename( remove_suffix( question.name, suffix ) );
+        string const devicename( remove_suffix( question.name, suffixes ) );
         query.metric().device_name(devicename);
 
         //buf = write_abs_zero(unused_abs_get_len, buf, end);
@@ -229,11 +233,11 @@ public:
     hasendconnection(io_service& io_service,
             string const& hahostname, boost::uint16_t const haport,
             string const& nshostname, boost::uint16_t const nsport,
-            query_ptr query, std::string const& suffix)
+            query_ptr query, suffix_list_t const& suffixes)
     : socket_(io_service)
     , hahostname_(hahostname)
     , nshostname_(nshostname)
-    , suffix_(suffix)
+    , suffixes_(suffixes)
     , query_(query)
     , haport_(haport)
     , nsport_(nsport)
@@ -247,7 +251,7 @@ public:
             boost::uint8_t const* const end = buf + buf_.size();
 
             buf = write_abs_header(ABS_GET, query_->id(), hahostname_, haport_, nshostname_, nsport_, buf, end);
-            buf = write_abs_get(*query_, suffix_, buf, end);
+            buf = write_abs_get(*query_, suffixes_, buf, end);
 
             send_buf_ = buffer(buf_,  buf - buf_.data());
 
@@ -314,10 +318,10 @@ private:
         }
     }
 
+    suffix_list_t const& suffixes_;
     tcp::socket socket_;
     string const hahostname_;
     string const nshostname_;
-    string const suffix_;
     query_ptr query_;
     boost::asio::const_buffer send_buf_;
     boost::array< boost::uint8_t, 256 > buf_;
@@ -563,11 +567,11 @@ private:
 hasendproxy::hasendproxy(io_service& io_service,
         string const& hahostname, boost::uint16_t const haport,
         string const& nshostname, boost::uint16_t const nsport,
-        string const& suffix)
+        suffix_list_t const& suffixes)
 : resolver_(io_service)
 , hahostname_(hahostname)
 , nshostname_(nshostname)
-, suffix_(suffix)
+, suffixes_(suffixes)
 , haport_(haport)
 , nsport_(nsport)
 {
@@ -606,7 +610,7 @@ void hasendproxy::process_query( query_ptr query )
     {
         log4.debugStream() << "Proxy object for '" << hahostname_ << "' processing query";
 
-        boost::shared_ptr< hasendconnection > conn(new hasendconnection( resolver_.get_io_service(), hahostname_, haport_, nshostname_, nsport_, query, suffix_));
+        boost::shared_ptr< hasendconnection > conn(new hasendconnection( resolver_.get_io_service(), hahostname_, haport_, nshostname_, nsport_, query, suffixes_));
         conn->start(iter_);
     }
     catch ( std::exception const& e)
