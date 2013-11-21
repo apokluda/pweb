@@ -107,7 +107,9 @@ void poller::do_poll( bs::error_code const& ec )
 	if ( !ec )
 	{
 		std::ostringstream url;
-		url << "http://" << hostname_ << ":20005/?method=getall&timestamp=" << timestamp_;
+		//url << "http://" << hostname_ << ":20005/?method=getall&timestamp=" << timestamp_;
+		// A hack for now! Just to get this experiment up and running!!
+		url << "http://127.0.0.1/" << hostname_;
 		std::string const& urlstr = url.str();
 
 		log4.infoStream() << "Polling Home Agent at '" << hostname_ << "' with URL: " << urlstr;
@@ -144,7 +146,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 		parser::getall::halist_t& homeagents = gall.homeagents;
 		parser::getall::devlist_t& devices = gall.devices;
 
-		log4.noticeStream() << "Home Agent '" << hostname_ << "' returned list of " << homeagents.size() << " neighbours and " << devices.size() << " updated devices";
+		log4.infoStream() << "Home Agent '" << hostname_ << "' returned list of " << homeagents.size() << " neighbours and " << devices.size() << " updated devices";
 
 		typedef parser::getall::halist_t::const_iterator hiter_t;
 		for ( hiter_t i = homeagents.begin(); i != homeagents.end(); ++i ) signals::home_agent_discovered( i->hostname );
