@@ -24,6 +24,41 @@ namespace curl
 {
     class AsyncHTTPRequester;
 
+    class socket_map_t
+    {
+        typedef curl_socket_t key_t;
+        typedef boost::asio::ip::tcp::socket* value_t;
+        typedef std::map<key_t, value_t> map_t;
+
+    public:
+        void insert(const key_t k, const value_t v)
+        {
+            map_impl_.insert(std::pair<key_t, value_t>(k, v));
+        }
+
+        value_t find(const key_t k)
+        {
+            map_t::iterator it = map_impl_.find(k);
+            if ( it == map_impl_.end() ) return 0;
+            return it->second;
+        }
+
+        bool erase_and_delete(const key_t k)
+        {
+            map_t::iterator it = map_impl_.find(k);
+            if ( it != map_impl_.end() )
+            {
+                delete it->second;
+                map_impl_.erase(it);
+                return true;
+            }
+            return false;
+        }
+
+    private:
+        map_t map_impl_;
+    };
+
     class Context : boost::noncopyable
     {
         friend class AsyncHTTPRequester;
@@ -52,11 +87,8 @@ namespace curl
         }
 
     private:
-        typedef boost::lock_guard< boost::mutex > guard_t;
-        typedef boost::unique_lock< boost::mutex > lock_t;
-
+        socket_map_t socket_map_;
         boost::asio::deadline_timer timer_;
-        //boost::mutex mutex_;
         boost::asio::strand strand_;
         boost::asio::io_service& io_service_;
         CURLM* multi_;

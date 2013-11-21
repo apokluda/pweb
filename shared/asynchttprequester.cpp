@@ -36,49 +36,6 @@ namespace curl
 {
 bool debug = false;
 
-//std::map<curl_socket_t, boost::asio::ip::tcp::socket *> socket_map;
-
-class socket_map_t
-{
-    typedef curl_socket_t key_t;
-    typedef boost::asio::ip::tcp::socket* value_t;
-    typedef std::map<key_t, value_t> map_t;
-    typedef boost::lock_guard<boost::mutex> guard_t;
-
-public:
-    void insert(const key_t k, const value_t v)
-    {
-        guard_t g(mutex_);
-        map_impl_.insert(std::pair<key_t, value_t>(k, v));
-    }
-
-    value_t find(const key_t k)
-    {
-        guard_t g(mutex_);
-        map_t::iterator it = map_impl_.find(k);
-        if ( it == map_impl_.end() ) return 0;
-        return it->second;
-    }
-
-    bool erase_and_delete(const key_t k)
-    {
-        guard_t g(mutex_);
-        map_t::iterator it = map_impl_.find(k);
-        if ( it != map_impl_.end() )
-        {
-            delete it->second;
-            map_impl_.erase(it);
-            return true;
-        }
-        return false;
-    }
-
-private:
-    map_t map_impl_;
-    boost::mutex mutex_;
-};
-socket_map_t socket_map;
-
 void timer_cb(const boost::system::error_code & error, Context *g);
 
 /* Update the event timer after curl_multi library calls */
@@ -219,12 +176,7 @@ void setsock(int *fdp, curl_socket_t s, CURL*e, int act, Context* c)
     TRACE("setsock");
 
     boost::asio::ip::tcp::socket* tcp_socket;
-    //{
-    //    std::map<curl_socket_t, boost::asio::ip::tcp::socket *>::iterator it = socket_map.find(s);
-    //    if ( it == socket_map.end() ) return;
-    //    tcp_socket = it->second;
-    //}
-    tcp_socket = socket_map.find(s);
+    tcp_socket = c->socket_map_.find(s);
     if (!tcp_socket) return;
 
     *fdp = act;
@@ -337,8 +289,7 @@ curl_socket_t opensocket(Context* c, curlsocktype purpose, struct curl_sockaddr 
             sockfd = tcp_socket->native_handle();
 
             /* save it for monitoring */
-            //socket_map.insert(std::pair<curl_socket_t, boost::asio::ip::tcp::socket *>(sockfd, tcp_socket));
-            socket_map.insert(sockfd, tcp_socket);
+            c->socket_map_.insert(sockfd, tcp_socket);
         }
     }
 
@@ -349,15 +300,7 @@ curl_socket_t opensocket(Context* c, curlsocktype purpose, struct curl_sockaddr 
 int closesocket(Context* c, curl_socket_t item)
 {
 	TRACE("closesocket");
-
-    //std::map<curl_socket_t, boost::asio::ip::tcp::socket *>::iterator it = socket_map.find(item);
-    //if ( it != socket_map.end() )
-    //{
-    //    delete it->second;
-    //    socket_map.erase(it);
-    //}
-	socket_map.erase_and_delete(item);
-
+	c->socket_map_.erase_and_delete(item);
     return 0;
 }
 
