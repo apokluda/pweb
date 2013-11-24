@@ -47,11 +47,7 @@ namespace poller
         poller(Context const& pollerctx, std::string const& hostname );
 
     private:
-        void start()
-        {
-            timer_.async_wait( boost::bind( &poller::do_poll, this, boost::asio::placeholders::error ) );
-        }
-
+        void start();
         void do_poll( boost::system::error_code const& );
         void handle_poll( CURLcode const code, std::string const& content );
         void handle_post( CURLcode const code, std::string const& content, time_t const newtimestamp );

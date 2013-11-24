@@ -29,7 +29,6 @@ static boost::random::mt19937 gen;
 
 extern log4cpp::Category& log4;
 
-
 namespace
 {
 
@@ -96,6 +95,14 @@ poller::poller(Context const& pollerctx, std::string const& hostname )
 
 	timer_.expires_from_now( first_interval );
 	start();
+}
+
+void poller::start()
+{
+    if (timer_.expires_from_now() < boost::posix_time::time_duration(0, 0, 0, 0))
+        log4.noticeStream() << "Last poll for '" << hostname_ << "' took longer than polling interval";
+
+    timer_.async_wait( boost::bind( &poller::do_poll, this, boost::asio::placeholders::error ) );
 }
 
 void poller::do_poll( bs::error_code const& ec )
