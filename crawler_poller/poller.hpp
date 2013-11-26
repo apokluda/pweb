@@ -66,6 +66,7 @@ namespace poller
         boost::asio::deadline_timer timer_;
         time_t timestamp_;
         Context const& pollerctx_;
+        //bool falling_behind_;
     };
 
     class pollercreator : private boost::noncopyable

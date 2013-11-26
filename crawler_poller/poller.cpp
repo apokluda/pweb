@@ -86,6 +86,7 @@ poller::poller(Context const& pollerctx, std::string const& hostname )
 , timer_( pollerctx.io_service )
 , timestamp_( 1 ) // For some bizarre reason, the Home Agents can't handle a request with timestamp 0
 , pollerctx_( pollerctx )
+//, falling_behind_( false )
 {
 	using namespace boost::posix_time;
 	boost::random::uniform_int_distribution< long > dist(0, pollerctx_.interval.total_milliseconds());
@@ -100,7 +101,18 @@ poller::poller(Context const& pollerctx, std::string const& hostname )
 void poller::start()
 {
     if (timer_.expires_from_now() < boost::posix_time::time_duration(0, 0, 0, 0))
-        log4.noticeStream() << "Last poll for '" << hostname_ << "' took longer than polling interval";
+    {
+        log4.noticeStream() << "Last poll for '" << hostname_ << "' took longer than polling interval (" << pollerctx_.interval << ')';
+        //if (!falling_behind_)
+        //{
+        //    falling_behind_ = true;
+        //}
+        //else
+        //{
+        //    log4.noticeStream() << "Poller for '" << hostname_ << "' fell behind";
+            timer_.get_io_service().stop(); // TEMPORARY: FOR PERFORMANCE MEASUREMENTS
+        //}
+    }
 
     timer_.async_wait( boost::bind( &poller::do_poll, this, boost::asio::placeholders::error ) );
 }
