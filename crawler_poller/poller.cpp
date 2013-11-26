@@ -106,8 +106,8 @@ void poller::do_poll( bs::error_code const& ec )
 
 	if ( !ec )
 	{
-		std::ostringstream url;
-		url << "http://" << hostname_ << ":20005/?method=getall&timestamp=" << timestamp_;
+	    boost::format url( pollerctx_.haurlfmt );
+        url % hostname_ % timestamp_;
 		std::string const& urlstr = url.str();
 
 		log4.infoStream() << "Polling Home Agent at '" << hostname_ << "' with URL: " << urlstr;
