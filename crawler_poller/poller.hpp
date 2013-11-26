@@ -28,14 +28,27 @@ namespace poller
 {
     struct Context
     {
-        Context(boost::asio::io_service& io_service, std::string const& deviceurl, std::string const& contenturl, boost::posix_time::time_duration const interval)
+        Context(boost::asio::io_service& io_service, std::string const& haurl, std::string const& deviceurl, std::string const& contenturl, boost::posix_time::time_duration const interval)
         : io_service( io_service )
+        , haurlfmt( haurl )
         , solr_deviceurl( deviceurl )
         , solr_contenturl( contenturl )
         , interval( interval )
-        {}
+        {
+            // The format object is shared between all poller instances.
+            // It is const to ensure that the pollers must make a copy of
+            // it before using it. (Making a copy is a lot cheaper than
+            // creating one from scratch because it avoids the template
+            // processing overhead). However, we want to change the exception
+            // flags so that exceptions are not thrown if the user does not
+            // use all placeholders in the passed-in string. We need a
+            // const cast to do this on a const object.
+            const_cast< boost::format* >( &haurlfmt )->exceptions(
+                    boost::io::all_error_bits ^ boost::io::too_many_args_bit );
+        }
 
         boost::asio::io_service& io_service;
+        boost::format const haurlfmt;
         std::string const solr_deviceurl;
         std::string const solr_contenturl;
         boost::posix_time::time_duration const interval;

@@ -29,6 +29,7 @@ static boost::random::mt19937 gen;
 
 extern log4cpp::Category& log4;
 
+
 namespace
 {
 
@@ -86,7 +87,6 @@ poller::poller(Context const& pollerctx, std::string const& hostname )
 , timer_( pollerctx.io_service )
 , timestamp_( 1 ) // For some bizarre reason, the Home Agents can't handle a request with timestamp 0
 , pollerctx_( pollerctx )
-//, falling_behind_( false )
 {
 	using namespace boost::posix_time;
 	boost::random::uniform_int_distribution< long > dist(0, pollerctx_.interval.total_milliseconds());
@@ -98,25 +98,6 @@ poller::poller(Context const& pollerctx, std::string const& hostname )
 	start();
 }
 
-void poller::start()
-{
-    if (timer_.expires_from_now() < boost::posix_time::time_duration(0, 0, 0, 0))
-    {
-        log4.noticeStream() << "Last poll for '" << hostname_ << "' took longer than polling interval (" << pollerctx_.interval << ')';
-        //if (!falling_behind_)
-        //{
-        //    falling_behind_ = true;
-        //}
-        //else
-        //{
-        //    log4.noticeStream() << "Poller for '" << hostname_ << "' fell behind";
-            timer_.get_io_service().stop(); // TEMPORARY: FOR PERFORMANCE MEASUREMENTS
-        //}
-    }
-
-    timer_.async_wait( boost::bind( &poller::do_poll, this, boost::asio::placeholders::error ) );
-}
-
 void poller::do_poll( bs::error_code const& ec )
 {
 	// Do this now so that we actually poll the Home Agent once ever 'interval' seconds
@@ -125,10 +106,8 @@ void poller::do_poll( bs::error_code const& ec )
 
 	if ( !ec )
 	{
-		std::ostringstream url;
-		//url << "http://" << hostname_ << ":20005/?method=getall&timestamp=" << timestamp_;
-		// A hack for now! Just to get this experiment up and running!!
-		url << "http://127.0.0.1/" << hostname_;
+	    boost::format url( pollerctx_.haurlfmt );
+        url % hostname_ % timestamp_;
 		std::string const& urlstr = url.str();
 
 		log4.infoStream() << "Polling Home Agent at '" << hostname_ << "' with URL: " << urlstr;
@@ -165,7 +144,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 		parser::getall::halist_t& homeagents = gall.homeagents;
 		parser::getall::devlist_t& devices = gall.devices;
 
-		log4.infoStream() << "Home Agent '" << hostname_ << "' returned list of " << homeagents.size() << " neighbours and " << devices.size() << " updated devices";
+		log4.noticeStream() << "Home Agent '" << hostname_ << "' returned list of " << homeagents.size() << " neighbours and " << devices.size() << " updated devices";
 
 		typedef parser::getall::halist_t::const_iterator hiter_t;
 		for ( hiter_t i = homeagents.begin(); i != homeagents.end(); ++i ) signals::home_agent_discovered( i->hostname );
