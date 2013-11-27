@@ -116,6 +116,7 @@ void poller::start()
             if (num_falling_behind / num_pollers > 0.25)
             {
                 log4.noticeStream() << "More than 25% of pollers are falling behind";
+                timer_.get_io_service().stop(); // FOR EXPERIMENTS ONLY!! TO BE REMOVED
             }
         }
     }
@@ -177,7 +178,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 		parser::getall::halist_t& homeagents = gall.homeagents;
 		parser::getall::devlist_t& devices = gall.devices;
 
-		log4.noticeStream() << "Home Agent '" << hostname_ << "' returned list of " << homeagents.size() << " neighbours and " << devices.size() << " updated devices";
+		log4.infoStream() << "Home Agent '" << hostname_ << "' returned list of " << homeagents.size() << " neighbours and " << devices.size() << " updated devices";
 
 		typedef parser::getall::halist_t::const_iterator hiter_t;
 		for ( hiter_t i = homeagents.begin(); i != homeagents.end(); ++i ) signals::home_agent_discovered( i->hostname );
