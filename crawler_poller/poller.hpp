@@ -60,11 +60,7 @@ namespace poller
         poller(Context const& pollerctx, std::string const& hostname );
 
     private:
-        void start()
-        {
-            timer_.async_wait( boost::bind( &poller::do_poll, this, boost::asio::placeholders::error ) );
-        }
-
+        void start();
         void do_poll( boost::system::error_code const& );
         void handle_poll( CURLcode const code, std::string const& content );
         void handle_post( CURLcode const code, std::string const& content, time_t const newtimestamp );
@@ -76,6 +72,8 @@ namespace poller
         // is now one curlctx for every poller.
 
         static parser::getall_parser< std::string::const_iterator > const g_;
+        static boost::atomic< std::size_t > num_pollers_;
+        static boost::atomic< std::size_t > num_falling_behind_;
         // curlctx_ must precede requester_
         curl::Context curlctx_;
         curl::AsyncHTTPRequester requester_;
@@ -83,7 +81,7 @@ namespace poller
         boost::asio::deadline_timer timer_;
         time_t timestamp_;
         Context const& pollerctx_;
-        //bool falling_behind_;
+        bool falling_behind_;
     };
 
     class pollercreator : private boost::noncopyable

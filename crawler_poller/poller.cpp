@@ -80,6 +80,9 @@ namespace poller
 
 parser::getall_parser< std::string::const_iterator > const poller::g_;
 
+boost::atomic< std::size_t > poller::num_pollers_(0);
+boost::atomic< std::size_t > poller::num_falling_behind_(0);
+
 poller::poller(Context const& pollerctx, std::string const& hostname )
 : curlctx_( pollerctx.io_service )
 , requester_( curlctx_, false )
@@ -87,7 +90,10 @@ poller::poller(Context const& pollerctx, std::string const& hostname )
 , timer_( pollerctx.io_service )
 , timestamp_( 1 ) // For some bizarre reason, the Home Agents can't handle a request with timestamp 0
 , pollerctx_( pollerctx )
+, falling_behind_(false)
 {
+    num_pollers_.fetch_add(1, boost::memory_order_relaxed);
+
 	using namespace boost::posix_time;
 	boost::random::uniform_int_distribution< long > dist(0, pollerctx_.interval.total_milliseconds());
 	time_duration const first_interval = milliseconds( dist( gen ) );
@@ -96,6 +102,33 @@ poller::poller(Context const& pollerctx, std::string const& hostname )
 
 	timer_.expires_from_now( first_interval );
 	start();
+}
+
+void poller::start()
+{
+    if (timer_.expires_from_now() < boost::posix_time::time_duration(0, 0 ,0 ,0))
+    {
+        if (!falling_behind_)
+        {
+            falling_behind_ = true;
+            double const num_falling_behind = num_falling_behind_.fetch_add(1, boost::memory_order_consume);
+            double const num_pollers = num_pollers_.load(boost::memory_order_consume);
+            if (num_falling_behind / num_pollers > 0.25)
+            {
+                log4.noticeStream() << "More than 25% of pollers are falling behind";
+            }
+        }
+    }
+    else
+    {
+        if (falling_behind_)
+        {
+            falling_behind_ = false;
+            num_falling_behind_.fetch_sub(1, boost::memory_order_relaxed);
+        }
+    }
+
+    timer_.async_wait( boost::bind( &poller::do_poll, this, boost::asio::placeholders::error ) );
 }
 
 void poller::do_poll( bs::error_code const& ec )
