@@ -193,15 +193,17 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 			for ( diter_t i = devices.begin(); i != devices.end(); ++i )
 			{
 				out <<  "<doc>"
-						"<field name=\"owner\">"       << i->owner                      << "</field>"
-						"<field name=\"name\">"        << i->name << '.' << gall.haname << "</field>"
-						"<field name=\"home\">"        << gall.haname                   << "</field>";
+					    "<field name=\"r_type\">"           "device"                        "</field>"
+						"<field name=\"r_key\">"         << i->name                       << "</field>"
+						"<field name=\"d_owner\">"       << i->owner                      << "</field>"
+						"<field name=\"d_name\">"        << i->name << '.' << gall.haname << "</field>"
+						"<field name=\"d_home\">"        << gall.haname                   << "</field>";
 				if ( !i->port.empty() )
-				out <<  "<field name=\"port\">"        << i->port                       << "</field>";
-				out <<  "<field name=\"type\">"        << i->type                       << "</field>"
-						"<field name=\"timestamp\">"   << i->timestamp                  << "</field>"
-						"<field name=\"location\">"    << i->location                   << "</field>"
-						"<field name=\"description\">" << i->description                << "</field>"
+				out <<  "<field name=\"d_port\">"        << i->port                       << "</field>";
+				out <<  "<field name=\"d_type\">"        << i->type                       << "</field>"
+						"<field name=\"d_timestamp\">"   << i->timestamp                  << "</field>"
+						"<field name=\"d_location\">"    << i->location                   << "</field>"
+						"<field name=\"d_description\">" << i->description                << "</field>"
 						"</doc>";
 
 				if (i->timestamp > newtimestamp) newtimestamp = i->timestamp;
@@ -312,13 +314,15 @@ void handle_getcontentlist(poller::Context const& pollerctx, reqptr_t const& req
 			{
 				++pubcount;
 				out << "<doc>"
-						"<field name=\"ctid\">"        << device << "-vid" << i->id << "</field>"
-						"<field name=\"id\">"          << i->id                     << "</field>"
-						"<field name=\"device_name\">" << device                    << "</field>"
-						"<field name=\"title\">"       << i->title                  << "</field>"
-						"<field name=\"filesize\">"    << i->filesize               << "</field>"
-						"<field name=\"mimetype\">"    << i->mimetype               << "</field>"
-						"<field name=\"description\">" << i->description            << "</field>"
+						"<field name=\"r_type\">"           "content"                    "</field>"
+						"<field name=\"r_key\">"         << device << "-vid" << i->id << "</field>"
+						"<field name=\"c_ctid\">"        << device << "-vid" << i->id << "</field>"
+						"<field name=\"c_id\">"          << i->id                     << "</field>"
+						"<field name=\"c_device_name\">" << device                    << "</field>"
+						"<field name=\"c_title\">"       << i->title                  << "</field>"
+						"<field name=\"c_filesize\">"    << i->filesize               << "</field>"
+						"<field name=\"c_mimetype\">"    << i->mimetype               << "</field>"
+						"<field name=\"c_description\">" << i->description            << "</field>"
 						"</doc>";
 			}
 		}
