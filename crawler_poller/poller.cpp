@@ -116,7 +116,6 @@ void poller::start()
             if (num_falling_behind / num_pollers > 0.25)
             {
                 log4.noticeStream() << "More than 25% of pollers are falling behind";
-                timer_.get_io_service().stop(); // FOR EXPERIMENTS ONLY!! TO BE REMOVED
             }
         }
     }
@@ -140,7 +139,7 @@ void poller::do_poll( bs::error_code const& ec )
 
 	if ( !ec )
 	{
-	    boost::format url( pollerctx_.haurlfmt );
+	    boost::format url( pollerctx_.hadevurlfmt );
         url % hostname_ % timestamp_;
 		std::string const& urlstr = url.str();
 
@@ -224,13 +223,14 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 		{
 			if ( i->empty() ) continue;
 
-			std::ostringstream url;
-			url << "http://" << hostname_ << ":20005/?method=getcontentlist&name=" << *i;
+			boost::format url( pollerctx_.haconurlfmt );
+			url % hostname_ % *i;
+			std::string const& urlstr = url.str();
+
 			std::ostringstream device;
 			device << *i << '.' << gall.haname;
 
 			boost::shared_ptr< curl::AsyncHTTPRequester > r( new curl::AsyncHTTPRequester(requester_.get_context(), false) );
-			std::string const& urlstr = url.str();
 			r->fetch(urlstr, boost::bind(&handle_getcontentlist, pollerctx_, r, device.str(), _1, _2) );
 
 			log4.debugStream() << "Retrieving content metadata for " << device.str() << " with URL " << urlstr;

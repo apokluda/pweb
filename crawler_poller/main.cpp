@@ -49,7 +49,8 @@ int main(int argc, char const* argv[])
         halist_t home_agents;
         std::string log_file;
         std::string log_level;
-        std::string haurl;
+        std::string hadevurl;
+        std::string haconurl;
         std::string manager;
         std::string manport;
         std::string solr_deviceurl;
@@ -68,7 +69,8 @@ int main(int argc, char const* argv[])
                     ;
 
         // Default value for the haurl (specified here to make the formatting nice below)
-        char const * const dhaurl = "http://%1%:20005/?method=getall&timestamp=%2%";
+        char const * const dhadevurl = "http://%1%/?method=getall&timestamp=%2%";
+        char const * const dhaconurl = "http://%1%/?method=getcontentlist&name=%2%";
 
         // Declare a group of options that will be allowed both
         // on the command line and in the config file
@@ -78,8 +80,10 @@ int main(int argc, char const* argv[])
                     ("log_level,L",   po::value< string >         (&log_level)->default_value("WARN"),        "Log level\n"
                                                                                                               "    Only log messages with a level less than or equal to the specified severity will be logged. "
                                                                                                               "Log levels are NOTSET < DEBUG < INFO < NOTICE < WARN < ERROR < CRIT  < ALERT < FATAL = EMERG")
-                    ("haurl,U",       po::value< string >         (&haurl)->default_value(dhaurl),            "The URL used to query the Home Agents.\n"
+                    ("hadevurl",      po::value< string >         (&hadevurl)->default_value(dhadevurl),      "The URL used to query the Home Agent for device updates.\n"
                                                                                                               "    The string may contain the placeholders %1% and %2% for the hostname and timestamp respectively.")
+                    ("haconurl",      po::value< string >         (&haconurl)->default_value(dhaconurl),      "The URL used to query the Home Agent for content updates.\n"
+                    																						  "    The string may contain the placeholders %1% and %2% for the hostname and device name respectively.")
                     ("manager,M",     po::value< string >         (&manager),                                 "Hostname or IP address of the Crawler Manager")
                     ("manport,P",     po::value< string >         (&manport)->default_value(string("1141")),  "Port number to use when connecting to the Crawler Manager" )
                     ("solrdevurl,D",  po::value< string >         (&solr_deviceurl)->required(),              "URL of the HTTP interface for the pweb_devices Solr core")
@@ -189,7 +193,7 @@ int main(int argc, char const* argv[])
         }
 
         using boost::posix_time::seconds;
-        poller::Context pollerctx( io_service, haurl, solr_deviceurl, solr_contenturl, seconds(interval) );
+        poller::Context pollerctx( io_service, hadevurl, haconurl, solr_deviceurl, solr_contenturl, seconds(interval) );
         poller::pollercreator pc( pollerctx );
         signals::home_agent_assigned.connect( boost::bind( &poller::pollercreator::create_poller, &pc, _1 ) );
 

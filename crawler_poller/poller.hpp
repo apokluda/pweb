@@ -28,9 +28,10 @@ namespace poller
 {
     struct Context
     {
-        Context(boost::asio::io_service& io_service, std::string const& haurl, std::string const& deviceurl, std::string const& contenturl, boost::posix_time::time_duration const interval)
+        Context(boost::asio::io_service& io_service, std::string const& hadevurl, std::string const& haconurl, std::string const& deviceurl, std::string const& contenturl, boost::posix_time::time_duration const interval)
         : io_service( io_service )
-        , haurlfmt( haurl )
+        , hadevurlfmt( hadevurl )
+        , haconurlfmt( haconurl )
         , solr_deviceurl( deviceurl )
         , solr_contenturl( contenturl )
         , interval( interval )
@@ -43,12 +44,15 @@ namespace poller
             // flags so that exceptions are not thrown if the user does not
             // use all placeholders in the passed-in string. We need a
             // const cast to do this on a const object.
-            const_cast< boost::format* >( &haurlfmt )->exceptions(
+            const_cast< boost::format* >( &hadevurlfmt )->exceptions(
+                    boost::io::all_error_bits ^ boost::io::too_many_args_bit );
+            const_cast< boost::format* >( &haconurlfmt )->exceptions(
                     boost::io::all_error_bits ^ boost::io::too_many_args_bit );
         }
 
         boost::asio::io_service& io_service;
-        boost::format const haurlfmt;
+        boost::format const hadevurlfmt;
+        boost::format const haconurlfmt;
         std::string const solr_deviceurl;
         std::string const solr_contenturl;
         boost::posix_time::time_duration const interval;
