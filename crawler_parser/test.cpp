@@ -164,6 +164,122 @@ int main()
             "<content updates>nexus.faiz</content updates>"
             "</getall>";
 
+    char const* all7 =
+    		"<getall>"
+    		"	<name>ct</name>"
+    		"	<neighbours>"
+    		"		<home_agent>"
+    		"			<hostname>mg</hostname>"
+    		"			<port>53</port>"
+    		"		</home_agent>"
+    		"		<home_agent>"
+    		"			<hostname>ct</hostname>"
+    		"			<port>53</port>"
+    		"		</home_agent>"
+    		"	</neighbours>"
+    		"	<devices>"
+    		"	</devices>"
+    		"	<content updates>"
+    		"	</content updates>"
+    		"</getall>";
+
+    char const* all8 =
+    		"<getall>"
+    		"	<name>mg</name>"
+    		"	<neighbours>"
+    		"		<home agent>"
+    		"			<hostname>mg</hostname>"
+    		"			<port>53</port>"
+    		"		</home agent>"
+    		"		<home agent>"
+    		"			<hostname>ct</hostname>"
+    		"			<port>53</port>"
+    		"		</home agent>"
+    		"	</neighbours>"
+    		"	<devices>"
+    		"		<device>"
+    		"			<owner>faiz</owner>"
+    		"			<name>asasd.faiz</name>"
+    		"			<port>1234</port>"
+    		"			<timestamp>1392753891</timestamp>"
+    		"			<location></location>"
+    		"			<description></description>"
+    		"		</device>"
+    		"		<device>"
+    		"			<owner>faiz</owner>"
+    		"			<name>n5.faiz</name>"
+    		"			<port>1234</port>"
+    		"			<timestamp>1392753506</timestamp>"
+    		"			<location></location>"
+    		"			<description></description>"
+    		"		</device>"
+    		"		<device>"
+    		"			<owner>faiz</owner>"
+    		"			<name>pc.faiz</name>"
+    		"			<port>1234</port>"
+    		"			<timestamp>1392753741</timestamp>"
+    		"			<location></location>"
+    		"			<description>shihabs pc</description>"
+    		"		</device>"
+    		"	</devices>"
+    		"	<content updates>asasd.faiz,n5.faiz,pc.faiz</content updates>"
+    		"</getall>";
+
+    char const* all9 =
+    		"<getall>"
+    		"	<name>mg</name>"
+    		"	<neighbours>"
+    		"		<home agent>"
+    		"			<hostname>mg</hostname>"
+    		"			<port>53</port>"
+    		"		</home agent>"
+    		"		<home agent>"
+    		"			<hostname>ct</hostname>"
+    		"			<port>53</port>"
+    		"		</home agent>"
+    		"	</neighbours>"
+    		"	<devices>"
+    		"		<device>"
+    		"			<owner>faiz</owner>"
+    		"			<name>asasd.faiz</name>"
+    		"			<port>3256</port>"
+    		"			<type>phone</type>"
+    		"			<timestamp>1392753891</timestamp>"
+    		"			<location></location>"
+    		"			<description></description>"
+    		"		</device>"
+    		"		<device>"
+    		"			<owner>faiz</owner>"
+    		"			<name>n5.faiz</name>"
+    		"			<port>253</port>"
+    		"			<type>phone</type>"
+    		"			<timestamp>1392753506</timestamp>"
+    		"			<location></location>"
+    		"			<description></description>"
+    		"		</device>"
+    		"		<device>"
+    		"			<owner>faiz</owner>"
+    		"			<name>pc.faiz</name>"
+    		"			<port>5644</port>"
+    		"			<type>pc</type>"
+    		"			<timestamp>1392753741</timestamp>"
+    		"			<location></location>"
+    		"			<description>shihabs pc</description>"
+    		"		</device>"
+    		"		<device>"
+    		"			<owner>faiz</owner>"
+    		"			<name>pv3.faiz</name>"
+    		"			<port>123</port>"
+    		"			<type>none</type>"
+    		"			<timestamp>1392826476</timestamp>"
+    		"			<location></location>"
+    		"			<description></description>"
+    		"		</device>"
+    		"	</devices>"
+    		"	<content updates>asasd.faiz,n5.faiz,pc.faiz,pv3.faiz</content updates>"
+    		"</getall>";
+
+
     char const* meta1 =
             "<multimedia>"
             " <videos>"
@@ -214,16 +330,16 @@ int main()
     		"  <shared>Public</shared>"
     		" </video>"
     		"</videos>"
-    		"</multimedia>" ;
+    		"</multimedia>";
 
-    contmeta_parser const g; // Our grammar
-    std::string str( meta2 );
+    getall_parser const g; // Our grammar
+    std::string str( all9 );
 
-    parser::contmeta contmeta;
+    parser::getall getall;
     std::string::const_iterator iter = str.begin();
     std::string::const_iterator end = str.end();
     using boost::spirit::ascii::space;
-    bool r = phrase_parse(iter, end, g, space, contmeta);
+    bool r = phrase_parse(iter, end, g, space, getall);
 
     if (r && iter == end)
     {
