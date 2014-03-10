@@ -202,7 +202,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 				out <<  "<field name=\"d_type\">"        << i->type                       << "</field>"
 						"<field name=\"d_timestamp\">"   << i->timestamp                  << "</field>"
 						"<field name=\"d_location\">"    << i->location                   << "</field>"
-						"<field name=\"d_description\">" << i->description                << "</field>"
+						"<field name=\"description\">" << i->description                << "</field>"
 						"</doc>";
 
 				if (i->timestamp > newtimestamp) newtimestamp = i->timestamp;
@@ -322,7 +322,7 @@ void handle_getcontentlist(poller::Context const& pollerctx, reqptr_t const& req
 						"<field name=\"c_title\">"       << i->title                  << "</field>"
 						"<field name=\"c_filesize\">"    << i->filesize               << "</field>"
 						"<field name=\"c_mimetype\">"    << i->mimetype               << "</field>"
-						"<field name=\"c_description\">" << i->description            << "</field>"
+						"<field name=\"description\">" << i->description            << "</field>"
 						"</doc>";
 			}
 		}
