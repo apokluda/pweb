@@ -94,6 +94,8 @@ poller::poller(Context const& pollerctx, std::string const& hostname )
 {
     num_pollers_.fetch_add(1, boost::memory_order_relaxed);
 
+    pollerctx_.instrumenter.home_agent_discovered( hostname_ );
+
 	using namespace boost::posix_time;
 	boost::random::uniform_int_distribution< long > dist(0, pollerctx_.interval.total_milliseconds());
 	time_duration const first_interval = milliseconds( dist( gen ) );
@@ -154,6 +156,17 @@ void poller::do_poll( bs::error_code const& ec )
 	}
 }
 
+inline instrumentation::query_result curlcode_to_query_result(CURLcode const code)
+{
+    switch (code)
+    {
+    case CURLE_OPERATION_TIMEDOUT:
+        return instrumentation::TIMEOUT;
+    default:
+        return instrumentation::NETWORK_ERROR;
+    }
+}
+
 void poller::handle_poll( CURLcode const code, std::string const& content )
 {
 	// check that code is CURLE_OK, log result, and start a new request
@@ -171,6 +184,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 		if ( !r || iter != end)
 		{
 			log4.errorStream() << "Failed to parse device update from " << hostname_ << " here: \"" << outputparsefail(content, iter) << '\"';
+			pollerctx_.instrumenter.query_result( hostname_, instrumentation::PARSE_ERROR );
 			start(); return;
 		}
 
@@ -211,6 +225,8 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 
 			log4.debugStream() << "Sending device list update to Solr for " << gall.haname;
 			requester_.fetch(pollerctx_.solr_deviceurl + "?commit=true", boost::bind(&poller::handle_post, this, _1, _2, newtimestamp), out.str());
+
+			pollerctx_.instrumenter.query_result( hostname_, instrumentation::SUCCESS );
 		}
 		else
 		{
@@ -239,6 +255,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 	else
 	{
 		log4.errorStream() << "An error occurred while polling '" << hostname_ << "', CURLcode " << code << ": " << curl_easy_strerror(code) ;
+		pollerctx_.instrumenter.query_result( hostname_, curlcode_to_query_result(code), curl_easy_strerror(code) );
 		start();
 	}
 }

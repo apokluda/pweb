@@ -55,6 +55,7 @@ namespace parser
         devlist_t     devices;
         contlist_t    updates;
     };
+
     enum ACCESS_LEVEL
     {
     	PUBLIC,
@@ -129,6 +130,7 @@ namespace parser
             using ascii::char_;
 
             str_        %= lexeme[*(char_ - '<')];
+            str2_       %= lexeme[*(char_ - ',' - '<')];
 
             haname_     %= "<name>" >> str_ >> "</name>";
 
@@ -156,7 +158,7 @@ namespace parser
                               "<description>" >> str_        >> "</description>" >>
                           "</device>";
 
-            content_    %= "<content updates>" >> str_ % ',' >> "</content updates>";
+            content_    %= "<content updates>" >> (str2_ % ',') >> "</content updates>";
 
             getall_     %= "<getall>"
                           >> haname_
@@ -167,6 +169,7 @@ namespace parser
         }
 
         qi::rule<Iterator, std::string(),              ascii::space_type> str_;
+        qi::rule<Iterator, std::string(),              ascii::space_type> str2_;
         qi::rule<Iterator, std::string(),              ascii::space_type> haname_;
         qi::rule<Iterator, homeagent(),                ascii::space_type> homeagent_;
         qi::rule<Iterator, device(),                   ascii::space_type> device_;

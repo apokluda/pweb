@@ -24,6 +24,7 @@
 #include "signals.hpp"
 #include "poller.hpp"
 #include "asynchttprequester.hpp"
+#include "instrumentation.hpp"
 
 using std::cout;
 using std::cerr;
@@ -57,6 +58,7 @@ int main(int argc, char const* argv[])
         std::string solr_contenturl;
         std::size_t threads;
         long interval;
+        boost::uint16_t instport;
         bool debug = false;
 
         // Declare a group of options that will be available only
@@ -83,11 +85,12 @@ int main(int argc, char const* argv[])
                     ("hadevurl",      po::value< string >         (&hadevurl)->default_value(dhadevurl),      "The URL used to query the Home Agent for device updates.\n"
                                                                                                               "    The string may contain the placeholders %1% and %2% for the hostname and timestamp respectively.")
                     ("haconurl",      po::value< string >         (&haconurl)->default_value(dhaconurl),      "The URL used to query the Home Agent for content updates.\n"
-                    																						  "    The string may contain the placeholders %1% and %2% for the hostname and device name respectively.")
+                                                                                                              "    The string may contain the placeholders %1% and %2% for the hostname and device name respectively.")
                     ("manager,M",     po::value< string >         (&manager),                                 "Hostname or IP address of the Crawler Manager")
-                    ("manport,P",     po::value< string >         (&manport)->default_value(string("1141")),  "Port number to use when connecting to the Crawler Manager" )
+                    ("manport,P",     po::value< string >         (&manport)->default_value("1141"),          "Port number to use when connecting to the Crawler Manager" )
+                    ("instport",      po::value< boost::uint16_t >(&instport)->default_value(8889),           "Port number for the instrumentation service or 0 to disable")
                     ("solrdevurl,D",  po::value< string >         (&solr_deviceurl)->required(),              "URL of the HTTP interface for the pweb_devices Solr core")
-              		("solrconurl,C",  po::value< string >         (&solr_contenturl)->required(),             "URL of the HTTP interface for the pweb_content Solr core")
+                    ("solrconurl,C",  po::value< string >         (&solr_contenturl)->required(),             "URL of the HTTP interface for the pweb_content Solr core")
                     ("interval,I",    po::value< long >           (&interval)->default_value(60),             "Number of seconds between polls to individual Home Agents")
                     ("home_agent,H",  po::value< halist_t >       (&home_agents),                             "List of well-known Home Agent web interface addresses\n"
                                                                                                               "    Any number of Home Agent addresses may be specified, separated by commas. "
@@ -184,7 +187,7 @@ int main(int argc, char const* argv[])
         std::auto_ptr< manconnection > conn;
         if ( vm.count("manager") )
         {
-            conn.reset( new manconnection(io_service, manager, manport ) );
+            conn.reset( new manconnection( io_service, manager, manport ) );
             filter.connect( boost::bind( &manconnection::home_agent_discovered, conn.get(), _1 ) );
         }
         else
@@ -193,7 +196,8 @@ int main(int argc, char const* argv[])
         }
 
         using boost::posix_time::seconds;
-        poller::Context pollerctx( io_service, hadevurl, haconurl, solr_deviceurl, solr_contenturl, seconds(interval) );
+        instrumentation::instrumenter instrumenter( io_service, instport );
+        poller::Context pollerctx( instrumenter, hadevurl, haconurl, solr_deviceurl, solr_contenturl, seconds(interval) );
         poller::pollercreator pc( pollerctx );
         signals::home_agent_assigned.connect( boost::bind( &poller::pollercreator::create_poller, &pc, _1 ) );
 

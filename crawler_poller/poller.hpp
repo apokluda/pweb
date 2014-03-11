@@ -23,18 +23,20 @@
 #include "stdhdr.hpp"
 #include "asynchttprequester.hpp"
 #include "parser.hpp"
+#include "instrumentation.hpp"
 
 namespace poller
 {
     struct Context
     {
-        Context(boost::asio::io_service& io_service, std::string const& hadevurl, std::string const& haconurl, std::string const& deviceurl, std::string const& contenturl, boost::posix_time::time_duration const interval)
-        : io_service( io_service )
-        , hadevurlfmt( hadevurl )
+        Context(instrumentation::instrumenter& instrumenter, std::string const& hadevurl, std::string const& haconurl, std::string const& deviceurl, std::string const& contenturl, boost::posix_time::time_duration const interval)
+        : hadevurlfmt( hadevurl )
         , haconurlfmt( haconurl )
         , solr_deviceurl( deviceurl )
         , solr_contenturl( contenturl )
         , interval( interval )
+        , io_service( instrumenter.get_io_service() )
+        , instrumenter( instrumenter )
         {
             // The format object is shared between all poller instances.
             // It is const to ensure that the pollers must make a copy of
@@ -50,12 +52,13 @@ namespace poller
                     boost::io::all_error_bits ^ boost::io::too_many_args_bit );
         }
 
-        boost::asio::io_service& io_service;
         boost::format const hadevurlfmt;
         boost::format const haconurlfmt;
         std::string const solr_deviceurl;
         std::string const solr_contenturl;
         boost::posix_time::time_duration const interval;
+        boost::asio::io_service& io_service;
+        instrumentation::instrumenter& instrumenter;
     };
 
     class poller: private boost::noncopyable

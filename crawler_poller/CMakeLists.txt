@@ -1,4 +1,4 @@
-add_executable( poller main.cpp manconnection.cpp signals.cpp poller.cpp )
+add_executable( poller main.cpp manconnection.cpp signals.cpp poller.cpp instrumentation.cpp )
 add_precompiled_header( poller ../shared/stdhdr.hpp .. )
 
 find_package( CURL REQUIRED )

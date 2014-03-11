@@ -357,6 +357,11 @@ int main()
         //{
         //    std::cout << dev.name << ", " << dev.timestamp << '\n';
         //}
+        std::cout << "Updates:\n";
+        BOOST_FOREACH(std::string const& upd, getall.updates)
+        {
+            std::cout << upd << '\n';
+        }
     }
     else
     {
