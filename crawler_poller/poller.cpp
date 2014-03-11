@@ -187,6 +187,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 			pollerctx_.instrumenter.query_result( hostname_, instrumentation::PARSE_ERROR );
 			start(); return;
 		}
+		pollerctx_.instrumenter.query_result( hostname_, instrumentation::SUCCESS );
 
 		parser::getall::halist_t& homeagents = gall.homeagents;
 		parser::getall::devlist_t& devices = gall.devices;
@@ -225,8 +226,6 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 
 			log4.debugStream() << "Sending device list update to Solr for " << gall.haname;
 			requester_.fetch(pollerctx_.solr_deviceurl + "?commit=true", boost::bind(&poller::handle_post, this, _1, _2, newtimestamp), out.str());
-
-			pollerctx_.instrumenter.query_result( hostname_, instrumentation::SUCCESS );
 		}
 		else
 		{
