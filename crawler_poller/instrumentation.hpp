@@ -35,15 +35,19 @@ namespace impl
     struct record
     {
         record()
-        : discovered_ts( boost::date_time::second_clock< boost::posix_time::ptime >::local_time() )
+        //: discovered_ts( boost::date_time::second_clock< boost::posix_time::ptime >::local_time() )
+        : discovered_ts( boost::chrono::system_clock::now() )
         , lastpoll_result( NA )
         {
         }
 
         std::string lastfailure_msg;
-        boost::posix_time::ptime const discovered_ts;
-        boost::posix_time::ptime lastsuccess_ts;
-        boost::posix_time::ptime lastfailure_ts;
+        //boost::posix_time::ptime const discovered_ts;
+        //boost::posix_time::ptime lastsuccess_ts;
+        //boost::posix_time::ptime lastfailure_ts;
+        boost::chrono::time_point<boost::chrono::system_clock> const discovered_ts;
+        boost::chrono::time_point<boost::chrono::system_clock> lastsuccess_ts;
+        boost::chrono::time_point<boost::chrono::system_clock> lastfailure_ts;
         query_result lastpoll_result;
     };
 }

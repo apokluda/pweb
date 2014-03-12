@@ -42,11 +42,13 @@ void database::update_record_( const std::string& hostname, const query_result r
         impl::record& record( db_.at(hostname) );
         if ( result == SUCCESS )
         {
-            record.lastsuccess_ts = boost::date_time::second_clock< boost::posix_time::ptime >::local_time();
+            //record.lastsuccess_ts = boost::date_time::second_clock< boost::posix_time::ptime >::local_time();
+            record.lastsuccess_ts = boost::chrono::system_clock::now();
         }
         else
         {
-            record.lastfailure_ts = boost::date_time::second_clock< boost::posix_time::ptime >::local_time();
+            //record.lastfailure_ts = boost::date_time::second_clock< boost::posix_time::ptime >::local_time();
+            record.lastfailure_ts = boost::chrono::system_clock::now();
             record.lastfailure_msg = errmsg;
         }
         record.lastpoll_result = result;
@@ -63,6 +65,12 @@ void do_serialize_callback( boost::function<void (streambuf_ptr)> callback, stre
     callback(sbuf_ptr);
 }
 
+template < typename clock_type >
+unsigned long long ms_since_epoch( const boost::chrono::time_point< clock_type >& timestamp )
+{
+    return boost::chrono::duration_cast<boost::chrono::milliseconds>(timestamp.time_since_epoch()).count();
+}
+
 void database::serialize_as_json_( boost::function<void (streambuf_ptr)> callback ) const
 {
     streambuf_ptr sbuf_ptr( new streambuf );
@@ -73,9 +81,9 @@ void database::serialize_as_json_( boost::function<void (streambuf_ptr)> callbac
         os << "{\n";
         os << "\t'hostname':'" << it->first << "',\n";
         os << "\t'lastpoll_result':'" << query_result_str(it->second.lastpoll_result) << "',\n";
-        os << "\t'discovered_ts':'" << it->second.discovered_ts << "',\n";
-        os << "\t'lastsuccess_ts':'" << it->second.lastsuccess_ts << "',\n";
-        os << "\t'lastfailure_ts':'" << it->second.lastfailure_ts << "',\n";
+        os << "\t'discovered_ts':'" << ms_since_epoch(it->second.discovered_ts) << "',\n";
+        os << "\t'lastsuccess_ts':'" << ms_since_epoch(it->second.lastsuccess_ts) << "',\n";
+        os << "\t'lastfailure_ts':'" << ms_since_epoch(it->second.lastfailure_ts) << "',\n";
         os << "\t'lastfailure_msg':'" << it->second.lastfailure_msg << "'\n";
         os << "},\n";
     }
