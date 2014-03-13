@@ -73,18 +73,20 @@ unsigned long long ms_since_epoch( const boost::chrono::time_point< clock_type >
 
 void database::serialize_as_json_( boost::function<void (streambuf_ptr)> callback ) const
 {
+    // In the JSON / Python markup, we use double quotes instead of single quotes
+    // because some of the Curl error messages contain single quotes (e.g. "Couldn't connect to server")
     streambuf_ptr sbuf_ptr( new streambuf );
     std::ostream os( sbuf_ptr.get() );
     os << "[\n";
     for (map_t::const_iterator it = db_.begin(); it != db_.end(); ++it)
     {
         os << "{\n";
-        os << "\t'hostname':'" << it->first << "',\n";
-        os << "\t'lastpoll_result':'" << query_result_str(it->second.lastpoll_result) << "',\n";
-        os << "\t'discovered_ts':'" << ms_since_epoch(it->second.discovered_ts) << "',\n";
-        os << "\t'lastsuccess_ts':'" << ms_since_epoch(it->second.lastsuccess_ts) << "',\n";
-        os << "\t'lastfailure_ts':'" << ms_since_epoch(it->second.lastfailure_ts) << "',\n";
-        os << "\t'lastfailure_msg':'" << it->second.lastfailure_msg << "'\n";
+        os << "\t\"hostname\":\"" << it->first << "\",\n";
+        os << "\t\"lastpoll_result\":\"" << query_result_str(it->second.lastpoll_result) << "\",\n";
+        os << "\t\"discovered_ts\":\"" << ms_since_epoch(it->second.discovered_ts) << "\",\n";
+        os << "\t\"lastsuccess_ts\":\"" << ms_since_epoch(it->second.lastsuccess_ts) << "\",\n";
+        os << "\t\"lastfailure_ts\":\"" << ms_since_epoch(it->second.lastfailure_ts) << "\",\n";
+        os << "\t\"lastfailure_msg\":\"" << it->second.lastfailure_msg << "\"\n";
         os << "},\n";
     }
     os << "]\n";
