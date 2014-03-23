@@ -29,7 +29,13 @@ namespace poller
 {
     struct Context
     {
-        Context(instrumentation::instrumenter& instrumenter, std::string const& hadevurl, std::string const& haconurl, std::string const& deviceurl, std::string const& contenturl, boost::posix_time::time_duration const interval)
+        Context(instrumentation::instrumenter& instrumenter,
+                std::string const& hadevurl,
+                std::string const& haconurl,
+                std::string const& deviceurl,
+                std::string const& contenturl,
+                bool verify_ssl_certs,
+                boost::posix_time::time_duration const interval)
         : hadevurlfmt( hadevurl )
         , haconurlfmt( haconurl )
         , solr_deviceurl( deviceurl )
@@ -37,6 +43,7 @@ namespace poller
         , interval( interval )
         , io_service( instrumenter.get_io_service() )
         , instrumenter( instrumenter )
+        , verify_ssl_certs( verify_ssl_certs )
         {
             // The format object is shared between all poller instances.
             // It is const to ensure that the pollers must make a copy of
@@ -50,6 +57,12 @@ namespace poller
                     boost::io::all_error_bits ^ boost::io::too_many_args_bit );
             const_cast< boost::format* >( &haconurlfmt )->exceptions(
                     boost::io::all_error_bits ^ boost::io::too_many_args_bit );
+
+            curl::init();
+        }
+
+        ~Context() {
+            curl::cleanup();
         }
 
         boost::format const hadevurlfmt;
@@ -59,6 +72,7 @@ namespace poller
         boost::posix_time::time_duration const interval;
         boost::asio::io_service& io_service;
         instrumentation::instrumenter& instrumenter;
+        bool verify_ssl_certs;
     };
 
     class poller: private boost::noncopyable

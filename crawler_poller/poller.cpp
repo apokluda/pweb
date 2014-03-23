@@ -84,7 +84,7 @@ boost::atomic< std::size_t > poller::num_pollers_(0);
 boost::atomic< std::size_t > poller::num_falling_behind_(0);
 
 poller::poller(Context const& pollerctx, std::string const& hostname )
-: curlctx_( pollerctx.io_service )
+: curlctx_( pollerctx.io_service, pollerctx.verify_ssl_certs )
 , requester_( curlctx_, false )
 , hostname_( hostname )
 , timer_( pollerctx.io_service )

@@ -59,6 +59,7 @@ int main(int argc, char const* argv[])
         std::size_t threads;
         long interval;
         boost::uint16_t instport;
+        bool verify_ssl_certs;
         bool debug = false;
 
         // Declare a group of options that will be available only
@@ -71,8 +72,8 @@ int main(int argc, char const* argv[])
                     ;
 
         // Default value for the haurl (specified here to make the formatting nice below)
-        char const * const dhadevurl = "http://%1%/?method=getall&timestamp=%2%";
-        char const * const dhaconurl = "http://%1%/?method=getcontentlist&name=%2%";
+        char const * const dhadevurl = "https://%1%/?method=getall&timestamp=%2%";
+        char const * const dhaconurl = "https://%1%/?method=getcontentlist&name=%2%";
 
         // Declare a group of options that will be allowed both
         // on the command line and in the config file
@@ -86,6 +87,7 @@ int main(int argc, char const* argv[])
                                                                                                               "    The string may contain the placeholders %1% and %2% for the hostname and timestamp respectively.")
                     ("haconurl",      po::value< string >         (&haconurl)->default_value(dhaconurl),      "The URL used to query the Home Agent for content updates.\n"
                                                                                                               "    The string may contain the placeholders %1% and %2% for the hostname and device name respectively.")
+                    ("verifysslcerts",po::value< bool >           (&verify_ssl_certs)->default_value(true),   "Whether or not to verify the SSL certificates for the Home Agents and Solr database")
                     ("manager,M",     po::value< string >         (&manager),                                 "Hostname or IP address of the Crawler Manager")
                     ("manport,P",     po::value< string >         (&manport)->default_value("1141"),          "Port number to use when connecting to the Crawler Manager" )
                     ("instport",      po::value< boost::uint16_t >(&instport)->default_value(8889),           "Port number for the instrumentation service or 0 to disable")
@@ -197,7 +199,7 @@ int main(int argc, char const* argv[])
 
         using boost::posix_time::seconds;
         instrumentation::instrumenter instrumenter( io_service, instport );
-        poller::Context pollerctx( instrumenter, hadevurl, haconurl, solr_deviceurl, solr_contenturl, seconds(interval) );
+        poller::Context pollerctx( instrumenter, hadevurl, haconurl, solr_deviceurl, solr_contenturl, verify_ssl_certs, seconds(interval) );
         poller::pollercreator pc( pollerctx );
         signals::home_agent_assigned.connect( boost::bind( &poller::pollercreator::create_poller, &pc, _1 ) );
 

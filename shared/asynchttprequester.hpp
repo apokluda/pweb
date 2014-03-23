@@ -20,8 +20,13 @@
 #ifndef ASIOHELPER_HPP_
 #define ASIOHELPER_HPP_
 
+#include "stdhdr.hpp"
+
 namespace curl
 {
+    void init();
+    void cleanup();
+
     class AsyncHTTPRequester;
 
     class socket_map_t
@@ -73,7 +78,7 @@ namespace curl
         friend void context_multi_add_handle(Context&, CURL*);
 
     public:
-        Context(boost::asio::io_service& io_service);
+        Context(boost::asio::io_service& io_service, bool verify_ssl_peer = true);
         ~Context();
 
         inline boost::asio::io_service& get_io_service()
@@ -93,6 +98,7 @@ namespace curl
         boost::asio::io_service& io_service_;
         CURLM* multi_;
         int still_running_;
+        bool verify_ssl_peer_;
     };
 
     class AsyncHTTPRequester : public boost::enable_shared_from_this< AsyncHTTPRequester >

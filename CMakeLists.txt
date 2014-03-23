@@ -48,6 +48,8 @@ add_subdirectory( crash_test crash_test.bin )
 include_directories( shared )
 add_subdirectory( shared shared.lib )
 
+add_subdirectory( asynchttprequest_test asynchttprequest_test.bin )
+
 add_subdirectory( dnsgw_instrumentation instrumentation.lib )
 include_directories( dnsgw_instrumentation )
 

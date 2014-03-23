@@ -20,7 +20,8 @@
 #include "stdhdr.hpp"
 #include "asynchttprequester.hpp"
 
-#define LOGSTREAM if ( debug ) log4.debugStream()
+//#define LOGSTREAM if ( debug ) log4.debugStream()
+#define LOGSTREAM if ( debug ) std::cerr
 
 #ifndef NDEBUG
 #define TRACE(func) LOGSTREAM << "Entering: " func
@@ -30,11 +31,19 @@
 #define TRACE_MSG(msg)
 #endif
 
-extern log4cpp::Category& log4;
+//extern log4cpp::Category& log4;
 
 namespace curl
 {
 bool debug = false;
+
+void init() {
+    curl_global_init( CURL_GLOBAL_DEFAULT );
+}
+
+void cleanup() {
+    curl_global_cleanup();
+}
 
 void timer_cb(const boost::system::error_code & error, Context *g);
 
@@ -337,6 +346,7 @@ void AsyncHTTPRequester::fetch(std::string const& url, boost::function< void(CUR
     curl_easy_setopt(easy_, CURLOPT_PRIVATE, this);
     curl_easy_setopt(easy_, CURLOPT_LOW_SPEED_TIME, 3L);
     curl_easy_setopt(easy_, CURLOPT_LOW_SPEED_LIMIT, 10L);
+    curl_easy_setopt(easy_, CURLOPT_SSL_VERIFYPEER, c_.verify_ssl_peer_ ? 1L : 0L);
 
     if ( !postdata.empty() )
     {
@@ -384,11 +394,12 @@ AsyncHTTPRequester::~AsyncHTTPRequester()
     curl_easy_cleanup(easy_);
 }
 
-Context::Context( boost::asio::io_service& io_service )
+Context::Context( boost::asio::io_service& io_service, bool verify_ssl_peer )
 : timer_( io_service )
 , strand_( io_service )
 , io_service_( io_service )
 , still_running_( 0 )
+, verify_ssl_peer_( verify_ssl_peer )
 {
     multi_ = curl_multi_init();
 
