@@ -41,6 +41,7 @@ namespace impl
         {
         }
 
+        std::string name;
         std::string lastfailure_msg;
         //boost::posix_time::ptime const discovered_ts;
         //boost::posix_time::ptime lastsuccess_ts;
@@ -73,9 +74,9 @@ public:
         strand_.dispatch( boost::bind( &database::insert_record_, this, hostname, record ) );
     }
 
-    void update_record( const std::string& hostname, const query_result result, const std::string& errmsg )
+    void update_record( const std::string& hostname, const query_result result, const std::string& msg )
     {
-        strand_.dispatch( boost::bind( &database::update_record_, this, hostname, result, errmsg ) );
+        strand_.dispatch( boost::bind( &database::update_record_, this, hostname, result, msg ) );
     }
 
     void serialize_as_python( boost::function<void (streambuf_ptr)> callback)
@@ -96,7 +97,7 @@ private:
         db_.insert( val_t(hostname, record) );
     }
 
-    void update_record_( const std::string& hostname, const query_result result, const std::string& errmsg);
+    void update_record_( const std::string& hostname, const query_result result, const std::string& msg);
 
     void serialize_as_json_( boost::function<void (streambuf_ptr)> callback ) const;
 
@@ -123,9 +124,11 @@ public:
         database_.insert_record( hostname );
     }
 
-    void query_result( const std::string& hostname, query_result result, const std::string& errmsg = std::string())
+    // On success, msg should contain the Home Agent name.
+    // On error, this should be a message describing the error.
+    void query_result( const std::string& hostname, query_result result, const std::string& msg = std::string())
     {
-        database_.update_record( hostname, result, errmsg );
+        database_.update_record( hostname, result, msg );
     }
 
 private:

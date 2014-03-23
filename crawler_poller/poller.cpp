@@ -187,7 +187,7 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 			pollerctx_.instrumenter.query_result( hostname_, instrumentation::PARSE_ERROR );
 			start(); return;
 		}
-		pollerctx_.instrumenter.query_result( hostname_, instrumentation::SUCCESS );
+		pollerctx_.instrumenter.query_result( hostname_, instrumentation::SUCCESS, gall.haname );
 
 		parser::getall::halist_t& homeagents = gall.homeagents;
 		parser::getall::devlist_t& devices = gall.devices;

@@ -35,7 +35,7 @@ const char* query_result_str( const query_result result )
     }
 }
 
-void database::update_record_( const std::string& hostname, const query_result result, const std::string& errmsg )
+void database::update_record_( const std::string& hostname, const query_result result, const std::string& msg )
 {
     try
     {
@@ -44,12 +44,13 @@ void database::update_record_( const std::string& hostname, const query_result r
         {
             //record.lastsuccess_ts = boost::date_time::second_clock< boost::posix_time::ptime >::local_time();
             record.lastsuccess_ts = boost::chrono::system_clock::now();
+            record.name = msg;
         }
         else
         {
             //record.lastfailure_ts = boost::date_time::second_clock< boost::posix_time::ptime >::local_time();
             record.lastfailure_ts = boost::chrono::system_clock::now();
-            record.lastfailure_msg = errmsg;
+            record.lastfailure_msg = msg;
         }
         record.lastpoll_result = result;
     }
@@ -80,14 +81,15 @@ void database::serialize_as_json_( boost::function<void (streambuf_ptr)> callbac
     os << "[\n";
     for (map_t::const_iterator it = db_.begin(); it != db_.end(); ++it)
     {
-        os << "{\n";
-        os << "\t\"hostname\":\"" << it->first << "\",\n";
-        os << "\t\"lastpoll_result\":\"" << query_result_str(it->second.lastpoll_result) << "\",\n";
-        os << "\t\"discovered_ts\":\"" << ms_since_epoch(it->second.discovered_ts) << "\",\n";
-        os << "\t\"lastsuccess_ts\":\"" << ms_since_epoch(it->second.lastsuccess_ts) << "\",\n";
-        os << "\t\"lastfailure_ts\":\"" << ms_since_epoch(it->second.lastfailure_ts) << "\",\n";
-        os << "\t\"lastfailure_msg\":\"" << it->second.lastfailure_msg << "\"\n";
-        os << "},\n";
+        os << "{\n"
+        "\t\"name\":\"" << it->second.name << "\",\n"
+        "\t\"hostname\":\"" << it->first << "\",\n"
+        "\t\"lastpoll_result\":\"" << query_result_str(it->second.lastpoll_result) << "\",\n"
+        "\t\"discovered_ts\":\"" << ms_since_epoch(it->second.discovered_ts) << "\",\n"
+        "\t\"lastsuccess_ts\":\"" << ms_since_epoch(it->second.lastsuccess_ts) << "\",\n"
+        "\t\"lastfailure_ts\":\"" << ms_since_epoch(it->second.lastfailure_ts) << "\",\n"
+        "\t\"lastfailure_msg\":\"" << it->second.lastfailure_msg << "\"\n"
+        "},\n";
     }
     os << "]\n";
     // call stand_.get_io_service() rather than get_io_service() because strand is mutable
@@ -194,7 +196,7 @@ void instrumenter::handle_accept( session_ptr new_session, const boost::system::
     }
     else
     {
-        log4.errorStream() << "Instrumentation service: an error occured while starting a new session: " << error.message();
+        log4.errorStream() << "Instrumentation service: an error occurred while starting a new session: " << error.message();
     }
 
     start_accept();

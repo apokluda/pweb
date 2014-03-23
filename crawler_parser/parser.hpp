@@ -30,6 +30,7 @@ namespace parser
     struct homeagent
     {
         std::string hostname;
+        std::string description;
         std::string port;
     };
 
@@ -83,6 +84,7 @@ namespace parser
 
 BOOST_FUSION_ADAPT_STRUCT( parser::homeagent,
     (std::string, hostname)
+    (std::string, description)
     (std::string, port)
 )
 
@@ -141,6 +143,7 @@ namespace parser
             // need '>>' between tags so that whitespace formatting will be skipped
             homeagent_  %= lit("<home agent>") >>
                               "<hostname>" >> str_ >> "</hostname>" >>
+                              "<description>" >> str_ >> "</description>" >>
                               "<port>"     >> str_ >> "</port>" >>
                           "</home agent>";
 
