@@ -60,6 +60,19 @@ void database::update_record_( const std::string& hostname, const query_result r
     }
 }
 
+void database::set_description_( const std::string& hostname, const std::string& description )
+{
+    try
+    {
+        impl::record& record( db_.at(hostname) );
+        record.description = description;
+    }
+    catch ( const std::out_of_range& )
+    {
+        log4.errorStream() << "Instrumentation error: received update for non-existing record";
+    }
+}
+
 void do_serialize_callback( boost::function<void (streambuf_ptr)> callback, streambuf_ptr sbuf_ptr )
 {
     // This function ensures that the callback is not called from within the strand
@@ -84,6 +97,7 @@ void database::serialize_as_json_( boost::function<void (streambuf_ptr)> callbac
         os << "{\n"
         "\t\"name\":\"" << it->second.name << "\",\n"
         "\t\"hostname\":\"" << it->first << "\",\n"
+        "\t\"description\":\"" << it->second.description << "\",\n"
         "\t\"lastpoll_result\":\"" << query_result_str(it->second.lastpoll_result) << "\",\n"
         "\t\"discovered_ts\":\"" << ms_since_epoch(it->second.discovered_ts) << "\",\n"
         "\t\"lastsuccess_ts\":\"" << ms_since_epoch(it->second.lastsuccess_ts) << "\",\n"

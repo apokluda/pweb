@@ -110,12 +110,11 @@ void mcode_or_throw(const char *where, CURLMcode code)
 /* Check for completed transfers, and remove their easy handles */
 void check_multi_info(Context* c)
 {
-	TRACE("check_multi_info");
+    TRACE("check_multi_info");
 
-	//char *eff_url;
     CURLMsg *msg;
     int msgs_left;
-    AsyncHTTPRequester* conn;
+    AsyncHTTPRequester* r;
 
     while ((msg = curl_multi_info_read(c->multi_, &msgs_left)))
     {
@@ -123,22 +122,20 @@ void check_multi_info(Context* c)
         {
             CURL* easy = msg->easy_handle;
             CURLcode res = msg->data.result;
-            curl_easy_getinfo(easy, CURLINFO_PRIVATE, &conn);
-            //curl_easy_getinfo(easy, CURLINFO_EFFECTIVE_URL, &eff_url);
-            conn->done(res);
+            curl_easy_getinfo(easy, CURLINFO_PRIVATE, &r);
+            r->done(res);
         }
     }
 }
 
 /* Called by asio when there is an action on a socket */
-void event_cb(Context* c, boost::asio::ip::tcp::socket * tcp_socket, int action)
+void event_cb(Context* c, CURL* e, boost::asio::ip::tcp::socket * tcp_socket, int action, boost::system::error_code const& ec)
 {
     TRACE("event_cb");
 
-	//if ( c->mutex_.try_lock() ) c->mutex_.unlock();
-	//else std::cerr << "event_cb - MUTEX IS ALREADY LOCKED!!" << std::endl;
-	//Context::guard_t l( c->mutex_ );
-
+    AsyncHTTPRequester* r;
+    curl_easy_getinfo(e, CURLINFO_PRIVATE, &r);
+    r->reschedule_ = true;
     CURLMcode rc = curl_multi_socket_action(c->multi_, tcp_socket->native_handle(), action, &c->still_running_);
 
     mcode_or_throw("event_cb: curl_multi_socket_action", rc);
@@ -147,6 +144,10 @@ void event_cb(Context* c, boost::asio::ip::tcp::socket * tcp_socket, int action)
     if ( c->still_running_ <= 0 )
     {
         c->timer_.cancel();
+    }
+    else if ( !ec && r->reschedule_ )
+    {
+        setsock(tcp_socket, e, action, c);
     }
 }
 
@@ -172,86 +173,69 @@ void timer_cb(const boost::system::error_code & error, Context* c)
 #endif
 }
 
-/* Clean up any data */
-void remsock(int *f, Context* c)
+void setsock(curl_socket_t s, CURL*e, int act, Context* c)
 {
-    TRACE("remsock");
-
-    if ( f ) free( f );
-}
-
-void setsock(int *fdp, curl_socket_t s, CURL*e, int act, Context* c)
-{
-    TRACE("setsock");
-
     boost::asio::ip::tcp::socket* tcp_socket;
     tcp_socket = c->socket_map_.find(s);
     if (!tcp_socket) return;
 
-    *fdp = act;
+    setsock(tcp_socket, e, act, c);
+}
+
+void setsock(boost::asio::ip::tcp::socket* tcp_socket, CURL*e, int act, Context* c)
+{
+    TRACE("setsock");
+
+    AsyncHTTPRequester* r;
+    curl_easy_getinfo(e, CURLINFO_PRIVATE, &r);
+    r->reschedule_ = false;
+
     if ( act == CURL_POLL_IN )
     {
         tcp_socket->async_read_some(boost::asio::null_buffers(),
                 c->strand_.wrap(boost::bind(
-                		&event_cb, c,
+                        &event_cb, c, e,
                         tcp_socket,
-                        act)));
+                        act,
+                        boost::asio::placeholders::error)));
     }
     else if ( act == CURL_POLL_OUT )
     {
         tcp_socket->async_write_some(boost::asio::null_buffers(),
                 c->strand_.wrap(boost::bind(
-                		&event_cb, c,
+                        &event_cb, c, e,
                         tcp_socket,
-                        act)));
+                        act,
+                        boost::asio::placeholders::error)));
     }
     else if ( act == CURL_POLL_INOUT )
     {
         tcp_socket->async_read_some(boost::asio::null_buffers(),
                 c->strand_.wrap(boost::bind(
-                		&event_cb, c,
+                        &event_cb, c, e,
                         tcp_socket,
-                        act)));
+                        act,
+                        boost::asio::placeholders::error)));
 
         tcp_socket->async_write_some(boost::asio::null_buffers(),
                 c->strand_.wrap(boost::bind(
-                		&event_cb, c,
+                        &event_cb, c, e,
                         tcp_socket,
-                        act)));
+                        act,
+                        boost::asio::placeholders::error)));
     }
-}
-
-
-void addsock(curl_socket_t s, CURL *easy, int action, Context *c)
-{
-	TRACE("addsock");
-
-	int *fdp = (int *)calloc(sizeof(int), 1); /* fdp is used to store current action */
-
-    setsock(fdp, s, easy, action, c);
-    curl_multi_assign(c->multi_, s, fdp);
+    else if ( act == CURL_POLL_REMOVE )
+    {
+        tcp_socket->cancel();
+    }
 }
 
 /* CURLMOPT_SOCKETFUNCTION */
 int sock_cb(CURL *e, curl_socket_t s, int what, Context* c, int* actionp)
 {
-	TRACE("sock_cb");
+    TRACE("sock_cb");
 
-    if ( what == CURL_POLL_REMOVE )
-    {
-        remsock(actionp, c);
-    }
-    else
-    {
-        if ( !actionp )
-        {
-            addsock(s, e, what, c);
-        }
-        else
-        {
-            setsock(actionp, s, e, what, c);
-        }
-    }
+    setsock(s, e, what, c);
     return 0;
 }
 
@@ -318,6 +302,7 @@ AsyncHTTPRequester::AsyncHTTPRequester(Context& c, bool const selfmanage)
 , easy_( curl_easy_init() )
 , c_( c )
 , headers_( curl_slist_append(0, "Content-type: text/xml") )
+, reschedule_( false )
 , selfmanage_( selfmanage )
 {
     if ( !easy_ || !headers_ ) throw std::runtime_error("liburl initialization error");
@@ -346,7 +331,11 @@ void AsyncHTTPRequester::fetch(std::string const& url, boost::function< void(CUR
     curl_easy_setopt(easy_, CURLOPT_PRIVATE, this);
     curl_easy_setopt(easy_, CURLOPT_LOW_SPEED_TIME, 3L);
     curl_easy_setopt(easy_, CURLOPT_LOW_SPEED_LIMIT, 10L);
-    curl_easy_setopt(easy_, CURLOPT_SSL_VERIFYPEER, c_.verify_ssl_peer_ ? 1L : 0L);
+    if ( !c_.verify_ssl_peer_ )
+    {
+        curl_easy_setopt(easy_, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(easy_, CURLOPT_SSL_VERIFYHOST, 0L);
+    }
 
     if ( !postdata.empty() )
     {

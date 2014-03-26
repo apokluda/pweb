@@ -17,8 +17,10 @@
  *  along with pWeb.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ASIOHELPER_HPP_
-#define ASIOHELPER_HPP_
+
+
+#ifndef ASYNCHTTPREQUESTER_HPP_
+#define ASYNCHTTPREQUESTER_HPP_
 
 #include "stdhdr.hpp"
 
@@ -69,10 +71,10 @@ namespace curl
         friend class AsyncHTTPRequester;
         friend curl_socket_t opensocket(Context*, curlsocktype, struct curl_sockaddr*);
         friend int closesocket(Context*c, curl_socket_t);
-        friend void setsock(int*, curl_socket_t, CURL*, int, Context*);
-        friend void addsock(curl_socket_t, CURL*, int, Context*);
+        friend void setsock(curl_socket_t, CURL*, int, Context*);
+        friend void setsock(boost::asio::ip::tcp::socket*, CURL*, int, Context*);
         friend void timer_cb(const boost::system::error_code&, Context*);
-        friend void event_cb(Context*, boost::asio::ip::tcp::socket*, int);
+        friend void event_cb(Context*, CURL*, boost::asio::ip::tcp::socket*, int, boost::system::error_code const&);
         friend void check_multi_info(Context*);
         friend int multi_timer_cb(CURLM*, long, Context*);
         friend void context_multi_add_handle(Context&, CURL*);
@@ -103,6 +105,8 @@ namespace curl
 
     class AsyncHTTPRequester : public boost::enable_shared_from_this< AsyncHTTPRequester >
     {
+        friend void event_cb(Context*, CURL*, boost::asio::ip::tcp::socket*, int, boost::system::error_code const&);
+        friend void setsock(boost::asio::ip::tcp::socket*, CURL*, int, Context*);
         friend size_t write_cb(char*, size_t, size_t, AsyncHTTPRequester*);
         friend void check_multi_info(Context*);
 
@@ -135,6 +139,7 @@ namespace curl
         CURL* easy_;
         curl_slist* headers_;
         Context& c_;
+        bool reschedule_;
         bool const selfmanage_;
     };
 }

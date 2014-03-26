@@ -42,6 +42,7 @@ namespace impl
         }
 
         std::string name;
+        std::string description;
         std::string lastfailure_msg;
         //boost::posix_time::ptime const discovered_ts;
         //boost::posix_time::ptime lastsuccess_ts;
@@ -79,6 +80,11 @@ public:
         strand_.dispatch( boost::bind( &database::update_record_, this, hostname, result, msg ) );
     }
 
+    void set_description( const std::string& hostname, const std::string& description )
+    {
+        strand_.dispatch( boost::bind( &database::set_description_, this, hostname, description ));
+    }
+
     void serialize_as_python( boost::function<void (streambuf_ptr)> callback)
     {
         // In the curret implementation, the Python and JSON representations are the same
@@ -98,6 +104,8 @@ private:
     }
 
     void update_record_( const std::string& hostname, const query_result result, const std::string& msg);
+
+    void set_description_( const std::string& hostname, const std::string& description );
 
     void serialize_as_json_( boost::function<void (streambuf_ptr)> callback ) const;
 
@@ -129,6 +137,11 @@ public:
     void query_result( const std::string& hostname, query_result result, const std::string& msg = std::string())
     {
         database_.update_record( hostname, result, msg );
+    }
+
+    void set_description( const std::string& hostname, const std::string& description )
+    {
+        database_.set_description( hostname, description );
     }
 
 private:

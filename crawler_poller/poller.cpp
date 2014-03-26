@@ -195,7 +195,21 @@ void poller::handle_poll( CURLcode const code, std::string const& content )
 		log4.infoStream() << "Home Agent '" << hostname_ << "' returned list of " << homeagents.size() << " neighbours and " << devices.size() << " updated devices";
 
 		typedef parser::getall::halist_t::const_iterator hiter_t;
-		for ( hiter_t i = homeagents.begin(); i != homeagents.end(); ++i ) signals::home_agent_discovered( i->hostname );
+		for ( hiter_t i = homeagents.begin(); i != homeagents.end(); ++i )
+	    {
+		    signals::home_agent_discovered( i->hostname );
+		    // This is a bit of a hack and I don't really like it. The
+		    // instrumentation interface should really be just for getting
+		    // information about the state of the poller, but the other guys
+		    // want to use it for the registration interface and other things
+		    // (so that these things can find out which Home Agents are up).
+		    // And, they want these things to be able to get the Home Agent
+		    // description, so we have to pass it through to the instrumentation
+		    // "module" here. Ideally, there should be another component that
+		    // uses the poller instrumentation interface as one of its sources
+		    // to make an API that the registration system can use.
+		    pollerctx_.instrumenter.set_description( i->hostname, i->description );
+	    }
 
 		time_t newtimestamp = 0;
 		if ( !devices.empty() )
