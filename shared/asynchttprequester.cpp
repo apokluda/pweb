@@ -145,10 +145,10 @@ void event_cb(Context* c, CURL* e, boost::asio::ip::tcp::socket * tcp_socket, in
     {
         c->timer_.cancel();
     }
-    else if ( !ec && r->reschedule_ )
-    {
-        setsock(tcp_socket, e, action, c);
-    }
+    //else if ( !ec && r->reschedule_ )
+    //{
+    //    setsock(tcp_socket, e, action, c);
+    //}
 }
 
 /* Called by asio when our timeout expires */
